@@ -32,7 +32,7 @@ const env = {
   appSlug: "obi-ism-reader",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
+  logoUrl: "/manus-storage/obi-ism-icon_aa45fc21.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -86,6 +86,12 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    [
+      "expo-secure-store",
+      {
+        configureAndroidBackup: true,
+      },
+    ],
     [
       "expo-audio",
       {
