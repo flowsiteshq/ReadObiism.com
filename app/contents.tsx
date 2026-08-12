@@ -1,20 +1,31 @@
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 import { Stack, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BOOK_SUBTITLE, chapters } from "@/lib/book-data";
+
+const COVER = require("../assets/images/obi-ism-cover-000.jpg");
 
 export default function ContentsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>OBI-ISM</Text>
-          <Text style={styles.headerTitle}>Contents</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
+            <Text style={styles.backText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerMark}>CONTENTS</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.headerIntro}>
+          <Image source={COVER} contentFit="cover" style={styles.coverThumb} />
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>THE EDITION</Text>
+            <Text style={styles.headerTitle}>A deliberate path through character.</Text>
+            <Text style={styles.headerBody}>{BOOK_SUBTITLE}</Text>
+          </View>
         </View>
       </View>
 
@@ -22,12 +33,7 @@ export default function ContentsScreen() {
         data={chapters}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <View style={styles.intro}>
-            <Text style={styles.introTitle}>{BOOK_SUBTITLE}</Text>
-            <Text style={styles.introBody}>Select a section to begin or continue reading.</Text>
-          </View>
-        }
+        ListHeaderComponent={<Text style={styles.listLabel}>AVAILABLE SECTIONS</Text>}
         renderItem={({ item, index }) => (
           <TouchableOpacity
             accessibilityRole="button"
@@ -41,31 +47,37 @@ export default function ContentsScreen() {
               <Text style={styles.chapterTitle}>{item.title}</Text>
               <Text style={styles.chapterSummary}>{item.summary}</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
+            <Text style={styles.arrow}>→</Text>
           </TouchableOpacity>
         )}
+        ListFooterComponent={<Text style={styles.footer}>More sections will appear here after the approved manuscript is integrated.</Text>}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F7F3E8" },
-  header: { alignItems: "center", flexDirection: "row", paddingHorizontal: 20, paddingVertical: 18 },
+  safeArea: { backgroundColor: "#F6F1E5", flex: 1 },
+  header: { backgroundColor: "#062E26", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 9 },
+  headerTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   backButton: { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
-  backText: { color: "#073E32", fontSize: 38, lineHeight: 38 },
-  headerCopy: { marginLeft: 12 },
-  eyebrow: { color: "#B58B38", fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
-  headerTitle: { color: "#15221E", fontSize: 22, fontWeight: "700", marginTop: 2 },
-  list: { paddingBottom: 40 },
-  intro: { borderBottomColor: "#D9D6CC", borderBottomWidth: StyleSheet.hairlineWidth, marginHorizontal: 24, paddingBottom: 22, paddingTop: 8 },
-  introTitle: { color: "#073E32", fontSize: 22, fontWeight: "700", lineHeight: 28 },
-  introBody: { color: "#607168", fontSize: 15, lineHeight: 22, marginTop: 8 },
-  chapterRow: { alignItems: "center", borderBottomColor: "#DDD8CB", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 14, marginHorizontal: 24, paddingVertical: 22 },
-  chapterNumber: { color: "#B58B38", fontSize: 13, fontWeight: "800", letterSpacing: 1, width: 26 },
+  backText: { color: "#FFFDF6", fontSize: 20 },
+  headerMark: { color: "#C6A44A", fontSize: 10, fontWeight: "900", letterSpacing: 1.4 },
+  headerSpacer: { width: 40 },
+  headerIntro: { alignItems: "center", flexDirection: "row", gap: 18, marginTop: 17 },
+  coverThumb: { borderColor: "#C6A44A", borderWidth: 1, height: 98, width: 66 },
+  headerCopy: { flex: 1 },
+  eyebrow: { color: "#C6A44A", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  headerTitle: { color: "#FFFDF6", fontFamily: "serif", fontSize: 23, fontWeight: "700", lineHeight: 28, marginTop: 5 },
+  headerBody: { color: "#B6C7B9", fontSize: 11, lineHeight: 16, marginTop: 6 },
+  list: { paddingBottom: 30, paddingHorizontal: 24, paddingTop: 23 },
+  listLabel: { color: "#96752E", fontSize: 9, fontWeight: "900", letterSpacing: 1.2, marginBottom: 11 },
+  chapterRow: { alignItems: "flex-start", borderTopColor: "#D8CFB9", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 14, paddingVertical: 21 },
+  chapterNumber: { color: "#B18E3A", fontFamily: "serif", fontSize: 21, lineHeight: 25, width: 27 },
   chapterCopy: { flex: 1 },
-  chapterEyebrow: { color: "#6D766D", fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
-  chapterTitle: { color: "#15221E", fontSize: 18, fontWeight: "700", lineHeight: 24, marginTop: 4 },
-  chapterSummary: { color: "#607168", fontSize: 14, lineHeight: 20, marginTop: 5 },
-  chevron: { color: "#073E32", fontSize: 28 },
+  chapterEyebrow: { color: "#8B8B78", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  chapterTitle: { color: "#17372E", fontFamily: "serif", fontSize: 22, fontWeight: "700", lineHeight: 27, marginTop: 4 },
+  chapterSummary: { color: "#607067", fontSize: 13, lineHeight: 19, marginTop: 6 },
+  arrow: { color: "#17372E", fontSize: 19, marginTop: 17 },
+  footer: { borderTopColor: "#D8CFB9", borderTopWidth: StyleSheet.hairlineWidth, color: "#858575", fontSize: 11, fontStyle: "italic", lineHeight: 17, paddingTop: 18, textAlign: "center" },
 });

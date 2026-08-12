@@ -8,6 +8,12 @@
 
 The visual identity draws from the supplied cover. The primary brand color is **Foundation Green `#073E32`**, supported by **Warm Paper `#F7F3E8`**, **Ink `#15221E`**, **Heritage Gold `#B58B38`**, and **Soft Sage `#D7E4D9`**. Typography should privilege reading comfort: generous line height, high contrast, clear hierarchy, and no low-contrast decorative copy. Surfaces should be calm and editorial rather than imitating a physical bookshelf.
 
+## Premium visual refinement
+
+The redesign moves away from a generic dashboard composition and toward a **private reading salon**. The Library becomes a cinematic opening moment: the authentic supplied book cover sits inside a dark, full-bleed editorial panel, while the reader’s current chapter and progress are presented as a composed continuation card rather than a utilitarian list. The repeated deep green and warm-paper surfaces create contrast and depth; heritage gold is reserved for progress, rules, and quiet emphasis.
+
+The Reader will adopt a deliberately spacious, book-like column with a calm top bar, a refined section marker, drop-cap opening, discreet progress rail, and an intentionally minimal lower control dock. The contents and access areas will use the same bespoke vocabulary of framed cards, micro-labels, subtle dividers, rounded yet restrained surfaces, and clear action hierarchy. The authentic cover image will be used on the Library and Access surfaces, satisfying visual richness without relying on generic stock imagery.
+
 ## Screen list
 
 | Screen | Primary content | Key actions |
