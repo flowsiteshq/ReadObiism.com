@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -23,6 +24,7 @@ export default function LibraryScreen() {
 
   return (
     <ScreenContainer className="p-0" containerClassName="bg-background">
+      <StatusBar style="dark" backgroundColor="#F6F1E5" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.page}>
           <View style={styles.hero}>
@@ -106,7 +108,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   page: { alignSelf: "center", maxWidth: 600, width: "100%" },
-  hero: { backgroundColor: "#062E26", overflow: "hidden", paddingBottom: 24, paddingHorizontal: 24, paddingTop: 14 },
+  hero: { backgroundColor: "#062E26", overflow: "hidden", paddingBottom: 24, paddingHorizontal: 24, paddingTop: 31 },
   topLine: { backgroundColor: "#C6A44A", height: 3, left: 0, position: "absolute", right: 0, top: 0 },
   topbar: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", paddingTop: 12 },
   wordmark: { color: "#FFFDF6", fontSize: 20, fontWeight: "900", letterSpacing: 0.7 },

@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 
 import { ScreenContainer } from "@/components/screen-container";
 
@@ -8,6 +9,7 @@ const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
 export default function AccountScreen() {
   return (
     <ScreenContainer className="p-0" containerClassName="bg-background">
+      <StatusBar style="dark" backgroundColor="#F6F1E5" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.page}>
           <View style={styles.hero}>
@@ -62,7 +64,7 @@ function SecurityRow({ index, title, body }: { index: string; title: string; bod
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1 },
   page: { alignSelf: "center", maxWidth: 600, width: "100%" },
-  hero: { backgroundColor: "#062E26", minHeight: 270, overflow: "hidden", padding: 26 },
+  hero: { backgroundColor: "#062E26", minHeight: 270, overflow: "hidden", paddingBottom: 26, paddingHorizontal: 26, paddingTop: 42 },
   overline: { color: "#C6A44A", fontSize: 10, fontWeight: "900", letterSpacing: 1.15 },
   heroTitle: { color: "#FFFDF6", fontFamily: "serif", fontSize: 31, fontWeight: "700", lineHeight: 38, marginTop: 10, position: "relative" },
   heroBody: { color: "#B7C9B9", fontSize: 13, lineHeight: 20, marginTop: 12, maxWidth: "72%", position: "relative" },
