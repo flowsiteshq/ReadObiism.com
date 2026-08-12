@@ -1,5 +1,6 @@
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { Stack, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,6 +12,7 @@ export default function ContentsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="dark" backgroundColor="#F6F1E5" />
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
@@ -58,7 +60,7 @@ export default function ContentsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: "#F6F1E5", flex: 1 },
-  header: { backgroundColor: "#062E26", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 9 },
+  header: { backgroundColor: "#062E26", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 26 },
   headerTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   backButton: { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
   backText: { color: "#FFFDF6", fontSize: 20 },

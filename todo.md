@@ -16,3 +16,4 @@
 - [x] Redesign the visual system for a premium editorial book experience.
 - [x] Upgrade the Library, Reader, Contents, and Access interfaces with refined hierarchy, richer composition, and polished interactions.
 - [x] Validate the redesigned UI at mobile portrait dimensions and document the visual improvements.
+- [x] Add and verify a generous top safe-area buffer for system status indicators across primary screens.

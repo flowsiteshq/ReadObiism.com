@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ProtectedReader } from "@/components/protected-reader";
@@ -36,6 +37,8 @@ export default function ReaderScreen() {
     <ProtectedReader>
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <Stack.Screen options={{ headerShown: false }} />
+        <StatusBar style="dark" backgroundColor="#FBF8F0" />
+        <View style={styles.statusBuffer} />
         <View style={styles.topbar}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back to library" onPress={() => router.back()} style={styles.topButton}>
             <Text style={styles.topIcon}>←</Text>
@@ -101,6 +104,7 @@ export default function ReaderScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: "#FBF8F0", flex: 1 },
+  statusBuffer: { backgroundColor: "#FBF8F0", height: 14 },
   topbar: { alignItems: "center", backgroundColor: "#062E26", flexDirection: "row", height: 58, justifyContent: "space-between", paddingHorizontal: 12 },
   topButton: { alignItems: "center", height: 38, justifyContent: "center", width: 42 },
   topIcon: { color: "#FFFDF6", fontSize: 19 },
