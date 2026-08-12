@@ -1,44 +1,90 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 
 import { ScreenContainer } from "@/components/screen-container";
 
+const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
+
 export default function AccountScreen() {
   return (
-    <ScreenContainer className="p-6" containerClassName="bg-background">
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>READER ACCESS</Text>
-        <Text style={styles.title}>Your license</Text>
-        <Text style={styles.body}>This foundation keeps a clear record of the protections that will be connected to your verified account at launch.</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>ACCESS MODEL</Text>
-        <Text style={styles.cardTitle}>One account · one active device</Text>
-        <Text style={styles.cardBody}>A production release will verify your purchase through the relevant app store and bind secure access to a registered device.</Text>
-      </View>
-      <View style={styles.divider} />
-      <Text style={styles.sectionTitle}>Protection status</Text>
-      <Text style={styles.row}>Screen-capture deterrence while reading</Text>
-      <Text style={styles.row}>Read-only content; no export or sharing controls</Text>
-      <Text style={styles.row}>Account, password, and device controls pending release setup</Text>
-      <TouchableOpacity accessibilityRole="button" style={styles.supportButton}>
-        <Text style={styles.supportText}>Support for device changes</Text>
-      </TouchableOpacity>
+    <ScreenContainer className="p-0" containerClassName="bg-background">
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.page}>
+          <View style={styles.hero}>
+            <Text style={styles.overline}>PRIVATE READING LICENSE</Text>
+            <Text style={styles.heroTitle}>Your edition,{`\n`}protected by design.</Text>
+            <Text style={styles.heroBody}>OBI-ISM is a personal, read-only experience. Access controls will be connected to your verified account at launch.</Text>
+            <Image source={COVER} contentFit="cover" style={styles.coverGhost} />
+          </View>
+
+          <View style={styles.body}>
+            <View style={styles.licenseCard}>
+              <View style={styles.licenseCardHeader}>
+                <Text style={styles.cardKicker}>YOUR ACCESS MODEL</Text>
+                <Text style={styles.licenseSymbol}>◆</Text>
+              </View>
+              <Text style={styles.cardTitle}>One reader. One active device. One considered edition.</Text>
+              <Text style={styles.cardBody}>When the production entitlement service is connected, your purchase and reading access will be verified across iOS and Android.</Text>
+              <View style={styles.cardFooter}><Text style={styles.cardFooterText}>LICENSE SETUP IN PROGRESS</Text></View>
+            </View>
+
+            <Text style={styles.sectionLabel}>WHAT YOUR EDITION PROTECTS</Text>
+            <View style={styles.securityList}>
+              <SecurityRow index="01" title="Focused reading" body="Read-only presentation with no public export, share, or print flow." />
+              <SecurityRow index="02" title="Protected reader mode" body="Screen-capture deterrence is enabled while reading on supported devices." />
+              <SecurityRow index="03" title="Personal access" body="Account, password, purchase restore, and device controls are prepared for the production launch." />
+            </View>
+
+            <TouchableOpacity accessibilityRole="button" style={styles.supportButton}>
+              <Text style={styles.supportButtonText}>Request device-change support</Text>
+              <Text style={styles.supportButtonArrow}>→</Text>
+            </TouchableOpacity>
+            <Text style={styles.supportNote}>A controlled device-change route protects legitimate readers if a device is lost or replaced.</Text>
+          </View>
+        </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
+function SecurityRow({ index, title, body }: { index: string; title: string; body: string }) {
+  return (
+    <View style={styles.securityRow}>
+      <Text style={styles.securityIndex}>{index}</Text>
+      <View style={styles.securityCopy}>
+        <Text style={styles.securityTitle}>{title}</Text>
+        <Text style={styles.securityBody}>{body}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: { marginBottom: 26, marginTop: 8 },
-  eyebrow: { color: "#B58B38", fontSize: 11, fontWeight: "800", letterSpacing: 1.1 },
-  title: { color: "#15221E", fontSize: 31, fontWeight: "800", letterSpacing: -0.5, marginTop: 7 },
-  body: { color: "#607168", fontSize: 15, lineHeight: 22, marginTop: 10 },
-  card: { backgroundColor: "#073E32", borderRadius: 20, padding: 22 },
-  cardLabel: { color: "#D7E4D9", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
-  cardTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "800", lineHeight: 28, marginTop: 8 },
-  cardBody: { color: "#D7E4D9", fontSize: 14, lineHeight: 21, marginTop: 8 },
-  divider: { backgroundColor: "#D9DED8", height: StyleSheet.hairlineWidth, marginVertical: 28 },
-  sectionTitle: { color: "#15221E", fontSize: 17, fontWeight: "800", marginBottom: 10 },
-  row: { borderBottomColor: "#E1E5E1", borderBottomWidth: StyleSheet.hairlineWidth, color: "#45554C", fontSize: 14, lineHeight: 20, paddingVertical: 13 },
-  supportButton: { alignSelf: "flex-start", borderColor: "#073E32", borderRadius: 16, borderWidth: 1, marginTop: 26, paddingHorizontal: 16, paddingVertical: 12 },
-  supportText: { color: "#073E32", fontSize: 14, fontWeight: "800" },
+  scroll: { flexGrow: 1 },
+  page: { alignSelf: "center", maxWidth: 600, width: "100%" },
+  hero: { backgroundColor: "#062E26", minHeight: 270, overflow: "hidden", padding: 26 },
+  overline: { color: "#C6A44A", fontSize: 10, fontWeight: "900", letterSpacing: 1.15 },
+  heroTitle: { color: "#FFFDF6", fontFamily: "serif", fontSize: 31, fontWeight: "700", lineHeight: 38, marginTop: 10, position: "relative" },
+  heroBody: { color: "#B7C9B9", fontSize: 13, lineHeight: 20, marginTop: 12, maxWidth: "72%", position: "relative" },
+  coverGhost: { bottom: -48, height: 235, opacity: 0.37, position: "absolute", right: -21, transform: [{ rotate: "-8deg" }], width: 158 },
+  body: { backgroundColor: "#F6F1E5", paddingBottom: 40, paddingHorizontal: 24, paddingTop: 27 },
+  licenseCard: { backgroundColor: "#FFFDF8", borderColor: "#E0D5BC", borderWidth: 1, padding: 22 },
+  licenseCardHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  cardKicker: { color: "#98752E", fontSize: 9, fontWeight: "900", letterSpacing: 1.05 },
+  licenseSymbol: { color: "#B79238", fontSize: 17 },
+  cardTitle: { color: "#17372E", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 30, marginTop: 12 },
+  cardBody: { color: "#5B6A61", fontSize: 13, lineHeight: 20, marginTop: 10 },
+  cardFooter: { borderTopColor: "#E7DFCA", borderTopWidth: StyleSheet.hairlineWidth, marginTop: 18, paddingTop: 12 },
+  cardFooterText: { color: "#7E897F", fontSize: 9, fontWeight: "900", letterSpacing: 0.75 },
+  sectionLabel: { color: "#96752E", fontSize: 9, fontWeight: "900", letterSpacing: 1.1, marginBottom: 10, marginTop: 29 },
+  securityList: { borderTopColor: "#D9CFB9", borderTopWidth: StyleSheet.hairlineWidth },
+  securityRow: { borderBottomColor: "#D9CFB9", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 14, paddingVertical: 18 },
+  securityIndex: { color: "#B18E3A", fontFamily: "serif", fontSize: 17, width: 24 },
+  securityCopy: { flex: 1 },
+  securityTitle: { color: "#17372E", fontSize: 15, fontWeight: "800" },
+  securityBody: { color: "#637269", fontSize: 12, lineHeight: 18, marginTop: 4 },
+  supportButton: { alignItems: "center", backgroundColor: "#17372E", flexDirection: "row", justifyContent: "space-between", marginTop: 27, paddingHorizontal: 18, paddingVertical: 15 },
+  supportButtonText: { color: "#FFFDF6", fontSize: 13, fontWeight: "900" },
+  supportButtonArrow: { color: "#C6A44A", fontSize: 19 },
+  supportNote: { color: "#7D857D", fontSize: 10, fontStyle: "italic", lineHeight: 15, marginTop: 11, textAlign: "center" },
 });
