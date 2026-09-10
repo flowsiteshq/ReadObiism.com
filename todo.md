@@ -42,3 +42,6 @@
 - [x] Replace the current web companion hero with the minimal full-screen Nigerian-landmark video welcome experience.
 - [x] Match the web entry structure to the requested reference: a simple identity lockup, menu, short statement, and two actions.
 - [x] Validate that the corrected website visibly differs from the previous desktop book-promotion layout.
+- [x] Regenerate the Nigerian-landmark cinematic visual treatment for a true full-screen moving video experience.
+- [x] Replace the web landing layout with a video-first full-bleed composition that does not rely on a static hero image.
+- [x] Verify visible continuous motion and full-screen coverage on desktop and mobile.
