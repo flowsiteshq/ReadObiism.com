@@ -28,3 +28,7 @@
 - [x] Add practical reading features: chapter search, visual progress, reading goals, and a private insights dashboard.
 - [x] Rebuild the companion website as a more dynamic, feature-rich publishing experience.
 - [x] Validate the redesigned experience on native mobile and responsive web layouts.
+- [x] Define the clean Nigerian-landmark video backdrop, motion behavior, and reference-led ebook-app composition.
+- [x] Create a cinematic Nigerian-landmark video asset with a poster fallback for the OBI-ISM landing screen.
+- [x] Integrate the video-backed landing screen with responsive controls and poster fallback behavior.
+- [x] Validate the cinematic screen across desktop and mobile breakpoints.
