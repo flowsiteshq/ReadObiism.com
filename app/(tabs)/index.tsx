@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
+import { VideoView, useVideoPlayer } from "expo-video";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BOOK_AUTHOR, BOOK_SUBTITLE, BOOK_TITLE, chapters } from "@/lib/book-data";
@@ -10,6 +11,8 @@ import { haptic } from "@/lib/haptics";
 import { getReadingPosition, getReadingPulse, type ReadingPosition, type ReadingPulse } from "@/lib/reader-storage";
 
 const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
+const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/uXVqeNlDbhxxPulw.mp4";
+const LANDMARK_POSTER = "/manus-storage/obi-ism-nigeria-landmarks-poster_bd8477a0.jpg";
 
 const PRINCIPLES = [
   { label: "PRUDENCE", color: "#DFFF4F", text: "Use resources with intention." },
@@ -20,6 +23,13 @@ const PRINCIPLES = [
 export default function LibraryScreen() {
   const [position, setPosition] = useState<ReadingPosition | null>(null);
   const [pulse, setPulse] = useState<ReadingPulse>({ weeklyGoal: 3, sectionsThisWeek: 0, activeDays: 0, bookmarks: 0 });
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(true);
+  const player = useVideoPlayer(LANDMARK_VIDEO, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.play();
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +46,11 @@ export default function LibraryScreen() {
     haptic.light();
     router.push(`/reader?chapterId=${activeChapter.id}` as never);
   };
+  const toggleVideo = () => {
+    haptic.selection();
+    if (videoPlaying) player.pause(); else player.play();
+    setVideoPlaying((current) => !current);
+  };
 
   return (
     <ScreenContainer className="p-0" containerClassName="bg-background">
@@ -48,6 +63,14 @@ export default function LibraryScreen() {
             <View style={styles.topbar}>
               <View><Text style={styles.wordmark}>OBI–ISM</Text><Text style={styles.wordmarkSub}>CHARACTER IS PUBLIC ARCHITECTURE</Text></View>
               <View style={styles.liveEdition}><View style={styles.liveDot} /><Text style={styles.liveEditionText}>FULL EDITION</Text></View>
+            </View>
+
+            <View style={styles.landmarkStage}>
+              {!videoReady && <Image source={{ uri: LANDMARK_POSTER }} contentFit="cover" transition={250} style={styles.landmarkPoster} accessibilityLabel="Nigerian landmarks at blue hour" />}
+              <VideoView style={styles.landmarkVideo} player={player} contentFit="cover" nativeControls={false} playsInline onFirstFrameRender={() => setVideoReady(true)} />
+              <View style={styles.landmarkShade} />
+              <View style={styles.landmarkCopy}><Text style={styles.landmarkKicker}>NIGERIA IN VIEW</Text><Text style={styles.landmarkTitle}>A shared future,{`\n`}built in character.</Text><Text style={styles.landmarkCaption}>LAGOS · ABUJA · A LIVING PHILOSOPHY</Text></View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={videoPlaying ? "Pause landmark video" : "Play landmark video"} onPress={toggleVideo} style={styles.landmarkControl}><Text style={styles.landmarkControlText}>{videoPlaying ? "PAUSE" : "PLAY"}</Text><Text style={styles.landmarkControlIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text></TouchableOpacity>
             </View>
 
             <View style={styles.heroMain}>
@@ -107,6 +130,17 @@ const styles = StyleSheet.create({
   liveEdition: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.11)", borderColor: "rgba(255,255,255,0.3)", borderRadius: 20, borderWidth: 1, flexDirection: "row", paddingHorizontal: 9, paddingVertical: 7 },
   liveDot: { backgroundColor: "#DFFF4F", borderRadius: 4, height: 7, marginRight: 6, width: 7 },
   liveEditionText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  landmarkStage: { backgroundColor: "#0E123E", height: 178, marginTop: 20, overflow: "hidden", position: "relative" },
+  landmarkVideo: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  landmarkPoster: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  landmarkShade: { backgroundColor: "rgba(10,13,46,0.20)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  landmarkCopy: { bottom: 16, left: 16, position: "absolute" },
+  landmarkKicker: { color: "#DFFF4F", fontSize: 8, fontWeight: "900", letterSpacing: 1.05 },
+  landmarkTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 23, fontWeight: "700", lineHeight: 27, marginTop: 4 },
+  landmarkCaption: { color: "#D5D9FF", fontSize: 7, fontWeight: "900", letterSpacing: 0.65, marginTop: 8 },
+  landmarkControl: { alignItems: "center", backgroundColor: "rgba(21,26,82,0.75)", borderColor: "rgba(255,255,255,0.55)", borderWidth: 1, flexDirection: "row", gap: 6, paddingHorizontal: 8, paddingVertical: 7, position: "absolute", right: 12, top: 12 },
+  landmarkControlText: { color: "#FFFFFF", fontSize: 7, fontWeight: "900", letterSpacing: 0.5 },
+  landmarkControlIcon: { color: "#DFFF4F", fontSize: 11 },
   heroMain: { alignItems: "center", flexDirection: "row", gap: 18, marginTop: 30 },
   coverOrbit: { alignItems: "center", borderColor: "#DFFF4F", borderRadius: 92, borderWidth: 1, height: 185, justifyContent: "center", width: 145 },
   coverFrame: { backgroundColor: "#DFFF4F", padding: 3, transform: [{ rotate: "-4deg" }] },
