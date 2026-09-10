@@ -76,7 +76,7 @@ export default function LibraryScreen() {
               <Text style={styles.cardTitle}>{activeChapter.title}</Text>
               <Text style={styles.cardBody}>{activeChapter.summary}</Text>
               <View style={styles.cardFooter}>
-                <Text style={styles.cardMeta}>{position ? "Reading position saved" : "Ready whenever you are"}</Text>
+              <Text style={styles.cardMeta}>{position ? "Reading position saved" : "The complete edition is ready"}</Text>
                 <TouchableOpacity accessibilityRole="button" onPress={openReader} style={styles.readButton}>
                   <Text style={styles.readButtonText}>{position ? "Continue reading" : "Open book"}</Text>
                   <Text style={styles.readArrow}>→</Text>
@@ -88,8 +88,8 @@ export default function LibraryScreen() {
               <View style={styles.contentsLine} />
               <View style={styles.contentsTextBlock}>
                 <Text style={styles.contentsKicker}>EXPLORE THE EDITION</Text>
-                <Text style={styles.contentsTitle}>Contents & reading markers</Text>
-                <Text style={styles.contentsBody}>Move deliberately between the foundations and the philosophy.</Text>
+                <Text style={styles.contentsTitle}>Full contents & reading markers</Text>
+                <Text style={styles.contentsBody}>{chapters.length} curated sections across four parts, appendices, and back matter.</Text>
               </View>
               <View style={styles.contentsCircle}><Text style={styles.contentsArrow}>→</Text></View>
             </TouchableOpacity>

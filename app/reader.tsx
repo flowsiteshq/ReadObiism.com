@@ -20,6 +20,7 @@ export default function ReaderScreen() {
   const previousChapter = chapters[chapterIndex - 1];
   const fontSize = FONT_SIZES[fontSizeIndex];
   const opening = chapter.paragraphs[0];
+  const sequenceLabel = chapter.kind === "chapter" ? chapter.label : `${chapter.label} · ${chapter.kind.toUpperCase()}`;
 
   useEffect(() => {
     void saveReadingPosition(chapter.id);
@@ -55,13 +56,13 @@ export default function ReaderScreen() {
           <View style={styles.column}>
             <View style={styles.progressBlock}>
               <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>SECTION {String(chapterIndex + 1).padStart(2, "0")}</Text>
+                <Text style={styles.progressLabel}>{sequenceLabel}</Text>
                 <Text style={styles.protectedLabel}>PROTECTED READING</Text>
               </View>
               <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${((chapterIndex + 1) / chapters.length) * 100}%` }]} /></View>
             </View>
 
-            <Text style={styles.eyebrow}>{chapter.eyebrow}</Text>
+            <Text style={styles.eyebrow}>{chapter.label}</Text>
             <Text style={styles.title}>{chapter.title}</Text>
             <Text style={styles.deck}>{chapter.summary}</Text>
             <View style={styles.goldRule} />
@@ -74,7 +75,7 @@ export default function ReaderScreen() {
             ))}
 
             <View style={styles.readerEnd}>
-              <Text style={styles.readerEndText}>END OF THIS SECTION</Text>
+              <Text style={styles.readerEndText}>END OF {chapter.label}</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel={bookmarked ? "Remove bookmark" : "Save a bookmark"} onPress={() => void handleBookmark()} style={styles.bookmarkButton}>
                 <Text style={styles.bookmarkIcon}>{bookmarked ? "◆" : "◇"}</Text>
                 <Text style={styles.bookmarkText}>{bookmarked ? "BOOKMARKED" : "SAVE MARKER"}</Text>
