@@ -1,27 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { VideoView, useVideoPlayer } from "expo-video";
 
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/uXVqeNlDbhxxPulw.mp4";
-const LANDMARK_POSTER = "/manus-storage/obi-ism-nigeria-landmarks-poster_bd8477a0.jpg";
+const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/BaHpjaYMSfAHjKqb.mp4";
 
 export default function ObiIsmWebsite() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const desktop = width >= 900;
-  const [videoReady, setVideoReady] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const player = useVideoPlayer(LANDMARK_VIDEO, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = true;
-    videoPlayer.play();
-  });
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const toggleMotion = () => {
-    if (videoPlaying) player.pause(); else player.play();
+    const video = videoRef.current;
+    if (!video) return;
+    if (videoPlaying) video.pause(); else void video.play();
     setVideoPlaying((current) => !current);
   };
 
@@ -29,10 +23,17 @@ export default function ObiIsmWebsite() {
   const explore = () => router.push("/(tabs)/explore" as never);
 
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, { height }]}>
       <StatusBar style="light" backgroundColor="rgba(6,10,33,0.15)" />
-      {!videoReady && <Image source={{ uri: LANDMARK_POSTER }} contentFit="cover" transition={250} style={styles.backgroundMedia} accessibilityLabel="Nigerian landmarks at blue hour" />}
-      <VideoView style={styles.backgroundMedia} player={player} contentFit="cover" nativeControls={false} playsInline onFirstFrameRender={() => setVideoReady(true)} />
+      <video
+        ref={videoRef}
+        src={LANDMARK_VIDEO}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ bottom: 0, height: "100%", left: 0, objectFit: "cover", position: "absolute", right: 0, top: 0, width: "100%" }}
+      />
       <View style={styles.atmosphere} />
       <View style={styles.bottomGradient} />
 
@@ -99,8 +100,8 @@ function MenuItem({ index, label, onPress }: { index: string; label: string; onP
 const styles = StyleSheet.create({
   page: { backgroundColor: "#0A1038", flex: 1, minHeight: 720, overflow: "hidden", position: "relative" },
   backgroundMedia: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
-  atmosphere: { backgroundColor: "rgba(6, 10, 40, 0.18)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
-  bottomGradient: { backgroundColor: "rgba(7, 13, 56, 0.46)", bottom: 0, height: "63%", left: 0, position: "absolute", right: 0 },
+  atmosphere: { backgroundColor: "rgba(6, 10, 40, 0.1)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  bottomGradient: { backgroundColor: "rgba(7, 13, 56, 0.38)", bottom: 0, height: "63%", left: 0, position: "absolute", right: 0 },
   shell: { flex: 1, justifyContent: "space-between", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 31 },
   shellDesktop: { alignSelf: "center", maxWidth: 1240, width: "100%" },
   header: { alignItems: "flex-start", borderBottomColor: "rgba(255,255,255,0.24)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingBottom: 19 },

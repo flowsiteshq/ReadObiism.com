@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,15 +10,13 @@ import { chapters } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
 import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
 
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/uXVqeNlDbhxxPulw.mp4";
-const LANDMARK_POSTER = "/manus-storage/obi-ism-nigeria-landmarks-poster_bd8477a0.jpg";
+const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/BaHpjaYMSfAHjKqb.mp4";
 
 type MenuDestination = "/reader" | "/contents" | "/(tabs)/explore" | "/(tabs)/account";
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const [position, setPosition] = useState<ReadingPosition | null>(null);
-  const [videoReady, setVideoReady] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const player = useVideoPlayer(LANDMARK_VIDEO, (videoPlayer) => {
@@ -56,8 +53,7 @@ export default function LibraryScreen() {
     <ScreenContainer edges={["left", "right", "bottom"]} className="p-0" containerClassName="bg-background">
       <StatusBar style="light" backgroundColor="rgba(8,12,37,0.18)" translucent />
       <View style={styles.stage}>
-        {!videoReady && <Image source={{ uri: LANDMARK_POSTER }} contentFit="cover" transition={250} style={styles.backgroundMedia} accessibilityLabel="Nigerian landmarks at blue hour" />}
-        <VideoView style={styles.backgroundMedia} player={player} contentFit="cover" nativeControls={false} playsInline onFirstFrameRender={() => setVideoReady(true)} />
+        <VideoView style={styles.backgroundMedia} player={player} contentFit="cover" nativeControls={false} playsInline />
         <View style={styles.videoVeil} />
         <View style={styles.bottomVeil} />
 
@@ -118,8 +114,8 @@ function MenuItem({ number, label, onPress }: { number: string; label: string; o
 const styles = StyleSheet.create({
   stage: { backgroundColor: "#0B1035", flex: 1, minHeight: 650, overflow: "hidden", position: "relative" },
   backgroundMedia: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
-  videoVeil: { backgroundColor: "rgba(3, 8, 28, 0.22)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
-  bottomVeil: { backgroundColor: "rgba(7, 13, 52, 0.46)", bottom: 0, height: "58%", left: 0, position: "absolute", right: 0 },
+  videoVeil: { backgroundColor: "rgba(3, 8, 28, 0.12)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  bottomVeil: { backgroundColor: "rgba(7, 13, 52, 0.38)", bottom: 0, height: "58%", left: 0, position: "absolute", right: 0 },
   header: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
   wordmark: { color: "#FFFFFF", fontSize: 27, fontWeight: "900", letterSpacing: 0.5 },
   descriptor: { color: "#D6DAFE", fontSize: 8, fontWeight: "900", letterSpacing: 1, marginTop: 3 },
