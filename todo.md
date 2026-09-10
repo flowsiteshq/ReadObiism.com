@@ -39,3 +39,6 @@
 - [x] Add a simple OBI-ISM identity lockup, menu affordance, and two high-clarity entry actions over the cinematic background.
 - [x] Preserve practical reader, explore, and account pathways behind the simplified welcome screen.
 - [x] Validate the welcome-screen layout at iPhone-style portrait dimensions and test its actions.
+- [x] Replace the current web companion hero with the minimal full-screen Nigerian-landmark video welcome experience.
+- [x] Match the web entry structure to the requested reference: a simple identity lockup, menu, short statement, and two actions.
+- [x] Validate that the corrected website visibly differs from the previous desktop book-promotion layout.
