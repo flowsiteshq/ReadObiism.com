@@ -2,27 +2,28 @@
 
 ## Product intent
 
-**OBI-ISM** is a focused, premium reading experience for *Building a Just Society Through Character: A Philosophy of Responsible Living*. The product should feel quiet, credible, and deliberate, with the reading experience prioritized over social features or visual noise. The initial release supports **portrait iOS and Android devices** and uses a one-handed navigation model.
+**OBI-ISM** is a premium reading ecosystem for *Building a Just Society Through Character: A Philosophy of Responsible Living*. It should feel purposeful, alive, and unmistakably authored—not like a generic e-reader. The experience must combine focused reading with useful private discovery tools: a reading path, chapter search, principles explorer, progress momentum, bookmarks, and a personal edition dashboard. The initial release supports **portrait iOS and Android devices** and uses a one-handed navigation model.
 
 ## Brand and visual direction
 
-The visual identity draws from the supplied cover. The primary brand color is **Foundation Green `#073E32`**, supported by **Warm Paper `#F7F3E8`**, **Ink `#15221E`**, **Heritage Gold `#B58B38`**, and **Soft Sage `#D7E4D9`**. Typography should privilege reading comfort: generous line height, high contrast, clear hierarchy, and no low-contrast decorative copy. Surfaces should be calm and editorial rather than imitating a physical bookshelf.
+The new direction is **Civic Energy**. It extends the supplied cover into a contemporary public-minded palette: **Indigo Ink `#151A52`**, **Signal Coral `#FF5B55`**, **Civic Lime `#DFFF4F`**, **Electric Sky `#6CD9FF`**, **Warm Paper `#FFF6E7`**, and **Charcoal `#1C1C26`**. Indigo carries authority, coral carries movement and action, lime marks progress and discovery, and sky adds optimism. The cover remains the authentic visual anchor, while large color fields, bold editorial type, circular “signal” motifs, and modular cards make the product feel more memorable.
 
 ## Premium visual refinement
 
-The redesign moves away from a generic dashboard composition and toward a **private reading salon**. The Library becomes a cinematic opening moment: the authentic supplied book cover sits inside a dark, full-bleed editorial panel, while the reader’s current chapter and progress are presented as a composed continuation card rather than a utilitarian list. The repeated deep green and warm-paper surfaces create contrast and depth; heritage gold is reserved for progress, rules, and quiet emphasis.
+The redesign moves away from a private reading salon toward an **active civic reading studio**. The Library is a visual command center: a high-color cover stage, a live reading pulse, a weekly progress signal, and a “principle of the day.” The explore area provides search, sections, bookmarks, and a practical four-principle compass. Visual movement comes from restrained color shifts, layered circular signals, strong progress shapes, and tactile button feedback rather than gratuitous animation.
 
-The Reader will adopt a deliberately spacious, book-like column with a calm top bar, a refined section marker, drop-cap opening, discreet progress rail, and an intentionally minimal lower control dock. The contents and access areas will use the same bespoke vocabulary of framed cards, micro-labels, subtle dividers, rounded yet restrained surfaces, and clear action hierarchy. The authentic cover image will be used on the Library and Access surfaces, satisfying visual richness without relying on generic stock imagery.
+The Reader retains a spacious, legible reading column but adds a richer utility layer: a high-contrast chapter signal, visual completion ring, section path indicator, quick bookmark action, font-size control, and next-step prompt. The contents, Explore, and My Edition areas use color-blocked modules, badge-like milestones, magnetic headline typography, and clear action hierarchy. All content remains read-only; reader intelligence stays private to the device and never creates a public sharing or annotation flow.
 
 ## Screen list
 
 | Screen | Primary content | Key actions |
 |---|---|---|
 | Welcome and access | Cover, book subtitle, value statement, purchase/access status | Continue to library; begin supported purchase path; restore an eligible purchase |
-| Library | Single licensed OBI-ISM book, download/access state, last-read position | Open book; view license status; restore purchase |
+| Library | Book stage, live reading position, completion signal, reading goal, principle prompt | Continue reading; set reading goal; open a principle or section |
+| Explore | Full-text chapter search, bookmarks, part map, principle compass | Search a chapter; resume bookmark; jump to a section |
 | Contents | Structured parts, chapters, current chapter indicator, progress | Jump to a chapter |
-| Reader | Full chapter text, chapter title, reading progress, discreet protection notice | Next/previous chapter; open contents; adjust text size; add a local bookmark |
-| Reader controls | Text size, theme preference, security status, bookmark list | Adjust reading settings; resume a bookmark |
+| Reader | Full chapter text, chapter title, reading progress, chapter signal, discreet protection notice | Next/previous chapter; open contents; adjust text size; add a local bookmark |
+| My Edition | Personal access, reading rhythm, goal selection, bookmark count, security status | Set reading goal; resume a bookmark; request device support |
 | Account and device | Licensed account identity, password reset link, registered-device count, privacy/support links | Sign out; request device replacement through supported service |
 | Purchase / restore | Store-specific purchase state and restore affordance | Start native store purchase when configured; restore a prior purchase |
 
@@ -31,6 +32,8 @@ The Reader will adopt a deliberately spacious, book-like column with a calm top 
 | User goal | Intended flow |
 |---|---|
 | Read the book | Launch app → Library → select OBI-ISM → Reader → continue from saved position |
+| Find an idea | Launch app → Explore → search a title, part, or term → select a result → protected Reader |
+| Build a reading rhythm | Library or My Edition → select a private weekly reading goal → read a section → progress signal updates locally |
 | Navigate content | Reader → contents control → select a chapter → Reader at selected chapter |
 | Resume later | Reader automatically saves local progress → relaunch → Library shows “Continue reading” → Reader resumes |
 | Access after payment | Native store purchase or approved entitlement → entitlement verification → book becomes available in Library → first protected download is recorded |

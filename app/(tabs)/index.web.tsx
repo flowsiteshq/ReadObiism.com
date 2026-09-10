@@ -1,316 +1,113 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
-import { BOOK_AUTHOR, BOOK_SUBTITLE } from "@/lib/book-data";
+import { BOOK_AUTHOR, BOOK_SUBTITLE, chapters } from "@/lib/book-data";
 
 const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
+
+const PRINCIPLES = [
+  { id: "prudence", numeral: "I", title: "Prudence", color: "#DFFF4F", ink: "#151A52", line: "Use what you hold with intention.", description: "Prudence treats time, money, power, and opportunity as a trust. It asks not merely what is possible, but what is responsible." },
+  { id: "honesty", numeral: "II", title: "Honesty", color: "#6CD9FF", ink: "#151A52", line: "Make trust your strongest currency.", description: "Honesty is the invisible infrastructure of a functioning society. It makes agreements meaningful and communities durable." },
+  { id: "simplicity", numeral: "III", title: "Simplicity", color: "#FFB5E8", ink: "#151A52", line: "Let restraint make room for what matters.", description: "Simplicity refuses to confuse performance with substance. It turns attention away from appearance and toward useful work." },
+  { id: "justice", numeral: "IV", title: "Justice", color: "#FF5B55", ink: "#151A52", line: "Build peace through fairness.", description: "Justice creates the conditions in which dignity, accountability, and collective confidence can flourish together." },
+] as const;
 
 export default function ObiIsmWebsite() {
   const scrollRef = useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
+  const [activePrinciple, setActivePrinciple] = useState(0);
+  const active = PRINCIPLES[activePrinciple];
   const scrollTo = (top: number) => scrollRef.current?.scrollTo({ y: top, animated: true });
 
   return (
     <View style={styles.site}>
-      <StatusBar style="light" backgroundColor="#062B24" />
+      <StatusBar style="light" backgroundColor="#151A52" />
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
+          <View style={styles.heroCircleCoral} /><View style={styles.heroCircleLime} /><View style={styles.heroArc} />
           <View style={styles.container}>
             <View style={styles.nav}>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go to the top of the OBI-ISM website" onPress={() => scrollTo(0)} style={styles.brandButton}>
-                <Text style={styles.brand}>OBI–ISM</Text>
-                <Text style={styles.brandDescriptor}>A philosophy of responsible living</Text>
-              </TouchableOpacity>
-              {isDesktop ? (
-                <View style={styles.navLinks}>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(800)} style={styles.navLink}><Text style={styles.navLinkText}>The book</Text></TouchableOpacity>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(1290)} style={styles.navLink}><Text style={styles.navLinkText}>The philosophy</Text></TouchableOpacity>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2000)} style={styles.navCta}><Text style={styles.navCtaText}>Get the reader</Text></TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.compactNavLinks}>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(920)} style={styles.compactNavLink}><Text style={styles.compactNavLinkText}>Explore</Text></TouchableOpacity>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2500)} style={styles.compactNavCta}><Text style={styles.compactNavCtaText}>Get app</Text></TouchableOpacity>
-                </View>
-              )}
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Return to the OBI-ISM website start" onPress={() => scrollTo(0)} style={styles.brandButton}><Text style={styles.brand}>OBI–ISM</Text><Text style={styles.brandDescriptor}>BUILDING A JUST SOCIETY THROUGH CHARACTER</Text></TouchableOpacity>
+              {isDesktop ? <View style={styles.navLinks}><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(760)} style={styles.navLink}><Text style={styles.navLinkText}>The book</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(1450)} style={styles.navLink}><Text style={styles.navLinkText}>Principles</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2500)} style={styles.navCta}><Text style={styles.navCtaText}>Get the reader ↗</Text></TouchableOpacity></View> : <View style={styles.compactLinks}><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(760)} style={styles.compactLink}><Text style={styles.compactLinkText}>Explore</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2500)} style={styles.compactCta}><Text style={styles.compactCtaText}>Get app</Text></TouchableOpacity></View>}
             </View>
-
             <View style={[styles.heroGrid, isDesktop && styles.heroGridDesktop]}>
               <View style={[styles.heroCopy, isDesktop && styles.heroCopyDesktop]}>
-                <Text style={styles.overline}>THE BOOK · FIRST EDITION 2026</Text>
-                <Text style={[styles.heroTitle, isDesktop && styles.heroTitleDesktop]}>A just society begins with the character we choose to build.</Text>
-                <View style={styles.goldRule} />
-                <Text style={styles.heroBody}>{BOOK_SUBTITLE} is an invitation to rethink how we live, lead, and build together.</Text>
-                <View style={styles.heroActions}>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(isDesktop ? 800 : 920)} style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>Discover the book</Text><Text style={styles.buttonArrow}>→</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=preface" as never)} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>Read the opening</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.heroMicrocopy}>
-                  <View style={styles.liveDot} /><Text style={styles.heroMicrocopyText}>A premium, protected reader for iOS and Android.</Text>
-                </View>
+                <View style={styles.heroEyebrowRow}><View style={styles.signalDot} /><Text style={styles.heroEyebrow}>THE COMPLETE DIGITAL EDITION · 2026</Text></View>
+                <Text style={[styles.heroTitle, isDesktop && styles.heroTitleDesktop]}>Character{`\n`}is public{`\n`}architecture.</Text>
+                <Text style={styles.heroBody}>{BOOK_SUBTITLE} is a bold invitation to rethink how we live, lead, and build together.</Text>
+                <View style={styles.heroActions}><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=preface" as never)} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Read the opening</Text><Text style={styles.buttonArrow}>→</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(isDesktop ? 760 : 910)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Explore the ideas</Text></TouchableOpacity></View>
+                <View style={styles.heroMetrics}><Metric value="39" label="SECTIONS" /><Metric value="04" label="PARTS" /><Metric value="01" label="LIVING PHILOSOPHY" /></View>
               </View>
-
               <View style={[styles.coverStage, isDesktop && styles.coverStageDesktop]}>
-                <View style={styles.orbitLarge} />
-                <View style={styles.orbitSmall} />
-                <View style={styles.coverShadow} />
-                <View style={styles.coverFrame}>
-                  <Image source={COVER} contentFit="cover" transition={250} style={[styles.cover, isDesktop && styles.coverDesktop]} accessibilityLabel="OBI-ISM: Building a Just Society Through Character book cover" />
-                </View>
-                <View style={styles.editionTag}><Text style={styles.editionTagText}>DIGITAL{`\n`}EDITION</Text></View>
+                <View style={styles.coverGrid} /><View style={styles.coverOrbitOne} /><View style={styles.coverOrbitTwo} /><View style={styles.coverFrame}><Image source={COVER} contentFit="cover" transition={250} style={[styles.cover, isDesktop && styles.coverDesktop]} accessibilityLabel="OBI-ISM: Building a Just Society Through Character book cover" /></View><View style={styles.editionTag}><Text style={styles.editionTagText}>PRIVATE{`\n`}EDITION</Text></View><View style={styles.coverFoot}><Text style={styles.coverFootText}>A philosophy of responsible living</Text><Text style={styles.coverFootArrow}>↘</Text></View>
               </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.creamSection}>
+        <View style={styles.bookSection}>
           <View style={styles.container}>
-            <View style={[styles.bookIntro, isDesktop && styles.bookIntroDesktop]}>
-              <View style={styles.sectionIndex}><Text style={styles.sectionIndexNumber}>01</Text><View style={styles.sectionIndexLine} /><Text style={styles.sectionIndexText}>THE BOOK</Text></View>
-              <View style={styles.bookStatement}>
-                <Text style={styles.statement}>"The way we live matters."</Text>
-                <Text style={styles.statementBody}>OBI-ISM translates a lived life into a practical philosophy of prudence, honesty, simplicity, justice, accountability, and service.</Text>
-              </View>
+            <View style={[styles.sectionIntro, isDesktop && styles.sectionIntroDesktop]}><SectionLabel index="01" label="THE BOOK" /><View style={styles.sectionStatement}><Text style={styles.statement}>A field guide for building lives—and institutions—that hold.</Text><Text style={styles.statementBody}>OBI-ISM turns the evidence of a lived life into a practical philosophy of discipline, service, stewardship, and courage.</Text></View></View>
+            <View style={[styles.bookCardGrid, isDesktop && styles.bookCardGridDesktop]}>
+              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=introduction" as never)} style={[styles.bookCard, styles.bookCardSky]}><Text style={styles.cardIndex}>01</Text><Text style={styles.bookCardTitle}>Start with the philosophy.</Text><Text style={styles.bookCardBody}>An introduction to the belief that character is the real infrastructure of collective life.</Text><Text style={styles.cardAction}>READ INTRODUCTION →</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-7" as never)} style={[styles.bookCard, styles.bookCardLime]}><Text style={styles.cardIndex}>02</Text><Text style={styles.bookCardTitle}>Enter the foundations.</Text><Text style={styles.bookCardBody}>Prudence, honesty, simplicity, justice, and the daily choices that make them real.</Text><Text style={styles.cardAction}>OPEN PART II →</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-24" as never)} style={[styles.bookCard, styles.bookCardCoral]}><Text style={styles.cardIndex}>03</Text><Text style={styles.bookCardTitle}>Build what comes next.</Text><Text style={styles.bookCardBody}>A future-facing call to repair civic trust and create a fairer society.</Text><Text style={styles.cardAction}>OPEN PART IV →</Text></TouchableOpacity>
             </View>
+            <View style={[styles.whyRow, isDesktop && styles.whyRowDesktop]}><View style={styles.whyQuote}><Text style={styles.quoteMark}>“</Text><Text style={styles.quoteText}>The way we live matters.</Text><Text style={styles.quoteSource}>OBI-ISM · INTRODUCTION</Text></View><View style={styles.whyCopy}><Text style={styles.whyKicker}>WHY THIS BOOK, NOW?</Text><Text style={styles.whyTitle}>Because better systems start with better habits.</Text><Text style={styles.whyBody}>This is not a biography or a political manifesto. It is an accessible, practical compass for people who want to make character visible in homes, schools, business, and public life.</Text></View></View>
+          </View>
+        </View>
 
-            <View style={[styles.statGrid, isDesktop && styles.statGridDesktop]}>
-              <Stat index="01" value="29" label="chapters tracing a philosophy in action" />
-              <Stat index="02" value="4" label="parts from formation to social renewal" />
-              <Stat index="03" value="1" label="enduring question: what if we lived this way?" />
-            </View>
-
-            <View style={[styles.featureSpread, isDesktop && styles.featureSpreadDesktop]}>
-              <View style={styles.featureQuotePanel}>
-                <Text style={styles.featureQuoteMark}>“</Text>
-                <Text style={styles.featureQuote}>The movement begins with a personal decision: principle over convenience, long-term flourishing over short-term gain.</Text>
-                <Text style={styles.featureAttribution}>— FROM THE PREFACE</Text>
-              </View>
-              <View style={styles.featureDetailPanel}>
-                <Text style={styles.overlineDark}>INSIDE THIS EDITION</Text>
-                <Text style={styles.featureDetailTitle}>A book designed to be returned to.</Text>
-                <Text style={styles.featureDetailBody}>From the formative lessons of the marketplace to the moral architecture of public life, the book connects individual choices with the societies they create.</Text>
-                <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=introduction" as never)} style={styles.textLink}><Text style={styles.textLinkText}>Read the introduction</Text><Text style={styles.textLinkArrow}>→</Text></TouchableOpacity>
-              </View>
+        <View style={styles.principlesSection}>
+          <View style={styles.container}>
+            <View style={[styles.principleHead, isDesktop && styles.principleHeadDesktop]}><SectionLabel index="02" label="THE PRINCIPLES" light /><Text style={[styles.principlesTitle, isDesktop && styles.principlesTitleDesktop]}>Tap a principle. Follow its signal.</Text></View>
+            <View style={[styles.principlesGrid, isDesktop && styles.principlesGridDesktop]}>
+              <View style={styles.principleTabs}>{PRINCIPLES.map((principle, index) => <TouchableOpacity key={principle.id} accessibilityRole="button" onPress={() => setActivePrinciple(index)} style={[styles.principleTab, activePrinciple === index && { backgroundColor: principle.color }]}><Text style={[styles.principleTabNumeral, activePrinciple === index && { color: "#151A52" }]}>{principle.numeral}</Text><Text style={[styles.principleTabTitle, activePrinciple === index && { color: "#151A52" }]}>{principle.title}</Text><Text style={[styles.principleTabArrow, activePrinciple === index && { color: "#151A52" }]}>↗</Text></TouchableOpacity>)}</View>
+              <View style={[styles.principleFeature, { backgroundColor: active.color }]}><Text style={[styles.featureNumeral, { color: active.ink }]}>{active.numeral}</Text><Text style={[styles.featureTitle, { color: active.ink }]}>{active.title}</Text><Text style={[styles.featureLine, { color: active.ink }]}>{active.line}</Text><View style={[styles.featureRule, { backgroundColor: active.ink }]} /><Text style={[styles.featureDescription, { color: active.ink }]}>{active.description}</Text><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-7" as never)} style={[styles.featureReadButton, { borderColor: active.ink }]}><Text style={[styles.featureReadText, { color: active.ink }]}>READ IN THE EDITION</Text><Text style={[styles.featureReadArrow, { color: active.ink }]}>→</Text></TouchableOpacity></View>
             </View>
           </View>
         </View>
 
-        <View style={styles.greenSection}>
+        <View style={styles.experienceSection}>
           <View style={styles.container}>
-            <View style={[styles.sectionHeader, isDesktop && styles.sectionHeaderDesktop]}>
-              <View style={styles.sectionIndex}><Text style={styles.sectionIndexNumberLight}>02</Text><View style={styles.sectionIndexLineLight} /><Text style={styles.sectionIndexTextLight}>THE PHILOSOPHY</Text></View>
-              <Text style={[styles.sectionTitle, isDesktop && styles.sectionTitleDesktop]}>The principles that hold when everything else moves.</Text>
-            </View>
-            <View style={[styles.principleGrid, isDesktop && styles.principleGridDesktop]}>
-              <Principle number="I" title="Prudence" description="Treating resources as a trust, not a stage for excess." />
-              <Principle number="II" title="Honesty" description="Understanding truth as the invisible currency of civilization." />
-              <Principle number="III" title="Simplicity" description="Choosing restraint as a form of strength and clarity." />
-              <Principle number="IV" title="Justice" description="Building peace through fairness, dignity, and accountability." />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.creamSection}>
-          <View style={styles.container}>
-            <View style={[styles.readerSpread, isDesktop && styles.readerSpreadDesktop]}>
-              <View style={styles.readerVisual}>
-                <View style={styles.readerChrome}><Text style={styles.readerChromeWordmark}>OBI–ISM</Text><Text style={styles.readerChromeLabel}>CHAPTER SEVEN</Text></View>
-                <View style={styles.readerPage}>
-                  <Text style={styles.readerEyebrow}>PART II · THE FOUNDATIONS</Text>
-                  <Text style={styles.readerHeadline}>Prudence: the discipline of sacred stewardship.</Text>
-                  <View style={styles.readerRule} />
-                  <Text style={styles.readerParagraph}>The question is not whether we have enough. The question is whether we recognize what we hold as a trust.</Text>
-                  <View style={styles.readerProgress}><View style={styles.readerProgressFill} /></View>
-                </View>
-              </View>
-              <View style={styles.readerCopy}>
-                <Text style={styles.overlineDark}>THE READING EXPERIENCE</Text>
-                <Text style={styles.readerCopyTitle}>Built to protect attention—and the work itself.</Text>
-                <Text style={styles.readerCopyBody}>The mobile reader is deliberately quiet: a complete, carefully structured edition with progress markers, adjustable reading size, local bookmarks, and a composed editorial interface.</Text>
-                <View style={styles.protectionList}>
-                  <Protection item="Read-only presentation without public export or sharing controls." />
-                  <Protection item="Personal device access and screen-capture deterrence on supported platforms." />
-                  <Protection item="A focused, offline-friendly reading flow for iOS and Android." />
-                </View>
-                <TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(isDesktop ? 2750 : 3430)} style={styles.textLink}><Text style={styles.textLinkText}>How access works</Text><Text style={styles.textLinkArrow}>→</Text></TouchableOpacity>
-              </View>
+            <View style={[styles.experienceGrid, isDesktop && styles.experienceGridDesktop]}>
+              <View style={styles.phoneStack}><View style={styles.phoneBack} /><View style={styles.phone}><View style={styles.phoneTop}><Text style={styles.phoneMark}>OBI–ISM</Text><Text style={styles.phonePath}>CHAPTER 07</Text></View><View style={styles.phoneBody}><Text style={styles.phoneKicker}>YOU ARE HERE</Text><Text style={styles.phoneTitle}>Prudence: the discipline of sacred stewardship.</Text><View style={styles.phoneBars}><View style={styles.phoneBarCoral} /><View style={styles.phoneBarSky} /><View style={styles.phoneBarLime} /></View><Text style={styles.phoneCopy}>The question is not whether we have enough. The question is whether we recognize what we hold as a trust.</Text><View style={styles.phoneProgress}><View style={styles.phoneProgressFill} /></View></View></View></View>
+              <View style={styles.experienceCopy}><Text style={styles.whyKicker}>THE READING EXPERIENCE</Text><Text style={styles.experienceTitle}>More than a document. A private place to think.</Text><Text style={styles.experienceBody}>The OBI-ISM reader keeps the full edition close while giving your attention a place to land: chapter search, reading goals, private bookmarks, flexible type size, and a visual path through the book.</Text><View style={styles.featureList}><FeaturePoint color="#FF5B55" text="A vibrant, structured route through every part and chapter." /><FeaturePoint color="#6CD9FF" text="Personal reading momentum stored privately on your device." /><FeaturePoint color="#DFFF4F" text="Read-only controls designed to respect the work and your focus." /></View><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=preface" as never)} style={styles.experienceButton}><Text style={styles.experienceButtonText}>OPEN THE READER</Text><Text style={styles.experienceButtonArrow}>→</Text></TouchableOpacity></View>
             </View>
           </View>
         </View>
 
         <View style={styles.accessSection}>
           <View style={styles.container}>
-            <View style={styles.accessHeader}>
-              <Text style={styles.overline}>THE DIGITAL EDITION</Text>
-              <Text style={[styles.accessTitle, isDesktop && styles.accessTitleDesktop]}>Read OBI-ISM in the place made for it.</Text>
-              <Text style={styles.accessBody}>The companion website introduces the work. The full edition is read through the protected OBI-ISM mobile experience.</Text>
-            </View>
-            <View style={[styles.accessGrid, isDesktop && styles.accessGridDesktop]}>
-              <View style={styles.storeCard}><Text style={styles.storeEyebrow}>FOR IPHONE & IPAD</Text><Text style={styles.storeName}>iOS reader</Text><Text style={styles.storeBody}>Native access, purchase restoration, and private reading controls.</Text><Text style={styles.storeStatus}>APP STORE LISTING IN PREPARATION</Text></View>
-              <View style={styles.storeCard}><Text style={styles.storeEyebrow}>FOR ANDROID</Text><Text style={styles.storeName}>Android reader</Text><Text style={styles.storeBody}>The same considered edition, built for Google Play distribution.</Text><Text style={styles.storeStatus}>GOOGLE PLAY LISTING IN PREPARATION</Text></View>
-            </View>
-            <View style={styles.accessFootnote}><View style={styles.liveDot} /><Text style={styles.accessFootnoteText}>Store links and the available purchase methods will appear here following approval and launch configuration.</Text></View>
+            <View style={styles.accessHero}><Text style={styles.accessKicker}>THE OBI-ISM DIGITAL EDITION</Text><Text style={[styles.accessTitle, isDesktop && styles.accessTitleDesktop]}>Take the conversation with you.</Text><Text style={styles.accessBody}>The companion website is the starting point. The full edition lives in the OBI-ISM reader, built for iOS and Android.</Text></View>
+            <View style={[styles.accessGrid, isDesktop && styles.accessGridDesktop]}><AccessCard platform="iOS READER" title="A focused edition for iPhone and iPad." body="Private reading, purchase restoration, and a route back to the ideas that matter." color="#6CD9FF" /><AccessCard platform="ANDROID READER" title="The same living philosophy, in your pocket." body="A considered, protected experience built for Google Play distribution." color="#DFFF4F" /></View>
+            <View style={styles.accessNote}><View style={styles.accessPulse} /><Text style={styles.accessNoteText}>Store links and supported purchase methods will appear here as launch approvals are completed.</Text></View>
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <View style={[styles.container, styles.footerInner]}>
-            <View><Text style={styles.footerBrand}>OBI–ISM</Text><Text style={styles.footerSub}>Building a Just Society Through Character</Text></View>
-            <Text style={styles.footerCredit}>© 2026 · {BOOK_AUTHOR}</Text>
-          </View>
-        </View>
+        <View style={styles.footer}><View style={[styles.container, styles.footerInner]}><View><Text style={styles.footerBrand}>OBI–ISM</Text><Text style={styles.footerSub}>A philosophy of responsible living</Text></View><Text style={styles.footerCredit}>© 2026 · {BOOK_AUTHOR}{`\n`}First edition</Text></View></View>
       </ScrollView>
     </View>
   );
 }
 
-function Stat({ index, value, label }: { index: string; value: string; label: string }) {
-  return <View style={styles.stat}><Text style={styles.statIndex}>{index}</Text><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
-}
-
-function Principle({ number, title, description }: { number: string; title: string; description: string }) {
-  return <View style={styles.principle}><Text style={styles.principleNumber}>{number}</Text><Text style={styles.principleTitle}>{title}</Text><Text style={styles.principleDescription}>{description}</Text></View>;
-}
-
-function Protection({ item }: { item: string }) {
-  return <View style={styles.protection}><View style={styles.protectionDot} /><Text style={styles.protectionText}>{item}</Text></View>;
-}
+function Metric({ value, label }: { value: string; label: string }) { return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>; }
+function SectionLabel({ index, label, light = false }: { index: string; label: string; light?: boolean }) { return <View style={styles.sectionLabel}><Text style={[styles.sectionIndex, light && styles.sectionIndexLight]}>{index}</Text><View style={[styles.sectionLine, light && styles.sectionLineLight]} /><Text style={[styles.sectionLabelText, light && styles.sectionLabelTextLight]}>{label}</Text></View>; }
+function FeaturePoint({ color, text }: { color: string; text: string }) { return <View style={styles.featurePoint}><View style={[styles.featurePointDot, { backgroundColor: color }]} /><Text style={styles.featurePointText}>{text}</Text></View>; }
+function AccessCard({ platform, title, body, color }: { platform: string; title: string; body: string; color: string }) { return <View style={[styles.accessCard, { borderTopColor: color }]}><Text style={[styles.accessCardPlatform, { color }]}>{platform}</Text><Text style={styles.accessCardTitle}>{title}</Text><Text style={styles.accessCardBody}>{body}</Text><Text style={styles.accessCardStatus}>LISTING IN PREPARATION</Text></View>; }
 
 const styles = StyleSheet.create({
-  site: { backgroundColor: "#F4EFDF", flex: 1 },
-  scrollContent: { flexGrow: 1 },
-  container: { alignSelf: "center", maxWidth: 1180, paddingHorizontal: 24, width: "100%" },
-  hero: { backgroundColor: "#062B24", overflow: "hidden", paddingBottom: 72, paddingTop: 24 },
-  nav: { alignItems: "center", borderBottomColor: "rgba(232, 223, 198, 0.18)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingBottom: 19 },
-  brandButton: { paddingVertical: 3 },
-  brand: { color: "#FFFDF5", fontSize: 22, fontWeight: "900", letterSpacing: 1 },
-  brandDescriptor: { color: "#B6C9BA", fontSize: 9, letterSpacing: 0.45, marginTop: 2 },
-  navLinks: { alignItems: "center", flexDirection: "row", gap: 4 },
-  compactNavLinks: { alignItems: "center", flexDirection: "row", gap: 6 },
-  compactNavLink: { paddingHorizontal: 7, paddingVertical: 10 },
-  compactNavLinkText: { color: "#D5E0D6", fontSize: 10, fontWeight: "800" },
-  compactNavCta: { borderColor: "#C8A853", borderWidth: 1, paddingHorizontal: 9, paddingVertical: 9 },
-  compactNavCtaText: { color: "#E8C76C", fontSize: 9, fontWeight: "900" },
-  navLink: { paddingHorizontal: 9, paddingVertical: 11 },
-  navLinkText: { color: "#D5E0D6", fontSize: 11, fontWeight: "700" },
-  navCta: { borderColor: "#C8A853", borderWidth: 1, marginLeft: 5, paddingHorizontal: 10, paddingVertical: 10 },
-  navCtaText: { color: "#E8C76C", fontSize: 10, fontWeight: "900" },
-  heroGrid: { alignItems: "center", gap: 43, marginTop: 58 },
-  heroGridDesktop: { flexDirection: "row", justifyContent: "space-between", marginTop: 92, minHeight: 470 },
-  heroCopy: { width: "100%" },
-  heroCopyDesktop: { maxWidth: 640, paddingRight: 20 },
-  overline: { color: "#D9B75B", fontSize: 10, fontWeight: "900", letterSpacing: 1.35 },
-  heroTitle: { color: "#FFFDF5", fontFamily: "serif", fontSize: 42, fontWeight: "700", letterSpacing: -0.9, lineHeight: 49, marginTop: 13 },
-  heroTitleDesktop: { fontSize: 62, lineHeight: 68 },
-  goldRule: { backgroundColor: "#C8A853", height: 3, marginBottom: 19, marginTop: 25, width: 55 },
-  heroBody: { color: "#C5D3C8", fontSize: 17, lineHeight: 27, maxWidth: 520 },
-  heroActions: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 29 },
-  primaryButton: { alignItems: "center", backgroundColor: "#C8A853", flexDirection: "row", gap: 15, paddingHorizontal: 19, paddingVertical: 15 },
-  primaryButtonText: { color: "#17352C", fontSize: 13, fontWeight: "900" },
-  buttonArrow: { color: "#17352C", fontSize: 19, lineHeight: 19 },
-  secondaryButton: { borderColor: "#5A7E6D", borderWidth: 1, paddingHorizontal: 18, paddingVertical: 15 },
-  secondaryButtonText: { color: "#F5F2E8", fontSize: 13, fontWeight: "800" },
-  heroMicrocopy: { alignItems: "center", flexDirection: "row", marginTop: 27 },
-  liveDot: { backgroundColor: "#7CB58F", borderRadius: 4, height: 7, marginRight: 8, width: 7 },
-  heroMicrocopyText: { color: "#AFC0B3", fontSize: 11 },
-  coverStage: { alignItems: "center", height: 355, justifyContent: "center", position: "relative", width: "100%" },
-  coverStageDesktop: { height: 465, width: 360 },
-  orbitLarge: { borderColor: "rgba(202, 169, 83, 0.32)", borderRadius: 170, borderWidth: 1, height: 288, position: "absolute", transform: [{ rotate: "-20deg" }], width: 288 },
-  orbitSmall: { borderColor: "rgba(229, 239, 229, 0.18)", borderRadius: 120, borderWidth: 1, height: 214, position: "absolute", transform: [{ rotate: "40deg" }], width: 214 },
-  coverShadow: { backgroundColor: "#000000", bottom: 30, height: 26, opacity: 0.38, position: "absolute", transform: [{ scaleX: 0.7 }], width: 188 },
-  coverFrame: { backgroundColor: "#D4B75F", padding: 4, transform: [{ rotate: "3deg" }], zIndex: 2 },
-  cover: { height: 287, width: 191 },
-  coverDesktop: { height: 370, width: 247 },
-  editionTag: { backgroundColor: "#F4EFDF", bottom: 30, paddingHorizontal: 11, paddingVertical: 9, position: "absolute", right: "8%", transform: [{ rotate: "-5deg" }], zIndex: 3 },
-  editionTagText: { color: "#17372E", fontSize: 8, fontWeight: "900", letterSpacing: 0.8, lineHeight: 11 },
-  creamSection: { backgroundColor: "#F4EFDF", paddingBottom: 88, paddingTop: 81 },
-  bookIntro: { gap: 25 },
-  bookIntroDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  sectionIndex: { alignItems: "center", flexDirection: "row" },
-  sectionIndexNumber: { color: "#A98637", fontFamily: "serif", fontSize: 18 },
-  sectionIndexLine: { backgroundColor: "#BDAA79", height: 1, marginHorizontal: 10, width: 34 },
-  sectionIndexText: { color: "#8E805E", fontSize: 10, fontWeight: "900", letterSpacing: 1.25 },
-  bookStatement: { maxWidth: 725 },
-  statement: { color: "#17372E", fontFamily: "serif", fontSize: 33, fontWeight: "700", letterSpacing: -0.5, lineHeight: 39 },
-  statementBody: { color: "#53665D", fontSize: 17, lineHeight: 27, marginTop: 14, maxWidth: 650 },
-  statGrid: { borderTopColor: "#D9CFB7", borderTopWidth: StyleSheet.hairlineWidth, gap: 20, marginTop: 48, paddingTop: 25 },
-  statGridDesktop: { flexDirection: "row", gap: 0 },
-  stat: { borderBottomColor: "#D9CFB7", borderBottomWidth: StyleSheet.hairlineWidth, flex: 1, minHeight: 130, paddingBottom: 19, paddingTop: 3 },
-  statIndex: { color: "#AA8738", fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
-  statValue: { color: "#17372E", fontFamily: "serif", fontSize: 51, lineHeight: 56, marginTop: 4 },
-  statLabel: { color: "#647169", fontSize: 12, lineHeight: 17, maxWidth: 205 },
-  featureSpread: { gap: 18, marginTop: 63 },
-  featureSpreadDesktop: { flexDirection: "row", gap: 0 },
-  featureQuotePanel: { backgroundColor: "#17372E", minHeight: 320, padding: 28 },
-  featureDetailPanel: { backgroundColor: "#FFFDF7", borderColor: "#E0D4BA", borderWidth: 1, padding: 28 },
-  featureQuoteMark: { color: "#C8A853", fontFamily: "serif", fontSize: 65, height: 49, lineHeight: 70 },
-  featureQuote: { color: "#F9F5E9", fontFamily: "serif", fontSize: 24, lineHeight: 33, marginTop: 18 },
-  featureAttribution: { color: "#B7CDBA", fontSize: 9, fontWeight: "900", letterSpacing: 0.9, marginTop: 24 },
-  overlineDark: { color: "#9B7B31", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
-  featureDetailTitle: { color: "#17372E", fontFamily: "serif", fontSize: 29, fontWeight: "700", lineHeight: 35, marginTop: 10 },
-  featureDetailBody: { color: "#586A61", fontSize: 14, lineHeight: 22, marginTop: 13 },
-  textLink: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 10, marginTop: 23, paddingVertical: 7 },
-  textLinkText: { color: "#17372E", fontSize: 13, fontWeight: "900" },
-  textLinkArrow: { color: "#A88330", fontSize: 20 },
-  greenSection: { backgroundColor: "#123B31", paddingBottom: 85, paddingTop: 79 },
-  sectionHeader: { gap: 25 },
-  sectionHeaderDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  sectionIndexNumberLight: { color: "#DBBA63", fontFamily: "serif", fontSize: 18 },
-  sectionIndexLineLight: { backgroundColor: "#6E937D", height: 1, marginHorizontal: 10, width: 34 },
-  sectionIndexTextLight: { color: "#BFD2C4", fontSize: 10, fontWeight: "900", letterSpacing: 1.25 },
-  sectionTitle: { color: "#FAF5E8", fontFamily: "serif", fontSize: 33, fontWeight: "700", lineHeight: 39, maxWidth: 650 },
-  sectionTitleDesktop: { fontSize: 45, lineHeight: 51 },
-  principleGrid: { borderTopColor: "#46715F", borderTopWidth: StyleSheet.hairlineWidth, gap: 24, marginTop: 49, paddingTop: 19 },
-  principleGridDesktop: { flexDirection: "row", gap: 0 },
-  principle: { flex: 1, minHeight: 165, paddingRight: 19 },
-  principleNumber: { color: "#D5B356", fontFamily: "serif", fontSize: 22 },
-  principleTitle: { color: "#FCF8ED", fontFamily: "serif", fontSize: 24, fontWeight: "700", marginTop: 18 },
-  principleDescription: { color: "#BED0C2", fontSize: 13, lineHeight: 20, marginTop: 8 },
-  readerSpread: { gap: 43 },
-  readerSpreadDesktop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  readerVisual: { alignSelf: "center", backgroundColor: "#F8F3E7", boxShadow: "0px 20px 45px rgba(21, 46, 38, 0.16)", maxWidth: 430, width: "100%" },
-  readerChrome: { alignItems: "center", backgroundColor: "#062B24", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 18, paddingVertical: 13 },
-  readerChromeWordmark: { color: "#FDF8E8", fontSize: 13, fontWeight: "900", letterSpacing: 0.7 },
-  readerChromeLabel: { color: "#D3B55E", fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
-  readerPage: { minHeight: 310, padding: 26 },
-  readerEyebrow: { color: "#9D7A2E", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
-  readerHeadline: { color: "#17372E", fontFamily: "serif", fontSize: 26, fontWeight: "700", lineHeight: 32, marginTop: 11 },
-  readerRule: { backgroundColor: "#C8A853", height: 2, marginBottom: 17, marginTop: 18, width: 38 },
-  readerParagraph: { color: "#495D53", fontFamily: "serif", fontSize: 15, lineHeight: 23 },
-  readerProgress: { backgroundColor: "#DFD5BF", bottom: 25, height: 2, left: 26, position: "absolute", right: 26 },
-  readerProgressFill: { backgroundColor: "#C8A853", height: 2, width: "42%" },
-  readerCopy: { maxWidth: 480 },
-  readerCopyTitle: { color: "#17372E", fontFamily: "serif", fontSize: 34, fontWeight: "700", lineHeight: 40, marginTop: 10 },
-  readerCopyBody: { color: "#586960", fontSize: 15, lineHeight: 23, marginTop: 14 },
-  protectionList: { marginTop: 20 },
-  protection: { alignItems: "flex-start", flexDirection: "row", marginBottom: 10 },
-  protectionDot: { backgroundColor: "#B28D38", borderRadius: 3, height: 6, marginRight: 9, marginTop: 7, width: 6 },
-  protectionText: { color: "#596A61", flex: 1, fontSize: 12, lineHeight: 19 },
-  accessSection: { backgroundColor: "#062B24", paddingBottom: 82, paddingTop: 82 },
-  accessHeader: { alignItems: "center", marginHorizontal: "auto", maxWidth: 680, textAlign: "center" },
-  accessTitle: { color: "#FFFDF5", fontFamily: "serif", fontSize: 38, fontWeight: "700", lineHeight: 45, marginTop: 11, textAlign: "center" },
-  accessTitleDesktop: { fontSize: 52, lineHeight: 59 },
-  accessBody: { color: "#C1D1C4", fontSize: 15, lineHeight: 24, marginTop: 14, textAlign: "center" },
-  accessGrid: { gap: 14, marginTop: 40 },
-  accessGridDesktop: { flexDirection: "row" },
-  storeCard: { backgroundColor: "#103B31", borderColor: "#456A5C", borderWidth: 1, flex: 1, minHeight: 178, padding: 23 },
-  storeEyebrow: { color: "#D1B35D", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
-  storeName: { color: "#FEFBF1", fontFamily: "serif", fontSize: 27, fontWeight: "700", marginTop: 9 },
-  storeBody: { color: "#BED0C3", fontSize: 13, lineHeight: 19, marginTop: 8 },
-  storeStatus: { color: "#8DB29C", fontSize: 8, fontWeight: "900", letterSpacing: 0.7, marginTop: 18 },
-  accessFootnote: { alignItems: "center", flexDirection: "row", justifyContent: "center", marginTop: 23 },
-  accessFootnoteText: { color: "#AFC3B4", flexShrink: 1, fontSize: 10, lineHeight: 15, textAlign: "center" },
-  footer: { backgroundColor: "#051F1A", paddingBottom: 32, paddingTop: 32 },
-  footerInner: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  footerBrand: { color: "#FDF9EC", fontSize: 16, fontWeight: "900", letterSpacing: 0.8 },
-  footerSub: { color: "#90AA9A", fontSize: 9, marginTop: 4 },
-  footerCredit: { color: "#9FB4A5", fontSize: 10, maxWidth: 130, textAlign: "right" },
+  site: { backgroundColor: "#FFF6E7", flex: 1 }, scrollContent: { flexGrow: 1 }, container: { alignSelf: "center", maxWidth: 1180, paddingHorizontal: 24, width: "100%" },
+  hero: { backgroundColor: "#151A52", minHeight: 670, overflow: "hidden", paddingBottom: 72, paddingTop: 24 }, heroCircleCoral: { backgroundColor: "#FF5B55", borderRadius: 360, height: 560, position: "absolute", right: -300, top: 92, width: 560 }, heroCircleLime: { backgroundColor: "#DFFF4F", borderRadius: 170, height: 270, left: -150, opacity: 0.9, position: "absolute", top: 475, width: 270 }, heroArc: { borderColor: "#6CD9FF", borderRadius: 300, borderWidth: 1, height: 470, opacity: 0.7, position: "absolute", right: -170, top: 130, width: 470 },
+  nav: { alignItems: "center", borderBottomColor: "rgba(255,255,255,0.2)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingBottom: 18 }, brandButton: { paddingVertical: 3 }, brand: { color: "#FFFFFF", fontSize: 23, fontWeight: "900", letterSpacing: 1 }, brandDescriptor: { color: "#BBC0F5", fontSize: 8, fontWeight: "900", letterSpacing: 0.68, marginTop: 3 }, navLinks: { alignItems: "center", flexDirection: "row", gap: 4 }, navLink: { paddingHorizontal: 10, paddingVertical: 11 }, navLinkText: { color: "#E3E4FF", fontSize: 11, fontWeight: "800" }, navCta: { backgroundColor: "#DFFF4F", marginLeft: 5, paddingHorizontal: 12, paddingVertical: 11 }, navCtaText: { color: "#151A52", fontSize: 10, fontWeight: "900" }, compactLinks: { alignItems: "center", flexDirection: "row", gap: 8 }, compactLink: { paddingHorizontal: 8, paddingVertical: 10 }, compactLinkText: { color: "#E3E4FF", fontSize: 10, fontWeight: "900" }, compactCta: { backgroundColor: "#DFFF4F", paddingHorizontal: 10, paddingVertical: 9 }, compactCtaText: { color: "#151A52", fontSize: 9, fontWeight: "900" },
+  heroGrid: { alignItems: "center", gap: 40, marginTop: 60 }, heroGridDesktop: { flexDirection: "row", justifyContent: "space-between", marginTop: 76, minHeight: 475 }, heroCopy: { width: "100%" }, heroCopyDesktop: { maxWidth: 610 }, heroEyebrowRow: { alignItems: "center", flexDirection: "row" }, signalDot: { backgroundColor: "#DFFF4F", borderRadius: 6, height: 10, marginRight: 8, width: 10 }, heroEyebrow: { color: "#DFFF4F", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 }, heroTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 53, fontWeight: "700", letterSpacing: -1.2, lineHeight: 53, marginTop: 13 }, heroTitleDesktop: { fontSize: 77, lineHeight: 72 }, heroBody: { color: "#D2D5FD", fontSize: 17, lineHeight: 27, marginTop: 22, maxWidth: 485 }, heroActions: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 29 }, primaryButton: { alignItems: "center", backgroundColor: "#DFFF4F", flexDirection: "row", gap: 15, paddingHorizontal: 20, paddingVertical: 15 }, primaryButtonText: { color: "#151A52", fontSize: 13, fontWeight: "900" }, buttonArrow: { color: "#151A52", fontSize: 20 }, secondaryButton: { borderColor: "#9FA6E7", borderWidth: 1, paddingHorizontal: 18, paddingVertical: 15 }, secondaryButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" }, heroMetrics: { alignItems: "center", flexDirection: "row", gap: 0, marginTop: 39 }, metric: { borderLeftColor: "rgba(255,255,255,0.28)", borderLeftWidth: StyleSheet.hairlineWidth, minWidth: 85, paddingLeft: 13, paddingRight: 16 }, metricValue: { color: "#6CD9FF", fontFamily: "serif", fontSize: 26, lineHeight: 27 }, metricLabel: { color: "#C1C6FA", fontSize: 7, fontWeight: "900", letterSpacing: 0.48, marginTop: 3 },
+  coverStage: { alignItems: "center", height: 365, justifyContent: "center", position: "relative", width: "100%" }, coverStageDesktop: { height: 495, width: 415 }, coverGrid: { borderColor: "rgba(255,255,255,0.2)", borderWidth: 1, height: 270, position: "absolute", transform: [{ rotate: "-8deg" }], width: 270 }, coverOrbitOne: { borderColor: "#DFFF4F", borderRadius: 155, borderWidth: 2, height: 310, opacity: 0.9, position: "absolute", transform: [{ rotate: "28deg" }], width: 310 }, coverOrbitTwo: { borderColor: "#6CD9FF", borderRadius: 104, borderWidth: 1, height: 205, opacity: 0.85, position: "absolute", transform: [{ rotate: "-35deg" }], width: 205 }, coverFrame: { backgroundColor: "#DFFF4F", padding: 5, transform: [{ rotate: "4deg" }], zIndex: 2 }, cover: { height: 287, width: 191 }, coverDesktop: { height: 382, width: 255 }, editionTag: { backgroundColor: "#FF5B55", bottom: 28, paddingHorizontal: 12, paddingVertical: 10, position: "absolute", right: "7%", transform: [{ rotate: "-7deg" }], zIndex: 3 }, editionTagText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.8, lineHeight: 11 }, coverFoot: { alignItems: "center", bottom: -8, flexDirection: "row", left: "10%", position: "absolute", zIndex: 3 }, coverFootText: { color: "#DFFF4F", fontSize: 10, fontWeight: "900", letterSpacing: 0.3 }, coverFootArrow: { color: "#DFFF4F", fontSize: 20, marginLeft: 8 },
+  bookSection: { backgroundColor: "#FFF6E7", paddingBottom: 92, paddingTop: 81 }, sectionIntro: { gap: 23 }, sectionIntroDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, sectionLabel: { alignItems: "center", flexDirection: "row" }, sectionIndex: { color: "#FF5B55", fontFamily: "serif", fontSize: 19 }, sectionLine: { backgroundColor: "#FF5B55", height: 2, marginHorizontal: 10, width: 34 }, sectionLabelText: { color: "#6A6B7D", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 }, sectionIndexLight: { color: "#DFFF4F" }, sectionLineLight: { backgroundColor: "#DFFF4F" }, sectionLabelTextLight: { color: "#C9CDF8" }, sectionStatement: { maxWidth: 735 }, statement: { color: "#151A52", fontFamily: "serif", fontSize: 36, fontWeight: "700", letterSpacing: -0.5, lineHeight: 43 }, statementBody: { color: "#585A70", fontSize: 17, lineHeight: 27, marginTop: 14, maxWidth: 640 }, bookCardGrid: { gap: 13, marginTop: 46 }, bookCardGridDesktop: { flexDirection: "row" }, bookCard: { flex: 1, minHeight: 245, padding: 21 }, bookCardSky: { backgroundColor: "#6CD9FF" }, bookCardLime: { backgroundColor: "#DFFF4F" }, bookCardCoral: { backgroundColor: "#FF5B55" }, cardIndex: { color: "#151A52", fontSize: 10, fontWeight: "900" }, bookCardTitle: { color: "#151A52", fontFamily: "serif", fontSize: 27, fontWeight: "700", lineHeight: 32, marginTop: 22 }, bookCardBody: { color: "#20275A", fontSize: 13, lineHeight: 20, marginTop: 9 }, cardAction: { bottom: 19, color: "#151A52", fontSize: 9, fontWeight: "900", letterSpacing: 0.55, position: "absolute", left: 21 }, whyRow: { gap: 18, marginTop: 63 }, whyRowDesktop: { flexDirection: "row", gap: 0 }, whyQuote: { backgroundColor: "#151A52", minHeight: 288, padding: 29 }, whyCopy: { backgroundColor: "#FFFFFF", borderColor: "#E2DEED", borderWidth: 1, padding: 29 }, quoteMark: { color: "#DFFF4F", fontFamily: "serif", fontSize: 64, height: 50, lineHeight: 70 }, quoteText: { color: "#FFFFFF", fontFamily: "serif", fontSize: 33, fontWeight: "700", lineHeight: 40, marginTop: 21 }, quoteSource: { color: "#6CD9FF", fontSize: 9, fontWeight: "900", letterSpacing: 0.9, marginTop: 27 }, whyKicker: { color: "#FF5B55", fontSize: 10, fontWeight: "900", letterSpacing: 1.1 }, whyTitle: { color: "#151A52", fontFamily: "serif", fontSize: 31, fontWeight: "700", lineHeight: 37, marginTop: 9 }, whyBody: { color: "#5B5D71", fontSize: 14, lineHeight: 22, marginTop: 13 },
+  principlesSection: { backgroundColor: "#151A52", paddingBottom: 90, paddingTop: 82 }, principleHead: { gap: 25 }, principleHeadDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, principlesTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 37, fontWeight: "700", lineHeight: 44, maxWidth: 650 }, principlesTitleDesktop: { fontSize: 53, lineHeight: 58 }, principlesGrid: { gap: 18, marginTop: 48 }, principlesGridDesktop: { flexDirection: "row", gap: 20 }, principleTabs: { gap: 7 }, principleTab: { alignItems: "center", backgroundColor: "#242A68", flexDirection: "row", minWidth: 300, padding: 16 }, principleTabNumeral: { color: "#DFFF4F", fontFamily: "serif", fontSize: 19, width: 35 }, principleTabTitle: { color: "#FFFFFF", flex: 1, fontFamily: "serif", fontSize: 20, fontWeight: "700" }, principleTabArrow: { color: "#6CD9FF", fontSize: 20 }, principleFeature: { flex: 1, minHeight: 370, padding: 26 }, featureNumeral: { fontFamily: "serif", fontSize: 40 }, featureTitle: { fontFamily: "serif", fontSize: 41, fontWeight: "700", lineHeight: 47, marginTop: 22 }, featureLine: { fontFamily: "serif", fontSize: 23, fontWeight: "700", lineHeight: 30, marginTop: 17, maxWidth: 460 }, featureRule: { height: 3, marginTop: 21, width: 44 }, featureDescription: { fontSize: 14, lineHeight: 22, marginTop: 18, maxWidth: 470 }, featureReadButton: { alignItems: "center", alignSelf: "flex-start", borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 26, paddingHorizontal: 12, paddingVertical: 10 }, featureReadText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.5 }, featureReadArrow: { fontSize: 18 },
+  experienceSection: { backgroundColor: "#FFF6E7", paddingBottom: 91, paddingTop: 91 }, experienceGrid: { gap: 45 }, experienceGridDesktop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, phoneStack: { alignSelf: "center", height: 455, position: "relative", width: 300 }, phoneBack: { backgroundColor: "#FF5B55", height: 367, left: 19, position: "absolute", top: 49, transform: [{ rotate: "8deg" }], width: 249 }, phone: { backgroundColor: "#151A52", height: 397, overflow: "hidden", position: "absolute", top: 13, width: 252 }, phoneTop: { alignItems: "center", backgroundColor: "#202767", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingVertical: 13 }, phoneMark: { color: "#FFFFFF", fontSize: 11, fontWeight: "900", letterSpacing: 0.6 }, phonePath: { color: "#DFFF4F", fontSize: 7, fontWeight: "900", letterSpacing: 0.6 }, phoneBody: { backgroundColor: "#FFF6E7", flex: 1, padding: 19 }, phoneKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 }, phoneTitle: { color: "#151A52", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 29, marginTop: 8 }, phoneBars: { flexDirection: "row", gap: 4, marginTop: 17 }, phoneBarCoral: { backgroundColor: "#FF5B55", height: 4, width: 30 }, phoneBarSky: { backgroundColor: "#6CD9FF", height: 4, width: 19 }, phoneBarLime: { backgroundColor: "#DFFF4F", height: 4, width: 12 }, phoneCopy: { color: "#4D5067", fontFamily: "serif", fontSize: 14, lineHeight: 21, marginTop: 18 }, phoneProgress: { backgroundColor: "#DFDDEB", bottom: 21, height: 5, left: 19, position: "absolute", right: 19 }, phoneProgressFill: { backgroundColor: "#FF5B55", height: 5, width: "45%" }, experienceCopy: { maxWidth: 500 }, experienceTitle: { color: "#151A52", fontFamily: "serif", fontSize: 39, fontWeight: "700", lineHeight: 46, marginTop: 9 }, experienceBody: { color: "#56586D", fontSize: 15, lineHeight: 23, marginTop: 14 }, featureList: { marginTop: 23 }, featurePoint: { alignItems: "flex-start", flexDirection: "row", marginBottom: 11 }, featurePointDot: { borderRadius: 5, height: 8, marginRight: 10, marginTop: 6, width: 8 }, featurePointText: { color: "#33354B", flex: 1, fontSize: 13, lineHeight: 19 }, experienceButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "#151A52", flexDirection: "row", gap: 13, marginTop: 22, paddingHorizontal: 15, paddingVertical: 13 }, experienceButtonText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", letterSpacing: 0.55 }, experienceButtonArrow: { color: "#DFFF4F", fontSize: 19 },
+  accessSection: { backgroundColor: "#FF5B55", paddingBottom: 87, paddingTop: 84 }, accessHero: { alignItems: "center", marginHorizontal: "auto", maxWidth: 690 }, accessKicker: { color: "#151A52", fontSize: 10, fontWeight: "900", letterSpacing: 1.1 }, accessTitle: { color: "#151A52", fontFamily: "serif", fontSize: 42, fontWeight: "700", lineHeight: 48, marginTop: 10, textAlign: "center" }, accessTitleDesktop: { fontSize: 58, lineHeight: 63 }, accessBody: { color: "#422255", fontSize: 15, lineHeight: 23, marginTop: 13, textAlign: "center" }, accessGrid: { gap: 13, marginTop: 41 }, accessGridDesktop: { flexDirection: "row" }, accessCard: { backgroundColor: "#151A52", borderTopWidth: 8, flex: 1, minHeight: 190, padding: 21 }, accessCardPlatform: { fontSize: 9, fontWeight: "900", letterSpacing: 1.05 }, accessCardTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 27, fontWeight: "700", lineHeight: 32, marginTop: 11 }, accessCardBody: { color: "#C8CDF9", fontSize: 13, lineHeight: 19, marginTop: 8 }, accessCardStatus: { color: "#9DA6E6", fontSize: 8, fontWeight: "900", letterSpacing: 0.6, marginTop: 19 }, accessNote: { alignItems: "center", flexDirection: "row", justifyContent: "center", marginHorizontal: "auto", marginTop: 22, maxWidth: 600 }, accessPulse: { backgroundColor: "#DFFF4F", borderRadius: 4, height: 7, marginRight: 9, width: 7 }, accessNoteText: { color: "#442451", flexShrink: 1, fontSize: 10, lineHeight: 15, textAlign: "center" },
+  footer: { backgroundColor: "#10112E", paddingBottom: 33, paddingTop: 33 }, footerInner: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, footerBrand: { color: "#FFFFFF", fontSize: 17, fontWeight: "900", letterSpacing: 0.9 }, footerSub: { color: "#B5BAF1", fontSize: 9, marginTop: 4 }, footerCredit: { color: "#BFC4F4", fontSize: 10, lineHeight: 15, maxWidth: 135, textAlign: "right" },
 });

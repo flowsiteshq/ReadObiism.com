@@ -13,6 +13,7 @@ const MAPPING = {
   "chevron.right": "chevron-right",
   "books.vertical.fill": "auto-stories",
   "lock.shield.fill": "shield",
+  "safari.fill": "explore",
 } as IconMapping;
 
 export function IconSymbol({ name, size = 24, color, style }: { name: IconSymbolName; size?: number; color: string | OpaqueColorValue; style?: StyleProp<TextStyle>; weight?: SymbolWeight }) {

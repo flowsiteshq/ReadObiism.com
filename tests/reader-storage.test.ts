@@ -11,7 +11,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-import { getBookmarks, getReadingPosition, saveReadingPosition, toggleBookmark } from "../lib/reader-storage";
+import { getBookmarks, getReadingGoal, getReadingPosition, getReadingPulse, saveReadingGoal, saveReadingPosition, toggleBookmark } from "../lib/reader-storage";
 
 describe("OBI-ISM reader persistence", () => {
   beforeEach(() => storage.clear());
@@ -26,5 +26,14 @@ describe("OBI-ISM reader persistence", () => {
     await expect(toggleBookmark("preface")).resolves.toEqual(["preface"]);
     await expect(getBookmarks()).resolves.toEqual(["preface"]);
     await expect(toggleBookmark("preface")).resolves.toEqual([]);
+  });
+
+  it("keeps a private weekly goal and activity pulse", async () => {
+    await saveReadingGoal(5);
+    await saveReadingPosition("chapter-1");
+    await saveReadingPosition("chapter-2");
+
+    await expect(getReadingGoal()).resolves.toBe(5);
+    await expect(getReadingPulse()).resolves.toMatchObject({ weeklyGoal: 5, sectionsThisWeek: 2, activeDays: 1 });
   });
 });
