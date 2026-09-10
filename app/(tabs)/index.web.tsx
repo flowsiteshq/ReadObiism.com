@@ -1,136 +1,147 @@
-import { useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { VideoView, useVideoPlayer } from "expo-video";
 
-import { BOOK_AUTHOR, BOOK_SUBTITLE, chapters } from "@/lib/book-data";
-
-const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
 const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/uXVqeNlDbhxxPulw.mp4";
 const LANDMARK_POSTER = "/manus-storage/obi-ism-nigeria-landmarks-poster_bd8477a0.jpg";
 
-const PRINCIPLES = [
-  { id: "prudence", numeral: "I", title: "Prudence", color: "#DFFF4F", ink: "#151A52", line: "Use what you hold with intention.", description: "Prudence treats time, money, power, and opportunity as a trust. It asks not merely what is possible, but what is responsible." },
-  { id: "honesty", numeral: "II", title: "Honesty", color: "#6CD9FF", ink: "#151A52", line: "Make trust your strongest currency.", description: "Honesty is the invisible infrastructure of a functioning society. It makes agreements meaningful and communities durable." },
-  { id: "simplicity", numeral: "III", title: "Simplicity", color: "#FFB5E8", ink: "#151A52", line: "Let restraint make room for what matters.", description: "Simplicity refuses to confuse performance with substance. It turns attention away from appearance and toward useful work." },
-  { id: "justice", numeral: "IV", title: "Justice", color: "#FF5B55", ink: "#151A52", line: "Build peace through fairness.", description: "Justice creates the conditions in which dignity, accountability, and collective confidence can flourish together." },
-] as const;
-
 export default function ObiIsmWebsite() {
-  const scrollRef = useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-  const [activePrinciple, setActivePrinciple] = useState(0);
-  const active = PRINCIPLES[activePrinciple];
-  const scrollTo = (top: number) => scrollRef.current?.scrollTo({ y: top, animated: true });
-
-  return (
-    <View style={styles.site}>
-      <StatusBar style="light" backgroundColor="#151A52" />
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <CinematicLandmarkScreen isDesktop={isDesktop} scrollTo={scrollTo} />
-
-        <View style={styles.bookSection}>
-          <View style={styles.container}>
-            <View style={[styles.sectionIntro, isDesktop && styles.sectionIntroDesktop]}><SectionLabel index="01" label="THE BOOK" /><View style={styles.sectionStatement}><Text style={styles.statement}>A field guide for building lives—and institutions—that hold.</Text><Text style={styles.statementBody}>OBI-ISM turns the evidence of a lived life into a practical philosophy of discipline, service, stewardship, and courage.</Text></View></View>
-            <View style={[styles.bookCardGrid, isDesktop && styles.bookCardGridDesktop]}>
-              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=introduction" as never)} style={[styles.bookCard, styles.bookCardSky]}><Text style={styles.cardIndex}>01</Text><Text style={styles.bookCardTitle}>Start with the philosophy.</Text><Text style={styles.bookCardBody}>An introduction to the belief that character is the real infrastructure of collective life.</Text><Text style={styles.cardAction}>READ INTRODUCTION →</Text></TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-7" as never)} style={[styles.bookCard, styles.bookCardLime]}><Text style={styles.cardIndex}>02</Text><Text style={styles.bookCardTitle}>Enter the foundations.</Text><Text style={styles.bookCardBody}>Prudence, honesty, simplicity, justice, and the daily choices that make them real.</Text><Text style={styles.cardAction}>OPEN PART II →</Text></TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-24" as never)} style={[styles.bookCard, styles.bookCardCoral]}><Text style={styles.cardIndex}>03</Text><Text style={styles.bookCardTitle}>Build what comes next.</Text><Text style={styles.bookCardBody}>A future-facing call to repair civic trust and create a fairer society.</Text><Text style={styles.cardAction}>OPEN PART IV →</Text></TouchableOpacity>
-            </View>
-            <View style={[styles.whyRow, isDesktop && styles.whyRowDesktop]}><View style={styles.whyQuote}><Text style={styles.quoteMark}>“</Text><Text style={styles.quoteText}>The way we live matters.</Text><Text style={styles.quoteSource}>OBI-ISM · INTRODUCTION</Text></View><View style={styles.whyCopy}><Text style={styles.whyKicker}>WHY THIS BOOK, NOW?</Text><Text style={styles.whyTitle}>Because better systems start with better habits.</Text><Text style={styles.whyBody}>This is not a biography or a political manifesto. It is an accessible, practical compass for people who want to make character visible in homes, schools, business, and public life.</Text></View></View>
-          </View>
-        </View>
-
-        <View style={styles.principlesSection}>
-          <View style={styles.container}>
-            <View style={[styles.principleHead, isDesktop && styles.principleHeadDesktop]}><SectionLabel index="02" label="THE PRINCIPLES" light /><Text style={[styles.principlesTitle, isDesktop && styles.principlesTitleDesktop]}>Tap a principle. Follow its signal.</Text></View>
-            <View style={[styles.principlesGrid, isDesktop && styles.principlesGridDesktop]}>
-              <View style={styles.principleTabs}>{PRINCIPLES.map((principle, index) => <TouchableOpacity key={principle.id} accessibilityRole="button" onPress={() => setActivePrinciple(index)} style={[styles.principleTab, activePrinciple === index && { backgroundColor: principle.color }]}><Text style={[styles.principleTabNumeral, activePrinciple === index && { color: "#151A52" }]}>{principle.numeral}</Text><Text style={[styles.principleTabTitle, activePrinciple === index && { color: "#151A52" }]}>{principle.title}</Text><Text style={[styles.principleTabArrow, activePrinciple === index && { color: "#151A52" }]}>↗</Text></TouchableOpacity>)}</View>
-              <View style={[styles.principleFeature, { backgroundColor: active.color }]}><Text style={[styles.featureNumeral, { color: active.ink }]}>{active.numeral}</Text><Text style={[styles.featureTitle, { color: active.ink }]}>{active.title}</Text><Text style={[styles.featureLine, { color: active.ink }]}>{active.line}</Text><View style={[styles.featureRule, { backgroundColor: active.ink }]} /><Text style={[styles.featureDescription, { color: active.ink }]}>{active.description}</Text><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=chapter-7" as never)} style={[styles.featureReadButton, { borderColor: active.ink }]}><Text style={[styles.featureReadText, { color: active.ink }]}>READ IN THE EDITION</Text><Text style={[styles.featureReadArrow, { color: active.ink }]}>→</Text></TouchableOpacity></View>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.experienceSection}>
-          <View style={styles.container}>
-            <View style={[styles.experienceGrid, isDesktop && styles.experienceGridDesktop]}>
-              <View style={styles.phoneStack}><View style={styles.phoneBack} /><View style={styles.phone}><View style={styles.phoneTop}><Text style={styles.phoneMark}>OBI–ISM</Text><Text style={styles.phonePath}>CHAPTER 07</Text></View><View style={styles.phoneBody}><Text style={styles.phoneKicker}>YOU ARE HERE</Text><Text style={styles.phoneTitle}>Prudence: the discipline of sacred stewardship.</Text><View style={styles.phoneBars}><View style={styles.phoneBarCoral} /><View style={styles.phoneBarSky} /><View style={styles.phoneBarLime} /></View><Text style={styles.phoneCopy}>The question is not whether we have enough. The question is whether we recognize what we hold as a trust.</Text><View style={styles.phoneProgress}><View style={styles.phoneProgressFill} /></View></View></View></View>
-              <View style={styles.experienceCopy}><Text style={styles.whyKicker}>THE READING EXPERIENCE</Text><Text style={styles.experienceTitle}>More than a document. A private place to think.</Text><Text style={styles.experienceBody}>The OBI-ISM reader keeps the full edition close while giving your attention a place to land: chapter search, reading goals, private bookmarks, flexible type size, and a visual path through the book.</Text><View style={styles.featureList}><FeaturePoint color="#FF5B55" text="A vibrant, structured route through every part and chapter." /><FeaturePoint color="#6CD9FF" text="Personal reading momentum stored privately on your device." /><FeaturePoint color="#DFFF4F" text="Read-only controls designed to respect the work and your focus." /></View><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=preface" as never)} style={styles.experienceButton}><Text style={styles.experienceButtonText}>OPEN THE READER</Text><Text style={styles.experienceButtonArrow}>→</Text></TouchableOpacity></View>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.accessSection}>
-          <View style={styles.container}>
-            <View style={styles.accessHero}><Text style={styles.accessKicker}>THE OBI-ISM DIGITAL EDITION</Text><Text style={[styles.accessTitle, isDesktop && styles.accessTitleDesktop]}>Take the conversation with you.</Text><Text style={styles.accessBody}>The companion website is the starting point. The full edition lives in the OBI-ISM reader, built for iOS and Android.</Text></View>
-            <View style={[styles.accessGrid, isDesktop && styles.accessGridDesktop]}><AccessCard platform="iOS READER" title="A focused edition for iPhone and iPad." body="Private reading, purchase restoration, and a route back to the ideas that matter." color="#6CD9FF" /><AccessCard platform="ANDROID READER" title="The same living philosophy, in your pocket." body="A considered, protected experience built for Google Play distribution." color="#DFFF4F" /></View>
-            <View style={styles.accessNote}><View style={styles.accessPulse} /><Text style={styles.accessNoteText}>Store links and supported purchase methods will appear here as launch approvals are completed.</Text></View>
-          </View>
-        </View>
-
-        <View style={styles.footer}><View style={[styles.container, styles.footerInner]}><View><Text style={styles.footerBrand}>OBI–ISM</Text><Text style={styles.footerSub}>A philosophy of responsible living</Text></View><Text style={styles.footerCredit}>© 2026 · {BOOK_AUTHOR}{`\n`}First edition</Text></View></View>
-      </ScrollView>
-    </View>
-  );
-}
-
-function Metric({ value, label }: { value: string; label: string }) { return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>; }
-function SectionLabel({ index, label, light = false }: { index: string; label: string; light?: boolean }) { return <View style={styles.sectionLabel}><Text style={[styles.sectionIndex, light && styles.sectionIndexLight]}>{index}</Text><View style={[styles.sectionLine, light && styles.sectionLineLight]} /><Text style={[styles.sectionLabelText, light && styles.sectionLabelTextLight]}>{label}</Text></View>; }
-function FeaturePoint({ color, text }: { color: string; text: string }) { return <View style={styles.featurePoint}><View style={[styles.featurePointDot, { backgroundColor: color }]} /><Text style={styles.featurePointText}>{text}</Text></View>; }
-function AccessCard({ platform, title, body, color }: { platform: string; title: string; body: string; color: string }) { return <View style={[styles.accessCard, { borderTopColor: color }]}><Text style={[styles.accessCardPlatform, { color }]}>{platform}</Text><Text style={styles.accessCardTitle}>{title}</Text><Text style={styles.accessCardBody}>{body}</Text><Text style={styles.accessCardStatus}>LISTING IN PREPARATION</Text></View>; }
-
-function CinematicLandmarkScreen({ isDesktop, scrollTo }: { isDesktop: boolean; scrollTo: (top: number) => void }) {
+  const desktop = width >= 900;
   const [videoReady, setVideoReady] = useState(false);
-  const [playing, setPlaying] = useState(true);
+  const [videoPlaying, setVideoPlaying] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const player = useVideoPlayer(LANDMARK_VIDEO, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = true;
     videoPlayer.play();
   });
 
-  const togglePlayback = () => {
-    if (playing) player.pause(); else player.play();
-    setPlaying((current) => !current);
+  const toggleMotion = () => {
+    if (videoPlaying) player.pause(); else player.play();
+    setVideoPlaying((current) => !current);
   };
 
+  const readOpening = () => router.push("/reader?chapterId=preface" as never);
+  const explore = () => router.push("/(tabs)/explore" as never);
+
   return (
-    <View style={styles.videoHero}>
-      {!videoReady && <Image source={{ uri: LANDMARK_POSTER }} contentFit="cover" transition={250} style={styles.videoPoster} accessibilityLabel="Nigerian landmarks at blue hour" />}
-      <VideoView style={styles.heroVideo} player={player} contentFit="cover" nativeControls={false} playsInline onFirstFrameRender={() => setVideoReady(true)} />
-      <View style={styles.videoOverlay} /><View style={styles.videoGradient} />
-      <View style={styles.container}>
-        <View style={styles.nav}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Return to the OBI-ISM website start" onPress={() => scrollTo(0)} style={styles.brandButton}><Text style={styles.brand}>OBI–ISM</Text><Text style={styles.brandDescriptor}>BUILDING A JUST SOCIETY THROUGH CHARACTER</Text></TouchableOpacity>
-          {isDesktop ? <View style={styles.navLinks}><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(760)} style={styles.navLink}><Text style={styles.navLinkText}>The book</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(1450)} style={styles.navLink}><Text style={styles.navLinkText}>Principles</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2500)} style={styles.navCta}><Text style={styles.navCtaText}>Get the reader ↗</Text></TouchableOpacity></View> : <View style={styles.compactLinks}><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(760)} style={styles.compactLink}><Text style={styles.compactLinkText}>Explore</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(2500)} style={styles.compactCta}><Text style={styles.compactCtaText}>Get app</Text></TouchableOpacity></View>}
+    <View style={styles.page}>
+      <StatusBar style="light" backgroundColor="rgba(6,10,33,0.15)" />
+      {!videoReady && <Image source={{ uri: LANDMARK_POSTER }} contentFit="cover" transition={250} style={styles.backgroundMedia} accessibilityLabel="Nigerian landmarks at blue hour" />}
+      <VideoView style={styles.backgroundMedia} player={player} contentFit="cover" nativeControls={false} playsInline onFirstFrameRender={() => setVideoReady(true)} />
+      <View style={styles.atmosphere} />
+      <View style={styles.bottomGradient} />
+
+      <View style={[styles.shell, desktop && styles.shellDesktop]}>
+        <View style={styles.header}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="OBI-ISM welcome screen" onPress={() => setMenuOpen(false)} style={styles.brandButton}>
+            <Text style={[styles.brand, desktop && styles.brandDesktop]}>OBI–ISM</Text>
+            <Text style={styles.brandSub}>BUILDING A JUST SOCIETY THROUGH CHARACTER</Text>
+          </TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" onPress={() => setMenuOpen(true)} style={styles.menuButton}>
+            <View style={styles.menuLine} /><View style={styles.menuLine} /><View style={styles.menuLineAccent} />
+          </TouchableOpacity>
         </View>
-        <View style={[styles.videoHeroGrid, isDesktop && styles.videoHeroGridDesktop]}>
-          <View style={[styles.heroCopy, isDesktop && styles.heroCopyDesktop]}>
-            <View style={styles.heroEyebrowRow}><View style={styles.signalDot} /><Text style={styles.heroEyebrow}>NIGERIA IN VIEW · THE COMPLETE DIGITAL EDITION</Text></View>
-            <Text style={[styles.heroTitle, isDesktop && styles.heroTitleDesktop]}>Character{`\n`}is public{`\n`}architecture.</Text>
-            <Text style={styles.heroBody}>{BOOK_SUBTITLE} is a bold invitation to rethink how we live, lead, and build together.</Text>
-            <View style={styles.heroActions}><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/reader?chapterId=preface" as never)} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Read the opening</Text><Text style={styles.buttonArrow}>→</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => scrollTo(isDesktop ? 760 : 910)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Explore the ideas</Text></TouchableOpacity></View>
-            <View style={styles.heroMetrics}><Metric value="39" label="SECTIONS" /><Metric value="04" label="PARTS" /><Metric value="01" label="LIVING PHILOSOPHY" /></View>
+
+        <View style={[styles.heroCopy, desktop && styles.heroCopyDesktop]}>
+          <View style={styles.eyebrowRow}><View style={styles.eyebrowDot} /><Text style={styles.eyebrow}>NIGERIA IN VIEW</Text></View>
+          <Text style={[styles.title, desktop && styles.titleDesktop]}>Character{`\n`}is public{`\n`}architecture.</Text>
+          <Text style={[styles.description, desktop && styles.descriptionDesktop]}>A living philosophy for the people, institutions, and future we choose to build.</Text>
+        </View>
+
+        <View style={[styles.actionsArea, desktop && styles.actionsAreaDesktop]}>
+          <View style={[styles.actions, desktop && styles.actionsDesktop]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read the opening of OBI-ISM" onPress={readOpening} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Read the opening</Text><Text style={styles.primaryButtonArrow}>→</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore the OBI-ISM ideas" onPress={explore} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Explore the ideas</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.videoCoverStage}><View style={styles.coverFrame}><Image source={COVER} contentFit="cover" transition={250} style={[styles.cover, isDesktop && styles.coverDesktop]} accessibilityLabel="OBI-ISM: Building a Just Society Through Character book cover" /></View><View style={styles.editionTag}><Text style={styles.editionTagText}>PRIVATE{`\n`}EDITION</Text></View></View>
+          <View style={styles.bottomBar}>
+            <Text style={styles.location}>LAGOS · ABUJA · A SHARED FUTURE</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={videoPlaying ? "Pause landmark video" : "Play landmark video"} onPress={toggleMotion} style={styles.motionButton}>
+              <Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionText}>{videoPlaying ? "PAUSE MOTION" : "PLAY MOTION"}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.videoFoot}><View style={styles.locationLabel}><View style={styles.locationPin} /><Text style={styles.locationText}>LAGOS · ABUJA · A SHARED FUTURE</Text></View><TouchableOpacity accessibilityRole="button" accessibilityLabel={playing ? "Pause background video" : "Play background video"} onPress={togglePlayback} style={styles.playToggle}><Text style={styles.playToggleText}>{playing ? "PAUSE MOTION" : "PLAY MOTION"}</Text><Text style={styles.playToggleIcon}>{playing ? "Ⅱ" : "▶"}</Text></TouchableOpacity></View>
       </View>
+
+      {menuOpen && (
+        <View style={styles.menuSheet}>
+          <View style={[styles.menuShell, desktop && styles.shellDesktop]}>
+            <View style={styles.header}>
+              <Text style={styles.brand}>OBI–ISM</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close navigation menu" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeText}>×</Text></TouchableOpacity>
+            </View>
+            <View style={styles.menuItems}>
+              <MenuItem index="01" label="Read the opening" onPress={readOpening} />
+              <MenuItem index="02" label="Explore the ideas" onPress={explore} />
+              <MenuItem index="03" label="View contents" onPress={() => router.push("/contents" as never)} />
+              <MenuItem index="04" label="My edition" onPress={() => router.push("/(tabs)/account" as never)} />
+            </View>
+            <Text style={styles.menuFooter}>PRIVATE DIGITAL EDITION · 2026</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
+function MenuItem({ index, label, onPress }: { index: string; label: string; onPress: () => void }) {
+  return <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.menuItem}><Text style={styles.menuIndex}>{index}</Text><Text style={styles.menuLabel}>{label}</Text><Text style={styles.menuArrow}>→</Text></TouchableOpacity>;
+}
+
 const styles = StyleSheet.create({
-  site: { backgroundColor: "#FFF6E7", flex: 1 }, scrollContent: { flexGrow: 1 }, container: { alignSelf: "center", maxWidth: 1180, paddingHorizontal: 24, width: "100%" },
-  videoHero: { backgroundColor: "#151A52", minHeight: 670, overflow: "hidden", paddingBottom: 30, paddingTop: 24, position: "relative" }, heroVideo: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }, videoPoster: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }, videoOverlay: { backgroundColor: "rgba(10, 13, 46, 0.18)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }, videoGradient: { backgroundColor: "rgba(21, 26, 82, 0.34)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }, videoHeroGrid: { alignItems: "center", gap: 40, marginTop: 60 }, videoHeroGridDesktop: { flexDirection: "row", justifyContent: "space-between", marginTop: 76, minHeight: 475 }, videoCoverStage: { alignItems: "center", height: 395, justifyContent: "center", minWidth: 250, position: "relative" },
-  nav: { alignItems: "center", borderBottomColor: "rgba(255,255,255,0.2)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingBottom: 18 }, brandButton: { paddingVertical: 3 }, brand: { color: "#FFFFFF", fontSize: 23, fontWeight: "900", letterSpacing: 1 }, brandDescriptor: { color: "#BBC0F5", fontSize: 8, fontWeight: "900", letterSpacing: 0.68, marginTop: 3 }, navLinks: { alignItems: "center", flexDirection: "row", gap: 4 }, navLink: { paddingHorizontal: 10, paddingVertical: 11 }, navLinkText: { color: "#E3E4FF", fontSize: 11, fontWeight: "800" }, navCta: { backgroundColor: "#DFFF4F", marginLeft: 5, paddingHorizontal: 12, paddingVertical: 11 }, navCtaText: { color: "#151A52", fontSize: 10, fontWeight: "900" }, compactLinks: { alignItems: "center", flexDirection: "row", gap: 8 }, compactLink: { paddingHorizontal: 8, paddingVertical: 10 }, compactLinkText: { color: "#E3E4FF", fontSize: 10, fontWeight: "900" }, compactCta: { backgroundColor: "#DFFF4F", paddingHorizontal: 10, paddingVertical: 9 }, compactCtaText: { color: "#151A52", fontSize: 9, fontWeight: "900" },
-  heroCopy: { width: "100%" }, heroCopyDesktop: { maxWidth: 610 }, heroEyebrowRow: { alignItems: "center", flexDirection: "row" }, signalDot: { backgroundColor: "#DFFF4F", borderRadius: 6, height: 10, marginRight: 8, width: 10 }, heroEyebrow: { color: "#DFFF4F", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 }, heroTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 53, fontWeight: "700", letterSpacing: -1.2, lineHeight: 53, marginTop: 13 }, heroTitleDesktop: { fontSize: 77, lineHeight: 72 }, heroBody: { color: "#D2D5FD", fontSize: 17, lineHeight: 27, marginTop: 22, maxWidth: 485 }, heroActions: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 29 }, primaryButton: { alignItems: "center", backgroundColor: "#DFFF4F", flexDirection: "row", gap: 15, paddingHorizontal: 20, paddingVertical: 15 }, primaryButtonText: { color: "#151A52", fontSize: 13, fontWeight: "900" }, buttonArrow: { color: "#151A52", fontSize: 20 }, secondaryButton: { borderColor: "#9FA6E7", borderWidth: 1, paddingHorizontal: 18, paddingVertical: 15 }, secondaryButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" }, heroMetrics: { alignItems: "center", flexDirection: "row", gap: 0, marginTop: 39 }, metric: { borderLeftColor: "rgba(255,255,255,0.28)", borderLeftWidth: StyleSheet.hairlineWidth, minWidth: 85, paddingLeft: 13, paddingRight: 16 }, metricValue: { color: "#6CD9FF", fontFamily: "serif", fontSize: 26, lineHeight: 27 }, metricLabel: { color: "#C1C6FA", fontSize: 7, fontWeight: "900", letterSpacing: 0.48, marginTop: 3 },
-  coverFrame: { backgroundColor: "#DFFF4F", padding: 5, transform: [{ rotate: "4deg" }], zIndex: 2 }, cover: { height: 287, width: 191 }, coverDesktop: { height: 382, width: 255 }, editionTag: { backgroundColor: "#FF5B55", bottom: 28, paddingHorizontal: 12, paddingVertical: 10, position: "absolute", right: "7%", transform: [{ rotate: "-7deg" }], zIndex: 3 }, editionTagText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.8, lineHeight: 11 }, videoFoot: { alignItems: "center", borderTopColor: "rgba(255,255,255,0.25)", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingTop: 14 }, locationLabel: { alignItems: "center", flexDirection: "row" }, locationPin: { backgroundColor: "#FF5B55", borderRadius: 4, height: 8, marginRight: 7, width: 8 }, locationText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.75 }, playToggle: { alignItems: "center", backgroundColor: "rgba(21,26,82,0.62)", borderColor: "rgba(255,255,255,0.45)", borderWidth: 1, flexDirection: "row", gap: 8, paddingHorizontal: 9, paddingVertical: 8 }, playToggleText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.6 }, playToggleIcon: { color: "#DFFF4F", fontSize: 12 },
-  bookSection: { backgroundColor: "#FFF6E7", paddingBottom: 92, paddingTop: 81 }, sectionIntro: { gap: 23 }, sectionIntroDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, sectionLabel: { alignItems: "center", flexDirection: "row" }, sectionIndex: { color: "#FF5B55", fontFamily: "serif", fontSize: 19 }, sectionLine: { backgroundColor: "#FF5B55", height: 2, marginHorizontal: 10, width: 34 }, sectionLabelText: { color: "#6A6B7D", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 }, sectionIndexLight: { color: "#DFFF4F" }, sectionLineLight: { backgroundColor: "#DFFF4F" }, sectionLabelTextLight: { color: "#C9CDF8" }, sectionStatement: { maxWidth: 735 }, statement: { color: "#151A52", fontFamily: "serif", fontSize: 36, fontWeight: "700", letterSpacing: -0.5, lineHeight: 43 }, statementBody: { color: "#585A70", fontSize: 17, lineHeight: 27, marginTop: 14, maxWidth: 640 }, bookCardGrid: { gap: 13, marginTop: 46 }, bookCardGridDesktop: { flexDirection: "row" }, bookCard: { flex: 1, minHeight: 245, padding: 21 }, bookCardSky: { backgroundColor: "#6CD9FF" }, bookCardLime: { backgroundColor: "#DFFF4F" }, bookCardCoral: { backgroundColor: "#FF5B55" }, cardIndex: { color: "#151A52", fontSize: 10, fontWeight: "900" }, bookCardTitle: { color: "#151A52", fontFamily: "serif", fontSize: 27, fontWeight: "700", lineHeight: 32, marginTop: 22 }, bookCardBody: { color: "#20275A", fontSize: 13, lineHeight: 20, marginTop: 9 }, cardAction: { bottom: 19, color: "#151A52", fontSize: 9, fontWeight: "900", letterSpacing: 0.55, position: "absolute", left: 21 }, whyRow: { gap: 18, marginTop: 63 }, whyRowDesktop: { flexDirection: "row", gap: 0 }, whyQuote: { backgroundColor: "#151A52", minHeight: 288, padding: 29 }, whyCopy: { backgroundColor: "#FFFFFF", borderColor: "#E2DEED", borderWidth: 1, padding: 29 }, quoteMark: { color: "#DFFF4F", fontFamily: "serif", fontSize: 64, height: 50, lineHeight: 70 }, quoteText: { color: "#FFFFFF", fontFamily: "serif", fontSize: 33, fontWeight: "700", lineHeight: 40, marginTop: 21 }, quoteSource: { color: "#6CD9FF", fontSize: 9, fontWeight: "900", letterSpacing: 0.9, marginTop: 27 }, whyKicker: { color: "#FF5B55", fontSize: 10, fontWeight: "900", letterSpacing: 1.1 }, whyTitle: { color: "#151A52", fontFamily: "serif", fontSize: 31, fontWeight: "700", lineHeight: 37, marginTop: 9 }, whyBody: { color: "#5B5D71", fontSize: 14, lineHeight: 22, marginTop: 13 },
-  principlesSection: { backgroundColor: "#151A52", paddingBottom: 90, paddingTop: 82 }, principleHead: { gap: 25 }, principleHeadDesktop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, principlesTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 37, fontWeight: "700", lineHeight: 44, maxWidth: 650 }, principlesTitleDesktop: { fontSize: 53, lineHeight: 58 }, principlesGrid: { gap: 18, marginTop: 48 }, principlesGridDesktop: { flexDirection: "row", gap: 20 }, principleTabs: { gap: 7 }, principleTab: { alignItems: "center", backgroundColor: "#242A68", flexDirection: "row", minWidth: 300, padding: 16 }, principleTabNumeral: { color: "#DFFF4F", fontFamily: "serif", fontSize: 19, width: 35 }, principleTabTitle: { color: "#FFFFFF", flex: 1, fontFamily: "serif", fontSize: 20, fontWeight: "700" }, principleTabArrow: { color: "#6CD9FF", fontSize: 20 }, principleFeature: { flex: 1, minHeight: 370, padding: 26 }, featureNumeral: { fontFamily: "serif", fontSize: 40 }, featureTitle: { fontFamily: "serif", fontSize: 41, fontWeight: "700", lineHeight: 47, marginTop: 22 }, featureLine: { fontFamily: "serif", fontSize: 23, fontWeight: "700", lineHeight: 30, marginTop: 17, maxWidth: 460 }, featureRule: { height: 3, marginTop: 21, width: 44 }, featureDescription: { fontSize: 14, lineHeight: 22, marginTop: 18, maxWidth: 470 }, featureReadButton: { alignItems: "center", alignSelf: "flex-start", borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 26, paddingHorizontal: 12, paddingVertical: 10 }, featureReadText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.5 }, featureReadArrow: { fontSize: 18 },
-  experienceSection: { backgroundColor: "#FFF6E7", paddingBottom: 91, paddingTop: 91 }, experienceGrid: { gap: 45 }, experienceGridDesktop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, phoneStack: { alignSelf: "center", height: 455, position: "relative", width: 300 }, phoneBack: { backgroundColor: "#FF5B55", height: 367, left: 19, position: "absolute", top: 49, transform: [{ rotate: "8deg" }], width: 249 }, phone: { backgroundColor: "#151A52", height: 397, overflow: "hidden", position: "absolute", top: 13, width: 252 }, phoneTop: { alignItems: "center", backgroundColor: "#202767", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingVertical: 13 }, phoneMark: { color: "#FFFFFF", fontSize: 11, fontWeight: "900", letterSpacing: 0.6 }, phonePath: { color: "#DFFF4F", fontSize: 7, fontWeight: "900", letterSpacing: 0.6 }, phoneBody: { backgroundColor: "#FFF6E7", flex: 1, padding: 19 }, phoneKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 }, phoneTitle: { color: "#151A52", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 29, marginTop: 8 }, phoneBars: { flexDirection: "row", gap: 4, marginTop: 17 }, phoneBarCoral: { backgroundColor: "#FF5B55", height: 4, width: 30 }, phoneBarSky: { backgroundColor: "#6CD9FF", height: 4, width: 19 }, phoneBarLime: { backgroundColor: "#DFFF4F", height: 4, width: 12 }, phoneCopy: { color: "#4D5067", fontFamily: "serif", fontSize: 14, lineHeight: 21, marginTop: 18 }, phoneProgress: { backgroundColor: "#DFDDEB", bottom: 21, height: 5, left: 19, position: "absolute", right: 19 }, phoneProgressFill: { backgroundColor: "#FF5B55", height: 5, width: "45%" }, experienceCopy: { maxWidth: 500 }, experienceTitle: { color: "#151A52", fontFamily: "serif", fontSize: 39, fontWeight: "700", lineHeight: 46, marginTop: 9 }, experienceBody: { color: "#56586D", fontSize: 15, lineHeight: 23, marginTop: 14 }, featureList: { marginTop: 23 }, featurePoint: { alignItems: "flex-start", flexDirection: "row", marginBottom: 11 }, featurePointDot: { borderRadius: 5, height: 8, marginRight: 10, marginTop: 6, width: 8 }, featurePointText: { color: "#33354B", flex: 1, fontSize: 13, lineHeight: 19 }, experienceButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "#151A52", flexDirection: "row", gap: 13, marginTop: 22, paddingHorizontal: 15, paddingVertical: 13 }, experienceButtonText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", letterSpacing: 0.55 }, experienceButtonArrow: { color: "#DFFF4F", fontSize: 19 },
-  accessSection: { backgroundColor: "#FF5B55", paddingBottom: 87, paddingTop: 84 }, accessHero: { alignItems: "center", marginHorizontal: "auto", maxWidth: 690 }, accessKicker: { color: "#151A52", fontSize: 10, fontWeight: "900", letterSpacing: 1.1 }, accessTitle: { color: "#151A52", fontFamily: "serif", fontSize: 42, fontWeight: "700", lineHeight: 48, marginTop: 10, textAlign: "center" }, accessTitleDesktop: { fontSize: 58, lineHeight: 63 }, accessBody: { color: "#422255", fontSize: 15, lineHeight: 23, marginTop: 13, textAlign: "center" }, accessGrid: { gap: 13, marginTop: 41 }, accessGridDesktop: { flexDirection: "row" }, accessCard: { backgroundColor: "#151A52", borderTopWidth: 8, flex: 1, minHeight: 190, padding: 21 }, accessCardPlatform: { fontSize: 9, fontWeight: "900", letterSpacing: 1.05 }, accessCardTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 27, fontWeight: "700", lineHeight: 32, marginTop: 11 }, accessCardBody: { color: "#C8CDF9", fontSize: 13, lineHeight: 19, marginTop: 8 }, accessCardStatus: { color: "#9DA6E6", fontSize: 8, fontWeight: "900", letterSpacing: 0.6, marginTop: 19 }, accessNote: { alignItems: "center", flexDirection: "row", justifyContent: "center", marginHorizontal: "auto", marginTop: 22, maxWidth: 600 }, accessPulse: { backgroundColor: "#DFFF4F", borderRadius: 4, height: 7, marginRight: 9, width: 7 }, accessNoteText: { color: "#442451", flexShrink: 1, fontSize: 10, lineHeight: 15, textAlign: "center" },
-  footer: { backgroundColor: "#10112E", paddingBottom: 33, paddingTop: 33 }, footerInner: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, footerBrand: { color: "#FFFFFF", fontSize: 17, fontWeight: "900", letterSpacing: 0.9 }, footerSub: { color: "#B5BAF1", fontSize: 9, marginTop: 4 }, footerCredit: { color: "#BFC4F4", fontSize: 10, lineHeight: 15, maxWidth: 135, textAlign: "right" },
+  page: { backgroundColor: "#0A1038", flex: 1, minHeight: 720, overflow: "hidden", position: "relative" },
+  backgroundMedia: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  atmosphere: { backgroundColor: "rgba(6, 10, 40, 0.18)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  bottomGradient: { backgroundColor: "rgba(7, 13, 56, 0.46)", bottom: 0, height: "63%", left: 0, position: "absolute", right: 0 },
+  shell: { flex: 1, justifyContent: "space-between", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 31 },
+  shellDesktop: { alignSelf: "center", maxWidth: 1240, width: "100%" },
+  header: { alignItems: "flex-start", borderBottomColor: "rgba(255,255,255,0.24)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingBottom: 19 },
+  brandButton: { paddingVertical: 1 },
+  brand: { color: "#FFFFFF", fontSize: 27, fontWeight: "900", letterSpacing: 0.55 },
+  brandDesktop: { fontSize: 30 },
+  brandSub: { color: "#E0E4FF", fontSize: 8, fontWeight: "900", letterSpacing: 0.9, marginTop: 4 },
+  menuButton: { alignItems: "flex-end", justifyContent: "center", minHeight: 38, minWidth: 44, padding: 6 },
+  menuLine: { backgroundColor: "#FFFFFF", height: 2, marginVertical: 3, width: 28 },
+  menuLineAccent: { backgroundColor: "#DFFF4F", height: 2, marginTop: 3, width: 16 },
+  heroCopy: { marginTop: 54, maxWidth: 370 },
+  heroCopyDesktop: { marginTop: 78, maxWidth: 645 },
+  eyebrowRow: { alignItems: "center", flexDirection: "row" },
+  eyebrowDot: { backgroundColor: "#DFFF4F", borderRadius: 6, height: 9, marginRight: 8, width: 9 },
+  eyebrow: { color: "#DFFF4F", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  title: { color: "#FFFFFF", fontFamily: "serif", fontSize: 53, fontWeight: "700", letterSpacing: -1.55, lineHeight: 52, marginTop: 15 },
+  titleDesktop: { fontSize: 82, lineHeight: 76 },
+  description: { color: "#F1F2FF", fontSize: 16, lineHeight: 24, marginTop: 20, maxWidth: 320 },
+  descriptionDesktop: { fontSize: 19, lineHeight: 29, maxWidth: 450 },
+  actionsArea: { marginTop: 18 },
+  actionsAreaDesktop: { marginTop: 38 },
+  actions: { gap: 11 },
+  actionsDesktop: { flexDirection: "row", maxWidth: 525 },
+  primaryButton: { alignItems: "center", backgroundColor: "#DFFF4F", flex: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 55, paddingHorizontal: 20 },
+  primaryButtonText: { color: "#101642", fontSize: 14, fontWeight: "900" },
+  primaryButtonArrow: { color: "#101642", fontSize: 21 },
+  secondaryButton: { alignItems: "center", borderColor: "rgba(255,255,255,0.86)", borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 55, paddingHorizontal: 18 },
+  secondaryButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  bottomBar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 17 },
+  location: { color: "#E8EAFF", fontSize: 7, fontWeight: "900", letterSpacing: 0.75 },
+  motionButton: { alignItems: "center", flexDirection: "row", gap: 7, padding: 6 },
+  motionIcon: { color: "#DFFF4F", fontSize: 12 },
+  motionText: { color: "#FFFFFF", fontSize: 7, fontWeight: "900", letterSpacing: 0.65 },
+  menuSheet: { backgroundColor: "#10164B", bottom: 0, left: 0, position: "absolute", right: 0, top: 0, zIndex: 10 },
+  menuShell: { flex: 1, justifyContent: "space-between", paddingBottom: 25, paddingHorizontal: 24, paddingTop: 31 },
+  closeButton: { alignItems: "center", borderColor: "rgba(255,255,255,0.55)", borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
+  closeText: { color: "#FFFFFF", fontSize: 27, fontWeight: "300", lineHeight: 30 },
+  menuItems: { flex: 1, justifyContent: "center" },
+  menuItem: { alignItems: "center", borderBottomColor: "rgba(255,255,255,0.19)", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", paddingVertical: 21 },
+  menuIndex: { color: "#DFFF4F", fontSize: 10, fontWeight: "900", letterSpacing: 0.8, width: 43 },
+  menuLabel: { color: "#FFFFFF", flex: 1, fontFamily: "serif", fontSize: 29, fontWeight: "700" },
+  menuArrow: { color: "#DFFF4F", fontSize: 23 },
+  menuFooter: { color: "#C4CAF6", fontSize: 8, fontWeight: "900", letterSpacing: 0.95 },
 });
