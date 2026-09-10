@@ -32,3 +32,6 @@
 - [x] Create a cinematic Nigerian-landmark video asset with a poster fallback for the OBI-ISM landing screen.
 - [x] Integrate the video-backed landing screen with responsive controls and poster fallback behavior.
 - [x] Validate the cinematic screen across desktop and mobile breakpoints.
+- [x] Diagnose and correct the Nigerian-landmark backdrop visibility so it is obvious on first load.
+- [x] Add a stronger landmark poster fallback and rebalance the cinematic overlay for clear immediate visibility.
+- [x] Re-validate the visible video treatment at desktop and mobile breakpoints.
