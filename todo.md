@@ -35,3 +35,7 @@
 - [x] Diagnose and correct the Nigerian-landmark backdrop visibility so it is obvious on first load.
 - [x] Add a stronger landmark poster fallback and rebalance the cinematic overlay for clear immediate visibility.
 - [x] Re-validate the visible video treatment at desktop and mobile breakpoints.
+- [x] Replace the crowded native Home layout with a minimalist full-screen Nigerian-landmark video welcome screen.
+- [x] Add a simple OBI-ISM identity lockup, menu affordance, and two high-clarity entry actions over the cinematic background.
+- [x] Preserve practical reader, explore, and account pathways behind the simplified welcome screen.
+- [x] Validate the welcome-screen layout at iPhone-style portrait dimensions and test its actions.

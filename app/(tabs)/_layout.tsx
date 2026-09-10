@@ -27,7 +27,7 @@ export default function TabLayout() {
         },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <IconSymbol size={23} name="house.fill" color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <IconSymbol size={23} name="house.fill" color={color} />, tabBarStyle: { display: "none" } }} />
       <Tabs.Screen name="explore" options={{ title: "Explore", tabBarIcon: ({ color }) => <IconSymbol size={23} name="safari.fill" color={color} /> }} />
       <Tabs.Screen name="account" options={{ title: "My Edition", tabBarIcon: ({ color }) => <IconSymbol size={23} name="lock.shield.fill" color={color} /> }} />
     </Tabs>

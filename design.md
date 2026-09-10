@@ -12,6 +12,10 @@ The new direction is **Civic Energy**. It extends the supplied cover into a cont
 
 The redesign moves away from a private reading salon toward an **active civic reading studio**. The Library is a visual command center: a high-color cover stage, a live reading pulse, a weekly progress signal, and a “principle of the day.” The explore area provides search, sections, bookmarks, and a practical four-principle compass. Visual movement comes from restrained color shifts, layered circular signals, strong progress shapes, and tactile button feedback rather than gratuitous animation.
 
+## Minimal cinematic welcome screen
+
+The native app now opens on a full-bleed, muted Nigerian-landmark video rather than a crowded dashboard. The supplied MyDojo reference informs the **minimal, immersive hierarchy only**: a single OBI-ISM identity lockup, compact menu affordance, concise philosophical statement, and two clear actions. The status indicators remain light over the video, while the OBI-ISM header is inset beneath them for clarity. Reader, Explore, Contents, and My Edition remain one tap away inside the full-screen menu rather than competing for attention at launch.
+
 The Reader retains a spacious, legible reading column but adds a richer utility layer: a high-contrast chapter signal, visual completion ring, section path indicator, quick bookmark action, font-size control, and next-step prompt. The contents, Explore, and My Edition areas use color-blocked modules, badge-like milestones, magnetic headline typography, and clear action hierarchy. All content remains read-only; reader intelligence stays private to the device and never creates a public sharing or annotation flow.
 
 ## Screen list
