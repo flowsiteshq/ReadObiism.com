@@ -1,16 +1,38 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/BaHpjaYMSfAHjKqb.mp4";
+const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/oqfuaFiBeXZDAIpk.mp4";
 
 export default function ObiIsmWebsite() {
   const { width, height } = useWindowDimensions();
   const desktop = width >= 900;
-  const [videoPlaying, setVideoPlaying] = useState(true);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoSecond, setVideoSecond] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const startMotion = () => {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playbackRate = 1.25;
+      void video.play().then(() => setVideoPlaying(true)).catch(() => setVideoPlaying(false));
+    };
+    const updateLiveTime = () => setVideoSecond(Math.floor(video.currentTime));
+
+    startMotion();
+    video.addEventListener("canplay", startMotion);
+    video.addEventListener("timeupdate", updateLiveTime);
+    return () => {
+      video.removeEventListener("canplay", startMotion);
+      video.removeEventListener("timeupdate", updateLiveTime);
+    };
+  }, []);
 
   const toggleMotion = () => {
     const video = videoRef.current;
@@ -32,6 +54,10 @@ export default function ObiIsmWebsite() {
         loop
         muted
         playsInline
+        preload="auto"
+        onCanPlay={(event) => { event.currentTarget.playbackRate = 1.25; void event.currentTarget.play(); }}
+        onPlaying={() => setVideoPlaying(true)}
+        onPause={() => setVideoPlaying(false)}
         style={{ bottom: 0, height: "100%", left: 0, objectFit: "cover", position: "absolute", right: 0, top: 0, width: "100%" }}
       />
       <View style={styles.atmosphere} />
@@ -66,7 +92,7 @@ export default function ObiIsmWebsite() {
           <View style={styles.bottomBar}>
             <Text style={styles.location}>LAGOS · ABUJA · A SHARED FUTURE</Text>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel={videoPlaying ? "Pause landmark video" : "Play landmark video"} onPress={toggleMotion} style={styles.motionButton}>
-              <Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionText}>{videoPlaying ? "PAUSE MOTION" : "PLAY MOTION"}</Text>
+              <View style={[styles.liveDot, videoPlaying && styles.liveDotActive]} /><Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionText}>{videoPlaying ? `LIVE · 00:0${videoSecond} · PAUSE` : "TAP TO PLAY VIDEO"}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -133,6 +159,8 @@ const styles = StyleSheet.create({
   bottomBar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 17 },
   location: { color: "#E8EAFF", fontSize: 7, fontWeight: "900", letterSpacing: 0.75 },
   motionButton: { alignItems: "center", flexDirection: "row", gap: 7, padding: 6 },
+  liveDot: { backgroundColor: "#7780A3", borderRadius: 4, height: 7, width: 7 },
+  liveDotActive: { backgroundColor: "#DFFF4F" },
   motionIcon: { color: "#DFFF4F", fontSize: 12 },
   motionText: { color: "#FFFFFF", fontSize: 7, fontWeight: "900", letterSpacing: 0.65 },
   menuSheet: { backgroundColor: "#10164B", bottom: 0, left: 0, position: "absolute", right: 0, top: 0, zIndex: 10 },

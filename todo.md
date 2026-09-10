@@ -45,3 +45,7 @@
 - [x] Regenerate the Nigerian-landmark cinematic visual treatment for a true full-screen moving video experience.
 - [x] Replace the web landing layout with a video-first full-bleed composition that does not rely on a static hero image.
 - [x] Verify visible continuous motion and full-screen coverage on desktop and mobile.
+- [x] Verify the generated landmark video contains observable frame-to-frame movement and diagnose live playback behavior.
+- [x] Replace the current video with a visibly animated Nigerian-landmark sequence.
+- [x] Add reliable autoplay feedback so users can tell the landmark video is playing.
+- [x] Validate live motion in the corrected landing screen.

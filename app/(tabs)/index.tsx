@@ -10,7 +10,7 @@ import { chapters } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
 import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
 
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/BaHpjaYMSfAHjKqb.mp4";
+const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/oqfuaFiBeXZDAIpk.mp4";
 
 type MenuDestination = "/reader" | "/contents" | "/(tabs)/explore" | "/(tabs)/account";
 
