@@ -2,102 +2,92 @@ import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { useFocusEffect, router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BOOK_AUTHOR, BOOK_SUBTITLE, BOOK_TITLE, chapters } from "@/lib/book-data";
-import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
+import { haptic } from "@/lib/haptics";
+import { getReadingPosition, getReadingPulse, type ReadingPosition, type ReadingPulse } from "@/lib/reader-storage";
 
 const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
 
+const PRINCIPLES = [
+  { label: "PRUDENCE", color: "#DFFF4F", text: "Use resources with intention." },
+  { label: "HONESTY", color: "#6CD9FF", text: "Make trust your strongest currency." },
+  { label: "JUSTICE", color: "#FFB5E8", text: "Build peace through fairness." },
+];
+
 export default function LibraryScreen() {
   const [position, setPosition] = useState<ReadingPosition | null>(null);
+  const [pulse, setPulse] = useState<ReadingPulse>({ weeklyGoal: 3, sectionsThisWeek: 0, activeDays: 0, bookmarks: 0 });
 
   useFocusEffect(
     useCallback(() => {
-      void getReadingPosition().then(setPosition);
+      void Promise.all([getReadingPosition(), getReadingPulse()]).then(([savedPosition, savedPulse]) => {
+        setPosition(savedPosition);
+        setPulse(savedPulse);
+      });
     }, []),
   );
 
   const activeChapter = chapters.find((chapter) => chapter.id === position?.chapterId) ?? chapters[0];
-  const openReader = () => router.push(`/reader?chapterId=${activeChapter.id}` as never);
+  const completion = Math.min(100, Math.round((pulse.sectionsThisWeek / pulse.weeklyGoal) * 100));
+  const openReader = () => {
+    haptic.light();
+    router.push(`/reader?chapterId=${activeChapter.id}` as never);
+  };
 
   return (
     <ScreenContainer className="p-0" containerClassName="bg-background">
-      <StatusBar style="dark" backgroundColor="#F6F1E5" />
+      <StatusBar style="light" backgroundColor="#151A52" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.page}>
           <View style={styles.hero}>
-            <View style={styles.topLine} />
+            <View style={styles.heroOrbOne} />
+            <View style={styles.heroOrbTwo} />
             <View style={styles.topbar}>
-              <View>
-                <Text style={styles.wordmark}>OBI–ISM</Text>
-                <Text style={styles.wordmarkSub}>A philosophy of responsible living</Text>
-              </View>
-              <View style={styles.editionPill}>
-                <Text style={styles.editionPillText}>PERSONAL EDITION</Text>
-              </View>
+              <View><Text style={styles.wordmark}>OBI–ISM</Text><Text style={styles.wordmarkSub}>CHARACTER IS PUBLIC ARCHITECTURE</Text></View>
+              <View style={styles.liveEdition}><View style={styles.liveDot} /><Text style={styles.liveEditionText}>FULL EDITION</Text></View>
             </View>
 
             <View style={styles.heroMain}>
-              <View style={styles.coverFrame}>
-                <Image source={COVER} contentFit="cover" transition={250} style={styles.coverImage} accessibilityLabel="OBI-ISM book cover" />
-              </View>
+              <View style={styles.coverOrbit}><View style={styles.coverFrame}><Image source={COVER} contentFit="cover" transition={250} style={styles.coverImage} accessibilityLabel="OBI-ISM book cover" /></View></View>
               <View style={styles.heroCopy}>
-                <Text style={styles.eyebrow}>NOW IN YOUR LIBRARY</Text>
+                <Text style={styles.heroKicker}>YOUR ACTIVE READING PATH</Text>
                 <Text style={styles.heroTitle}>{BOOK_TITLE}</Text>
-                <View style={styles.shortRule} />
                 <Text style={styles.heroSubtitle}>{BOOK_SUBTITLE}</Text>
                 <Text style={styles.heroAuthor}>{BOOK_AUTHOR}</Text>
-              </View>
-            </View>
-
-            <View style={styles.heroFooter}>
-              <Text style={styles.heroFooterText}>A private, read-only edition for one licensed reader.</Text>
-              <Text style={styles.heroFooterMark}>01</Text>
-            </View>
-          </View>
-
-          <View style={styles.libraryBody}>
-            <View style={styles.sectionHeadingRow}>
-              <View>
-                <Text style={styles.sectionKicker}>YOUR READING ROOM</Text>
-                <Text style={styles.sectionHeading}>{position ? "Continue the thought." : "Begin the conversation."}</Text>
-              </View>
-              <View style={styles.progressMedallion}>
-                <Text style={styles.progressNumber}>{position ? "01" : "00"}</Text>
-                <Text style={styles.progressCaption}>OF {String(chapters.length).padStart(2, "0")}</Text>
-              </View>
-            </View>
-
-            <View style={styles.readingCard}>
-              <View style={styles.cardAccent} />
-              <Text style={styles.cardKicker}>{position ? "CURRENTLY OPEN" : "OPENING SECTION"}</Text>
-              <Text style={styles.cardTitle}>{activeChapter.title}</Text>
-              <Text style={styles.cardBody}>{activeChapter.summary}</Text>
-              <View style={styles.cardFooter}>
-              <Text style={styles.cardMeta}>{position ? "Reading position saved" : "The complete edition is ready"}</Text>
-                <TouchableOpacity accessibilityRole="button" onPress={openReader} style={styles.readButton}>
-                  <Text style={styles.readButtonText}>{position ? "Continue reading" : "Open book"}</Text>
-                  <Text style={styles.readArrow}>→</Text>
+                <TouchableOpacity accessibilityRole="button" onPress={openReader} style={styles.heroButton}>
+                  <Text style={styles.heroButtonText}>{position ? "Continue your path" : "Start the opening"}</Text><Text style={styles.heroButtonArrow}>→</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/contents" as never)} style={styles.contentsPanel}>
-              <View style={styles.contentsLine} />
-              <View style={styles.contentsTextBlock}>
-                <Text style={styles.contentsKicker}>EXPLORE THE EDITION</Text>
-                <Text style={styles.contentsTitle}>Full contents & reading markers</Text>
-                <Text style={styles.contentsBody}>{chapters.length} curated sections across four parts, appendices, and back matter.</Text>
-              </View>
-              <View style={styles.contentsCircle}><Text style={styles.contentsArrow}>→</Text></View>
-            </TouchableOpacity>
-
-            <View style={styles.protectionNote}>
-              <View style={styles.protectionDot} />
-              <Text style={styles.protectionText}>Protected reader mode activates when the book is open on supported devices.</Text>
+            <View style={styles.heroFooter}>
+              <View><Text style={styles.heroFooterLabel}>CURRENT FOCUS</Text><Text style={styles.heroFooterTitle}>{activeChapter.title}</Text></View>
+              <Text style={styles.heroFooterCounter}>{String(chapters.findIndex((chapter) => chapter.id === activeChapter.id) + 1).padStart(2, "0")}</Text>
             </View>
+          </View>
+
+          <View style={styles.body}>
+            <View style={styles.sectionHeading}><View><Text style={styles.sectionKicker}>YOUR READING PULSE</Text><Text style={styles.sectionTitle}>Momentum, not pressure.</Text></View><View style={styles.pulseBadge}><Text style={styles.pulseBadgeNumber}>{pulse.activeDays}</Text><Text style={styles.pulseBadgeLabel}>DAYS{`\n`}ACTIVE</Text></View></View>
+            <View style={styles.pulseCard}>
+              <View style={styles.pulseTop}><View><Text style={styles.pulseLabel}>THIS WEEK’S INTENTION</Text><Text style={styles.pulseTitle}>{pulse.sectionsThisWeek} of {pulse.weeklyGoal} sections</Text></View><Text style={styles.pulsePercent}>{completion}%</Text></View>
+              <View style={styles.pulseTrack}><View style={[styles.pulseFill, { width: `${completion}%` }]} /></View>
+              <View style={styles.pulseFooter}><Text style={styles.pulseNote}>{pulse.bookmarks ? `${pulse.bookmarks} saved marker${pulse.bookmarks > 1 ? "s" : ""} waiting for you` : "Set a rhythm that works for you"}</Text><TouchableOpacity accessibilityRole="button" onPress={() => { haptic.selection(); router.push("/(tabs)/account" as never); }}><Text style={styles.pulseAction}>TUNE GOAL →</Text></TouchableOpacity></View>
+            </View>
+
+            <View style={styles.quickGrid}>
+              <TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push("/(tabs)/explore" as never); }} style={[styles.quickCard, styles.quickCardSky]}><Text style={styles.quickIcon}>⌕</Text><Text style={styles.quickTitle}>Explore an idea</Text><Text style={styles.quickBody}>Search all {chapters.length} sections, parts, and principles.</Text><Text style={styles.quickArrow}>→</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push("/contents" as never); }} style={[styles.quickCard, styles.quickCardCoral]}><Text style={styles.quickIcon}>↗</Text><Text style={styles.quickTitle}>Navigate the book</Text><Text style={styles.quickBody}>Move through four parts, chapters, and appendices.</Text><Text style={styles.quickArrow}>→</Text></TouchableOpacity>
+            </View>
+
+            <View style={styles.principleHeader}><View><Text style={styles.sectionKicker}>PRINCIPLE SIGNAL</Text><Text style={styles.principleTitle}>Small ideas. Large consequences.</Text></View><Text style={styles.principleCount}>01 / 03</Text></View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.principleRow}>
+              {PRINCIPLES.map((principle) => <TouchableOpacity key={principle.label} accessibilityRole="button" onPress={() => { haptic.light(); router.push("/(tabs)/explore" as never); }} style={[styles.principleCard, { backgroundColor: principle.color }]}><Text style={styles.principleLabel}>{principle.label}</Text><Text style={styles.principleBody}>{principle.text}</Text><Text style={styles.principleArrow}>→</Text></TouchableOpacity>)}
+            </ScrollView>
+
+            <View style={styles.protectionNote}><View style={styles.protectionShield}>✦</View><Text style={styles.protectionText}>Private reader mode keeps this edition focused. Bookmarks, goals, and reading progress remain on your device.</Text></View>
           </View>
         </View>
       </ScrollView>
@@ -107,52 +97,66 @@ export default function LibraryScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
-  page: { alignSelf: "center", maxWidth: 600, width: "100%" },
-  hero: { backgroundColor: "#062E26", overflow: "hidden", paddingBottom: 24, paddingHorizontal: 24, paddingTop: 31 },
-  topLine: { backgroundColor: "#C6A44A", height: 3, left: 0, position: "absolute", right: 0, top: 0 },
-  topbar: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", paddingTop: 12 },
-  wordmark: { color: "#FFFDF6", fontSize: 20, fontWeight: "900", letterSpacing: 0.7 },
-  wordmarkSub: { color: "#AAC0B1", fontSize: 10, letterSpacing: 0.45, marginTop: 2 },
-  editionPill: { borderColor: "#54796B", borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, marginTop: 3, paddingHorizontal: 9, paddingVertical: 6 },
-  editionPillText: { color: "#D9E5D9", fontSize: 8, fontWeight: "800", letterSpacing: 0.8 },
-  heroMain: { alignItems: "center", flexDirection: "row", gap: 22, marginTop: 30 },
-  coverFrame: { backgroundColor: "#C6A44A", padding: 3, shadowColor: "#000", shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.35, shadowRadius: 18 },
-  coverImage: { height: 208, width: 139 },
-  heroCopy: { flex: 1, paddingBottom: 4 },
-  eyebrow: { color: "#C6A44A", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
-  heroTitle: { color: "#FFFDF6", fontSize: 33, fontWeight: "900", letterSpacing: -1.15, marginTop: 7 },
-  shortRule: { backgroundColor: "#C6A44A", height: 2, marginBottom: 12, marginTop: 14, width: 38 },
-  heroSubtitle: { color: "#E4EAE0", fontFamily: "serif", fontSize: 16, fontWeight: "700", lineHeight: 22 },
-  heroAuthor: { color: "#AAC0B1", fontSize: 10, letterSpacing: 0.2, lineHeight: 15, marginTop: 14 },
-  heroFooter: { alignItems: "center", borderTopColor: "#355F50", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 27, paddingTop: 15 },
-  heroFooterText: { color: "#B6C7B9", flex: 1, fontSize: 11, lineHeight: 16 },
-  heroFooterMark: { color: "#C6A44A", fontFamily: "serif", fontSize: 18, marginLeft: 16 },
-  libraryBody: { backgroundColor: "#F6F1E5", paddingBottom: 38, paddingHorizontal: 24, paddingTop: 28 },
-  sectionHeadingRow: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  sectionKicker: { color: "#9B7B31", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
-  sectionHeading: { color: "#17372E", fontFamily: "serif", fontSize: 26, fontWeight: "700", letterSpacing: -0.45, lineHeight: 33, marginTop: 6 },
-  progressMedallion: { alignItems: "center", borderColor: "#CDBE96", borderRadius: 28, borderWidth: 1, height: 56, justifyContent: "center", width: 56 },
-  progressNumber: { color: "#17372E", fontFamily: "serif", fontSize: 18, lineHeight: 19 },
-  progressCaption: { color: "#8E8061", fontSize: 7, fontWeight: "800", letterSpacing: 0.45 },
-  readingCard: { backgroundColor: "#FFFDF8", borderColor: "#E0D6BD", borderWidth: 1, marginTop: 23, overflow: "hidden", padding: 22 },
-  cardAccent: { backgroundColor: "#C6A44A", bottom: 0, left: 0, position: "absolute", top: 0, width: 4 },
-  cardKicker: { color: "#96752E", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
-  cardTitle: { color: "#17372E", fontFamily: "serif", fontSize: 25, fontWeight: "700", letterSpacing: -0.35, lineHeight: 31, marginTop: 8 },
-  cardBody: { color: "#53665D", fontSize: 14, lineHeight: 21, marginTop: 9 },
-  cardFooter: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 19 },
-  cardMeta: { color: "#79837A", flex: 1, fontSize: 10, lineHeight: 15, marginRight: 10 },
-  readButton: { alignItems: "center", backgroundColor: "#17372E", flexDirection: "row", gap: 9, justifyContent: "center", minHeight: 44, paddingHorizontal: 14 },
-  readButtonText: { color: "#FFFDF6", fontSize: 12, fontWeight: "900" },
-  readArrow: { color: "#C6A44A", fontSize: 19, lineHeight: 20 },
-  contentsPanel: { alignItems: "center", borderBottomColor: "#D9CFB8", borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: "#D9CFB8", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 26, paddingVertical: 20 },
-  contentsLine: { backgroundColor: "#C6A44A", height: 45, marginRight: 14, width: 2 },
-  contentsTextBlock: { flex: 1 },
-  contentsKicker: { color: "#96752E", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
-  contentsTitle: { color: "#17372E", fontSize: 17, fontWeight: "800", marginTop: 5 },
-  contentsBody: { color: "#68766D", fontSize: 12, lineHeight: 17, marginTop: 3 },
-  contentsCircle: { alignItems: "center", borderColor: "#17372E", borderRadius: 18, borderWidth: 1, height: 36, justifyContent: "center", marginLeft: 12, width: 36 },
-  contentsArrow: { color: "#17372E", fontSize: 18 },
-  protectionNote: { alignItems: "center", flexDirection: "row", marginTop: 19 },
-  protectionDot: { backgroundColor: "#5B9374", borderRadius: 4, height: 7, marginRight: 8, width: 7 },
-  protectionText: { color: "#6B786E", flex: 1, fontSize: 10, lineHeight: 15 },
+  page: { alignSelf: "center", maxWidth: 650, width: "100%" },
+  hero: { backgroundColor: "#151A52", overflow: "hidden", paddingBottom: 22, paddingHorizontal: 22, paddingTop: 28 },
+  heroOrbOne: { backgroundColor: "#FF5B55", borderRadius: 180, height: 240, opacity: 0.95, position: "absolute", right: -117, top: 72, width: 240 },
+  heroOrbTwo: { borderColor: "#DFFF4F", borderRadius: 150, borderWidth: 1, height: 238, left: -128, opacity: 0.85, position: "absolute", top: 174, width: 238 },
+  topbar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingTop: 11 },
+  wordmark: { color: "#FFFFFF", fontSize: 21, fontWeight: "900", letterSpacing: 0.6 },
+  wordmarkSub: { color: "#AEB4F2", fontSize: 8, fontWeight: "900", letterSpacing: 0.85, marginTop: 3 },
+  liveEdition: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.11)", borderColor: "rgba(255,255,255,0.3)", borderRadius: 20, borderWidth: 1, flexDirection: "row", paddingHorizontal: 9, paddingVertical: 7 },
+  liveDot: { backgroundColor: "#DFFF4F", borderRadius: 4, height: 7, marginRight: 6, width: 7 },
+  liveEditionText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  heroMain: { alignItems: "center", flexDirection: "row", gap: 18, marginTop: 30 },
+  coverOrbit: { alignItems: "center", borderColor: "#DFFF4F", borderRadius: 92, borderWidth: 1, height: 185, justifyContent: "center", width: 145 },
+  coverFrame: { backgroundColor: "#DFFF4F", padding: 3, transform: [{ rotate: "-4deg" }] },
+  coverImage: { height: 158, width: 106 },
+  heroCopy: { flex: 1 },
+  heroKicker: { color: "#DFFF4F", fontSize: 8, fontWeight: "900", letterSpacing: 1.05 },
+  heroTitle: { color: "#FFFFFF", fontSize: 34, fontWeight: "900", letterSpacing: -1.4, marginTop: 4 },
+  heroSubtitle: { color: "#F4F3FF", fontFamily: "serif", fontSize: 15, fontWeight: "700", lineHeight: 20, marginTop: 6 },
+  heroAuthor: { color: "#B5BAF1", fontSize: 10, marginTop: 8 },
+  heroButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "#DFFF4F", flexDirection: "row", gap: 11, marginTop: 15, paddingHorizontal: 12, paddingVertical: 11 },
+  heroButtonText: { color: "#151A52", fontSize: 11, fontWeight: "900" },
+  heroButtonArrow: { color: "#151A52", fontSize: 18, lineHeight: 18 },
+  heroFooter: { alignItems: "flex-end", borderTopColor: "rgba(255,255,255,0.23)", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 22, paddingTop: 14 },
+  heroFooterLabel: { color: "#AEB4F2", fontSize: 8, fontWeight: "900", letterSpacing: 0.85 },
+  heroFooterTitle: { color: "#FFFFFF", fontSize: 12, fontWeight: "800", marginTop: 4, maxWidth: 245 },
+  heroFooterCounter: { color: "#DFFF4F", fontFamily: "serif", fontSize: 27 },
+  body: { backgroundColor: "#FFF6E7", paddingBottom: 39, paddingHorizontal: 22, paddingTop: 28 },
+  sectionHeading: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
+  sectionKicker: { color: "#FF5B55", fontSize: 9, fontWeight: "900", letterSpacing: 1.15 },
+  sectionTitle: { color: "#151A52", fontFamily: "serif", fontSize: 28, fontWeight: "700", letterSpacing: -0.45, lineHeight: 33, marginTop: 6 },
+  pulseBadge: { alignItems: "center", backgroundColor: "#151A52", borderRadius: 28, height: 56, justifyContent: "center", width: 56 },
+  pulseBadgeNumber: { color: "#DFFF4F", fontFamily: "serif", fontSize: 18, lineHeight: 18 },
+  pulseBadgeLabel: { color: "#FFFFFF", fontSize: 6, fontWeight: "900", letterSpacing: 0.35, lineHeight: 7, textAlign: "center" },
+  pulseCard: { backgroundColor: "#FFFFFF", borderColor: "#DDD9EE", borderWidth: 1, marginTop: 21, padding: 18 },
+  pulseTop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
+  pulseLabel: { color: "#777A9C", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  pulseTitle: { color: "#1C1C26", fontFamily: "serif", fontSize: 22, fontWeight: "700", marginTop: 5 },
+  pulsePercent: { color: "#FF5B55", fontSize: 22, fontWeight: "900" },
+  pulseTrack: { backgroundColor: "#E6E4F4", height: 8, marginTop: 18, overflow: "hidden" },
+  pulseFill: { backgroundColor: "#FF5B55", height: 8 },
+  pulseFooter: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 13 },
+  pulseNote: { color: "#696A7C", flex: 1, fontSize: 10, lineHeight: 14, marginRight: 12 },
+  pulseAction: { color: "#151A52", fontSize: 9, fontWeight: "900", letterSpacing: 0.45 },
+  quickGrid: { flexDirection: "row", gap: 12, marginTop: 27 },
+  quickCard: { flex: 1, minHeight: 182, overflow: "hidden", padding: 16 },
+  quickCardSky: { backgroundColor: "#6CD9FF" },
+  quickCardCoral: { backgroundColor: "#FF5B55" },
+  quickIcon: { color: "#151A52", fontFamily: "serif", fontSize: 24 },
+  quickTitle: { color: "#151A52", fontFamily: "serif", fontSize: 19, fontWeight: "700", lineHeight: 22, marginTop: 19 },
+  quickBody: { color: "#25284D", fontSize: 11, lineHeight: 16, marginTop: 7 },
+  quickArrow: { bottom: 13, color: "#151A52", fontSize: 22, position: "absolute", right: 15 },
+  principleHeader: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 32 },
+  principleTitle: { color: "#151A52", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 29, marginTop: 5 },
+  principleCount: { color: "#777A9C", fontSize: 9, fontWeight: "900", marginBottom: 5 },
+  principleRow: { gap: 11, paddingTop: 16 },
+  principleCard: { height: 167, justifyContent: "space-between", padding: 16, width: 195 },
+  principleLabel: { color: "#151A52", fontSize: 9, fontWeight: "900", letterSpacing: 0.85 },
+  principleBody: { color: "#151A52", fontFamily: "serif", fontSize: 19, fontWeight: "700", lineHeight: 24, maxWidth: 160 },
+  principleArrow: { color: "#151A52", fontSize: 21 },
+  protectionNote: { alignItems: "center", backgroundColor: "#E8E6F5", flexDirection: "row", marginTop: 30, padding: 14 },
+  protectionShield: { color: "#151A52", fontSize: 17, marginRight: 10 },
+  protectionText: { color: "#51536B", flex: 1, fontSize: 10, lineHeight: 15 },
 });
