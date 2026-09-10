@@ -20,3 +20,6 @@
 - [x] Extract the updated OBI-ISM manuscript and map its full reading structure.
 - [x] Integrate the approved manuscript sections into the premium reader and table of contents.
 - [x] Validate complete reader navigation against the updated manuscript.
+- [x] Define the OBI-ISM companion website’s reader journey, purchase messaging, and app-access routes.
+- [x] Build a premium responsive website for book discovery, the author and philosophy, security information, and app access.
+- [x] Validate the companion website at desktop and mobile breakpoints.
