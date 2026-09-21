@@ -2,18 +2,23 @@ import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { chapters } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
-import { getReadingPulse, saveReadingGoal, type ReadingGoal, type ReadingPulse } from "@/lib/reader-storage";
+import { getReadingPosition, getReadingPulse, saveReadingGoal, type ReadingGoal, type ReadingPosition, type ReadingPulse } from "@/lib/reader-storage";
 
 const COVER = require("../../assets/images/obi-ism-cover-000.jpg");
 const GOALS: ReadingGoal[] = [3, 5, 7];
 
 export default function AccountScreen() {
-  const [pulse, setPulse] = useState<ReadingPulse>({ weeklyGoal: 3, sectionsThisWeek: 0, activeDays: 0, bookmarks: 0 });
-  useFocusEffect(useCallback(() => { void getReadingPulse().then(setPulse); }, []));
+  const [pulse, setPulse] = useState<ReadingPulse>({ weeklyGoal: 3, sectionsThisWeek: 0, activeDays: 0, bookmarks: 0, savedQuotes: 0 });
+  const [position, setPosition] = useState<ReadingPosition | null>(null);
+  useFocusEffect(useCallback(() => { void Promise.all([getReadingPulse(), getReadingPosition()]).then(([nextPulse, nextPosition]) => { setPulse(nextPulse); setPosition(nextPosition); }); }, []));
+
+  const activeChapter = chapters.find((chapter) => chapter.id === position?.chapterId) ?? chapters[0];
+  const completion = Math.round(((chapters.findIndex((chapter) => chapter.id === activeChapter.id) + 1) / chapters.length) * 100);
 
   const chooseGoal = async (goal: ReadingGoal) => {
     haptic.selection();
@@ -34,6 +39,10 @@ export default function AccountScreen() {
             <Image source={COVER} contentFit="cover" style={styles.cover} />
           </View>
           <View style={styles.body}>
+            <View style={styles.continueCard}>
+              <View><Text style={styles.continueKicker}>{position ? "WELCOME BACK" : "BEGIN THE JOURNEY"}</Text><Text numberOfLines={2} style={styles.continueTitle}>{activeChapter.title}</Text><Text style={styles.continueMeta}>{completion}% THROUGH THE EDITION</Text></View>
+              <TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push(`/reader?chapterId=${activeChapter.id}` as never); }} style={styles.continueButton}><Text style={styles.continueButtonText}>{position ? "CONTINUE" : "OPEN"}</Text><Text style={styles.continueButtonArrow}>→</Text></TouchableOpacity>
+            </View>
             <View style={styles.statsRow}>
               <Stat value={String(pulse.sectionsThisWeek).padStart(2, "0")} label="SECTIONS{`\n`}THIS WEEK" accent="#FF5B55" />
               <Stat value={String(pulse.activeDays).padStart(2, "0")} label="DAYS{`\n`}OF FOCUS" accent="#6CD9FF" />
@@ -47,10 +56,12 @@ export default function AccountScreen() {
               <Text style={styles.goalNote}>This stays on your device and only helps shape your reading rhythm.</Text>
             </View>
 
+            <View style={styles.savedPassagesCard}><View><Text style={styles.savedPassagesKicker}>PRIVATE LIBRARY</Text><Text style={styles.savedPassagesTitle}>{pulse.savedQuotes} saved {pulse.savedQuotes === 1 ? "passage" : "passages"}</Text><Text style={styles.savedPassagesBody}>Return to the words you chose to keep.</Text></View><TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push("/quotes?filter=saved" as never); }} style={styles.savedPassagesButton}><Text style={styles.savedPassagesButtonText}>OPEN</Text><Text style={styles.savedPassagesButtonArrow}>→</Text></TouchableOpacity></View>
+
             <Text style={styles.sectionKicker}>YOUR EDITION, PROTECTED</Text>
             <View style={styles.securityCard}><SecurityRow mark="01" title="Personal access" body="A single-reader edition prepared for account and device controls at launch." /><SecurityRow mark="02" title="Focused format" body="No public export, social sharing, or print pathway inside the reader." /><SecurityRow mark="03" title="Capture deterrence" body="Supported devices activate reader-time screen-capture deterrence." /></View>
-            <TouchableOpacity accessibilityRole="button" onPress={() => haptic.light()} style={styles.supportButton}><Text style={styles.supportButtonText}>Request a device-change review</Text><Text style={styles.supportButtonArrow}>→</Text></TouchableOpacity>
-            <Text style={styles.supportNote}>When access services are connected, this route will keep genuine readers from being locked out after a device replacement.</Text>
+            <TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push("/profile" as never); }} style={styles.profileButton}><Text style={styles.profileButtonText}>Profile & reading preferences</Text><Text style={styles.profileButtonArrow}>→</Text></TouchableOpacity>
+            <Text style={styles.supportNote}>Device, session, and password management appear here when the production access service is connected. The reader does not claim controls that are not yet configured.</Text>
           </View>
         </View>
       </ScrollView>
@@ -71,6 +82,13 @@ const styles = StyleSheet.create({
   heroBody: { color: "#C4C9FB", fontSize: 12, lineHeight: 18, marginTop: 10, maxWidth: "64%" },
   cover: { bottom: -28, height: 177, position: "absolute", right: 10, transform: [{ rotate: "-8deg" }], width: 118 },
   body: { backgroundColor: "#FFF6E7", paddingBottom: 40, paddingHorizontal: 22, paddingTop: 24 },
+  continueCard: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginBottom: 18, padding: 17 },
+  continueKicker: { color: "#DFFF4F", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  continueTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 21, fontWeight: "700", lineHeight: 26, marginTop: 5, maxWidth: 210 },
+  continueMeta: { color: "#C4C9FB", fontSize: 8, fontWeight: "900", letterSpacing: 0.7, marginTop: 7 },
+  continueButton: { alignItems: "center", backgroundColor: "#DFFF4F", flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 11 },
+  continueButtonText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.6 },
+  continueButtonArrow: { color: "#151A52", fontSize: 18 },
   statsRow: { flexDirection: "row", gap: 9 },
   stat: { backgroundColor: "#FFFFFF", borderTopWidth: 6, flex: 1, minHeight: 96, padding: 10 },
   statValue: { fontFamily: "serif", fontSize: 27, fontWeight: "700" },
@@ -84,9 +102,19 @@ const styles = StyleSheet.create({
   goalValue: { color: "#151A52", fontFamily: "serif", fontSize: 23, fontWeight: "700", textAlign: "center" },
   goalValueActive: { color: "#DFFF4F" }, goalLabel: { color: "#151A52", fontSize: 7, fontWeight: "900", letterSpacing: 0.45, marginTop: 2, textAlign: "center" }, goalLabelActive: { color: "#FFFFFF" },
   goalNote: { color: "#253660", fontSize: 9, lineHeight: 13, marginTop: 12 },
+  savedPassagesCard: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#DDD9EE", borderWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 23, padding: 17 },
+  savedPassagesKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  savedPassagesTitle: { color: "#151A52", fontFamily: "serif", fontSize: 22, fontWeight: "700", marginTop: 5 },
+  savedPassagesBody: { color: "#696B7E", fontSize: 11, marginTop: 5 },
+  savedPassagesButton: { alignItems: "center", borderColor: "#151A52", borderWidth: 1, flexDirection: "row", gap: 6, paddingHorizontal: 12, paddingVertical: 10 },
+  savedPassagesButtonText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
+  savedPassagesButtonArrow: { color: "#151A52", fontSize: 18 },
   sectionKicker: { color: "#FF5B55", fontSize: 9, fontWeight: "900", letterSpacing: 1.05, marginTop: 31 },
   securityCard: { backgroundColor: "#FFFFFF", borderColor: "#DDD9EE", borderWidth: 1, marginTop: 10 },
   securityRow: { borderBottomColor: "#E5E2F0", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 12, padding: 15 },
   securityMark: { color: "#FF5B55", fontFamily: "serif", fontSize: 17, width: 25 }, securityCopy: { flex: 1 }, securityTitle: { color: "#151A52", fontSize: 14, fontWeight: "900" }, securityBody: { color: "#696B7E", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  profileButton: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginTop: 18, paddingHorizontal: 17, paddingVertical: 15 },
+  profileButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
+  profileButtonArrow: { color: "#DFFF4F", fontSize: 20 },
   supportButton: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginTop: 23, paddingHorizontal: 17, paddingVertical: 15 }, supportButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, supportButtonArrow: { color: "#DFFF4F", fontSize: 20 }, supportNote: { color: "#717185", fontSize: 10, lineHeight: 15, marginTop: 10, textAlign: "center" },
 });

@@ -3,8 +3,11 @@ import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "r
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
+import { CinematicEntry } from "@/components/cinematic-entry";
+import { chapters } from "@/lib/book-data";
 import { PORTRAIT_HERO_COPY, PORTRAIT_HERO_IMAGE } from "@/lib/hero-art";
 import { formatLandmarkTourTime, getLandmarkForSecond, LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
+import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
 
 export default function ObiIsmWebsite() {
   const { width, height } = useWindowDimensions();
@@ -12,9 +15,13 @@ export default function ObiIsmWebsite() {
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [videoSecond, setVideoSecond] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [position, setPosition] = useState<ReadingPosition | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const activeLandmark = getLandmarkForSecond(videoSecond);
   const formattedVideoTime = formatLandmarkTourTime(videoSecond);
+  const activeChapter = chapters.find((chapter) => chapter.id === position?.chapterId) ?? chapters[0];
+  const returningReader = Boolean(position);
+  const readingCompletion = Math.round(((chapters.findIndex((chapter) => chapter.id === activeChapter.id) + 1) / chapters.length) * 100);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -37,6 +44,10 @@ export default function ObiIsmWebsite() {
     };
   }, []);
 
+  useEffect(() => {
+    void getReadingPosition().then(setPosition);
+  }, []);
+
   const toggleMotion = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -48,10 +59,12 @@ export default function ObiIsmWebsite() {
     void video.play().then(() => setVideoPlaying(true)).catch(() => setVideoPlaying(false));
   };
 
-  const readOpening = () => router.push("/reader?chapterId=preface" as never);
+  const readOpening = () => router.push(`/reader?chapterId=${returningReader ? activeChapter.id : "preface"}` as never);
   const explore = () => router.push("/(tabs)/explore" as never);
   const openChapters = () => router.push("/contents" as never);
   const openEdition = () => router.push("/(tabs)/account" as never);
+  const openPrinciples = () => router.push("/principles" as never);
+  const openQuotes = () => router.push("/quotes?filter=saved" as never);
   const openFuture = () => router.push("/reader?chapterId=epilogue" as never);
 
   return (
@@ -99,16 +112,16 @@ export default function ObiIsmWebsite() {
         </View>
 
         <View style={[styles.heroCopy, desktop && styles.heroCopyDesktop]}>
-          <Text style={styles.eyebrow}>{PORTRAIT_HERO_COPY.eyebrow}</Text>
+          <Text style={styles.eyebrow}>{returningReader ? "WELCOME BACK" : PORTRAIT_HERO_COPY.eyebrow}</Text>
           <View style={styles.eyebrowRule} />
-          <Text style={[styles.title, desktop && styles.titleDesktop]}>Character{`\n`}Builds{`\n`}<Text style={styles.titleGold}>Nations.</Text></Text>
-          <Text style={[styles.description, desktop && styles.descriptionDesktop]}>{PORTRAIT_HERO_COPY.description}</Text>
+          <Text style={[styles.title, desktop && styles.titleDesktop]}>{returningReader ? <>You stopped{`\n`}<Text style={styles.titleGold}>here.</Text></> : <>Character{`\n`}Builds{`\n`}<Text style={styles.titleGold}>Nations.</Text></>}</Text>
+          <Text style={[styles.description, desktop && styles.descriptionDesktop]}>{returningReader ? `${activeChapter.title} · ${readingCompletion}% complete` : PORTRAIT_HERO_COPY.description}</Text>
         </View>
 
         <View style={[styles.actionZone, desktop && styles.actionZoneDesktop]}>
           <View style={styles.actions}>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read the opening of OBI-ISM" onPress={readOpening} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Read the opening</Text><Text style={styles.primaryButtonArrow}>→</Text>
+              <Text style={styles.primaryButtonText}>{returningReader ? "Continue reading" : "Read the opening"}</Text><Text style={styles.primaryButtonArrow}>→</Text>
             </TouchableOpacity>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore the OBI-ISM ideas" onPress={explore} style={styles.secondaryButton}>
               <Text style={styles.secondaryButtonText}>Explore the ideas</Text>
@@ -116,8 +129,8 @@ export default function ObiIsmWebsite() {
           </View>
           <View style={styles.discoveryRail}>
             <DiscoveryItem icon="▤" label="CHAPTERS" onPress={openChapters} />
-            <DiscoveryItem icon="✦" label="KEY IDEAS" onPress={explore} />
-            <DiscoveryItem icon="◇" label="SAVED" onPress={openEdition} />
+            <DiscoveryItem icon="✦" label="PRINCIPLES" onPress={openPrinciples} />
+            <DiscoveryItem icon="◇" label="SAVED" onPress={openQuotes} />
             <DiscoveryItem icon="↗" label="THE FUTURE" onPress={openFuture} />
           </View>
           <View style={styles.footerRow}>
@@ -139,14 +152,16 @@ export default function ObiIsmWebsite() {
             </View>
             <View style={styles.menuItems}>
               <MenuItem index="01" label="Read the opening" onPress={readOpening} />
-              <MenuItem index="02" label="Explore the ideas" onPress={explore} />
-              <MenuItem index="03" label="View chapters" onPress={openChapters} />
-              <MenuItem index="04" label="My edition" onPress={openEdition} />
+              <MenuItem index="02" label="Principles" onPress={openPrinciples} />
+              <MenuItem index="03" label="Quotes" onPress={() => router.push("/quotes" as never)} />
+              <MenuItem index="04" label="My journey" onPress={openEdition} />
+              <MenuItem index="05" label="Profile" onPress={() => router.push("/profile" as never)} />
             </View>
             <Text style={styles.menuFooter}>A PRIVATE DIGITAL EDITION · 2026</Text>
           </View>
         </View>
       )}
+      <CinematicEntry />
     </View>
   );
 }
