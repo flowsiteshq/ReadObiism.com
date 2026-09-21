@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/oqfuaFiBeXZDAIpk.mp4";
+import { formatLandmarkTourTime, getLandmarkForSecond, LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
 
 export default function ObiIsmWebsite() {
   const { width, height } = useWindowDimensions();
@@ -12,6 +11,8 @@ export default function ObiIsmWebsite() {
   const [videoSecond, setVideoSecond] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const activeLandmark = getLandmarkForSecond(videoSecond);
+  const formattedVideoTime = formatLandmarkTourTime(videoSecond);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -49,7 +50,7 @@ export default function ObiIsmWebsite() {
       <StatusBar style="light" backgroundColor="rgba(6,10,33,0.15)" />
       <video
         ref={videoRef}
-        src={LANDMARK_VIDEO}
+        src={LANDMARK_TOUR_VIDEO}
         autoPlay
         loop
         muted
@@ -90,9 +91,9 @@ export default function ObiIsmWebsite() {
             </TouchableOpacity>
           </View>
           <View style={styles.bottomBar}>
-            <Text style={styles.location}>LAGOS · ABUJA · A SHARED FUTURE</Text>
+            <Text style={styles.location}>LANDMARK JOURNEY · {activeLandmark.toUpperCase()}</Text>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel={videoPlaying ? "Pause landmark video" : "Play landmark video"} onPress={toggleMotion} style={styles.motionButton}>
-              <View style={[styles.liveDot, videoPlaying && styles.liveDotActive]} /><Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionText}>{videoPlaying ? `LIVE · 00:0${videoSecond} · PAUSE` : "TAP TO PLAY VIDEO"}</Text>
+              <View style={[styles.liveDot, videoPlaying && styles.liveDotActive]} /><Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionText}>{videoPlaying ? `LIVE · ${formattedVideoTime} · PAUSE` : "TAP TO PLAY VIDEO"}</Text>
             </TouchableOpacity>
           </View>
         </View>

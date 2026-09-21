@@ -8,9 +8,8 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { ScreenContainer } from "@/components/screen-container";
 import { chapters } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
+import { LANDMARK_TOUR_SECONDS, LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
 import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
-
-const LANDMARK_VIDEO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031545745/oqfuaFiBeXZDAIpk.mp4";
 
 type MenuDestination = "/reader" | "/contents" | "/(tabs)/explore" | "/(tabs)/account";
 
@@ -19,7 +18,7 @@ export default function LibraryScreen() {
   const [position, setPosition] = useState<ReadingPosition | null>(null);
   const [videoPlaying, setVideoPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const player = useVideoPlayer(LANDMARK_VIDEO, (videoPlayer) => {
+  const player = useVideoPlayer(LANDMARK_TOUR_VIDEO, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = true;
     videoPlayer.play();
@@ -82,7 +81,7 @@ export default function LibraryScreen() {
               <Text style={styles.secondaryActionText}>My edition</Text>
             </TouchableOpacity>
             <View style={styles.footerRow}>
-              <Text style={styles.location}>LAGOS · ABUJA · A SHARED FUTURE</Text>
+              <Text style={styles.location}>NIGERIAN LANDMARK JOURNEY · {LANDMARK_TOUR_SECONDS} SECONDS</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel={videoPlaying ? "Pause landmark background motion" : "Play landmark background motion"} onPress={toggleMotion} style={styles.motionButton}>
                 <Text style={styles.motionIcon}>{videoPlaying ? "Ⅱ" : "▶"}</Text><Text style={styles.motionLabel}>{videoPlaying ? "PAUSE" : "PLAY"}</Text>
               </TouchableOpacity>
