@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourcePath = join(projectRoot, "manuscript", "obi-ism-manuscript.txt");
 const targetPath = join(projectRoot, "lib", "book-data.ts");
-const manuscript = readFileSync(sourcePath, "utf8").replace(/\r/g, "").replace(/\f/g, "\n");
+// PDF text extraction places a printed page number immediately before a form-feed.
+// Remove that whole boundary so a paragraph flowing across two pages stays one paragraph.
+const manuscript = readFileSync(sourcePath, "utf8")
+  .replace(/\r/g, "")
+  .replace(/\n\s*\d+\s*\n\f/g, "\n")
+  .replace(/\f/g, "\n");
 
 const sections = [
   { id: "preface", marker: "PREFACE", endMarker: "TABLE OF CONTENTS", label: "PREFACE", title: "The Philosopher Who Didn't Know He Was One", kind: "frontmatter" },

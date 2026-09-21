@@ -48,12 +48,11 @@ A Philosophy of Responsible Living
 This book began as a question, not an answer.
 
 For years, I watched a man navigate public life with what seemed like an almost impossible
-consistency. He did not shout. He did not perform. He did not accumulate visible wealth while in
-positions of authority. He traveled without entourages, wore simple clothes, and spoke of public
-funds as though they were sacred vessels holding the hopes of millions. In a world saturated with
-performative leadership and of leaders who stage-manage their generosity, who photograph their
-humility, who weaponize their simplicity, this man simply lived a certain way, and the living itself
-was the message.
+consistency. He did not shout. He did not accumulate visible wealth while in positions of authority.
+He traveled without entourages, wore simple clothes, and spoke of public funds as though they
+were sacred vessels holding the hopes of millions. In a world saturated with performative
+leadership and of leaders who stage-manage their generosity, who photograph their humility, who
+weaponize their simplicity, this man simply lived a certain way, and the living itself was the message.
 
 At first, I thought I was studying a political figure. I was wrong. I was studying a philosophy in
 motion.
@@ -76,13 +75,11 @@ resilient, more satisfying, and more significant than a life built on their oppo
 
 Let me be clear from the outset about what this book is, and what it is not.
 
-
-
+It is not a biography, though it contains biographical moments. It is not a political manifesto,
+though it engages deeply with governance. It is not a work of hero worship, though it draws
 
                                                     3
-It is not a biography, though it contains biographical moments. It is not a political manifesto,
-though it engages deeply with governance. It is not a work of hero worship, though it draws
-inspiration from a life courageously lived. It is not a book about Nigeria, though Nigeria is the soil
+inspiration from a life courageously lived. It is not a book about Nigeria, though Nigeria is the soil
 from which these lessons grew. It is not a book about one man's career, though that career provides
 the laboratory in which these principles were tested.
 
@@ -117,11 +114,11 @@ applies these principles to the domains of business, governance, and public serv
 forward, asking how OBI-ISM can shape the future of child-rearing, institutional reform, national
 development, and global leadership.
 
+Throughout, I have tried to resist the temptation of easy moralizing. The world is complex. Human
+beings are flawed. No single philosophy answers every question. OBI-ISM is not a totalizing
 
                                                   4
-Throughout, I have tried to resist the temptation of easy moralizing. The world is complex. Human
-beings are flawed. No single philosophy answers every question. OBI-ISM is not a totalizing
-system; it is a compass, not a cage. It points in a direction without pretending that every step along
+system; it is a compass, not a cage. It points in a direction without pretending that every step along
 the path will be clear. I have tried to acknowledge tensions, trade-offs, and the genuine difficulties
 of living these principles in a world that often punishes them in the short term.
 
@@ -156,14 +153,12 @@ Welcome to that possibility.
 
 Hon. Eze Echesi (Former Commissioner of Finance, Anambra State, 2006-2012)
 
-
-
-                                                   5
-                                 TABLE OF CONTENTS
+                                      TABLE OF CONTENTS
 
 Preface: The Philosopher Who Didn't Know He Was One
 
-Introduction: The Philosophy Hidden in a Life
+                                                   5
+Introduction: The Philosophy Hidden in a Life
 
 PART I: THE MAKING OF THE PHILOSOPHY
 
@@ -203,10 +198,13 @@ PART III: BUSINESS, POWER, AND PUBLIC SERVICE
 
 Chapter Fifteen — Ethics in Private Enterprise
 
-                                                 6
-Chapter Sixteen — Why Character Eats Strategy for Breakfast
 
-Chapter Seventeen — Governing with Scarcity Mentality
+
+
+Chapter Sixteen — Why Character Eats Strategy for Breakfast
+
+                                                 6
+Chapter Seventeen — Governing with Scarcity Mentality
 
 Chapter Eighteen — Public Funds Are Sacred
 
