@@ -11,7 +11,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-import { getBookmarks, getReadingGoal, getReadingPosition, getReadingPulse, saveReadingGoal, saveReadingPosition, toggleBookmark } from "../lib/reader-storage";
+import { getBookmarks, getReadingGoal, getReadingPosition, getReadingPulse, getSavedQuotes, saveReadingGoal, saveReadingPosition, toggleBookmark, toggleSavedQuote } from "../lib/reader-storage";
 
 describe("OBI-ISM reader persistence", () => {
   beforeEach(() => storage.clear());
@@ -26,6 +26,12 @@ describe("OBI-ISM reader persistence", () => {
     await expect(toggleBookmark("preface")).resolves.toEqual(["preface"]);
     await expect(getBookmarks()).resolves.toEqual(["preface"]);
     await expect(toggleBookmark("preface")).resolves.toEqual([]);
+  });
+
+  it("keeps saved quote cards private to the reader", async () => {
+    await expect(toggleSavedQuote("preface-character-infrastructure")).resolves.toEqual(["preface-character-infrastructure"]);
+    await expect(getSavedQuotes()).resolves.toEqual(["preface-character-infrastructure"]);
+    await expect(toggleSavedQuote("preface-character-infrastructure")).resolves.toEqual([]);
   });
 
   it("keeps a private weekly goal and activity pulse", async () => {

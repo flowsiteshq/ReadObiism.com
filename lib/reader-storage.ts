@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const READING_POSITION_KEY = "obi-ism.reading-position";
 const BOOKMARKS_KEY = "obi-ism.bookmarks";
+const SAVED_QUOTES_KEY = "obi-ism.saved-quotes";
 const READING_GOAL_KEY = "obi-ism.reading-goal";
 const READING_ACTIVITY_KEY = "obi-ism.reading-activity";
 
@@ -17,6 +18,7 @@ export type ReadingPulse = {
   sectionsThisWeek: number;
   activeDays: number;
   bookmarks: number;
+  savedQuotes: number;
 };
 
 export type ReadingPosition = {
@@ -51,6 +53,21 @@ export async function toggleBookmark(chapterId: string) {
   return bookmarks;
 }
 
+export async function getSavedQuotes(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(SAVED_QUOTES_KEY);
+  return raw ? (JSON.parse(raw) as string[]) : [];
+}
+
+export async function toggleSavedQuote(quoteId: string) {
+  const saved = await getSavedQuotes();
+  const quotes = saved.includes(quoteId)
+    ? saved.filter((item) => item !== quoteId)
+    : [...saved, quoteId];
+
+  await AsyncStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(quotes));
+  return quotes;
+}
+
 export async function getReadingGoal(): Promise<ReadingGoal> {
   const raw = await AsyncStorage.getItem(READING_GOAL_KEY);
   const goal = Number(raw);
@@ -77,7 +94,7 @@ export async function recordReadingActivity(sectionId: string, readAt = new Date
 }
 
 export async function getReadingPulse(now = new Date()): Promise<ReadingPulse> {
-  const [activity, weeklyGoal, bookmarkIds] = await Promise.all([getReadingActivity(), getReadingGoal(), getBookmarks()]);
+  const [activity, weeklyGoal, bookmarkIds, quoteIds] = await Promise.all([getReadingActivity(), getReadingGoal(), getBookmarks(), getSavedQuotes()]);
   const startOfWindow = new Date(now);
   startOfWindow.setHours(0, 0, 0, 0);
   startOfWindow.setDate(startOfWindow.getDate() - 6);
@@ -88,5 +105,6 @@ export async function getReadingPulse(now = new Date()): Promise<ReadingPulse> {
     sectionsThisWeek: new Set(recent.map((entry) => entry.sectionId)).size,
     activeDays: new Set(recent.map((entry) => entry.readAt.slice(0, 10))).size,
     bookmarks: bookmarkIds.length,
+    savedQuotes: quoteIds.length,
   };
 }

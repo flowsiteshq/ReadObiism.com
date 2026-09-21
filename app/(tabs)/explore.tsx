@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { chapters, type BookChapter } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
+import { searchPublication } from "@/lib/publication-data";
 import { getBookmarks } from "@/lib/reader-storage";
 
 const FILTERS = ["ALL", "FOUNDATIONS", "POWER", "FUTURE", "SAVED"] as const;
@@ -30,6 +31,7 @@ export default function ExploreScreen() {
     const matchesFilter = filter === "ALL" || (filter === "SAVED" ? bookmarks.includes(chapter.id) : chapter.part === partForFilter[filter]);
     return matchesQuery && matchesFilter && chapter.kind !== "part";
   }), [bookmarks, filter, query]);
+  const publicationResults = useMemo(() => searchPublication(query), [query]);
 
   const openSection = (section: BookChapter) => { haptic.light(); router.push(`/reader?chapterId=${section.id}` as never); };
 
@@ -58,6 +60,8 @@ export default function ExploreScreen() {
               <Text style={styles.featureTitle}>From character formation to public renewal.</Text>
               <View style={styles.featureSteps}><Text style={styles.featureStep}>01 MAKE</Text><Text style={styles.featureStep}>02 GROUND</Text><Text style={styles.featureStep}>03 LEAD</Text><Text style={styles.featureStep}>04 BUILD</Text></View>
             </View>
+            <View style={styles.libraryLinks}><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/principles" as never)} style={styles.libraryLink}><Text style={styles.libraryLinkKicker}>IDEAS</Text><Text style={styles.libraryLinkTitle}>Principles →</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" onPress={() => router.push("/quotes" as never)} style={styles.libraryLink}><Text style={styles.libraryLinkKicker}>PASSAGES</Text><Text style={styles.libraryLinkTitle}>Quotes →</Text></TouchableOpacity></View>
+            {query && publicationResults.length > 0 ? <View style={styles.publicationSearch}><Text style={styles.publicationSearchKicker}>IDEAS & PASSAGES</Text>{publicationResults.map((result) => <TouchableOpacity key={`${result.kind}-${result.id}`} accessibilityRole="button" onPress={() => router.push(`/reader?chapterId=${result.chapterId}` as never)} style={styles.publicationSearchRow}><Text style={styles.publicationSearchType}>{result.kind.toUpperCase()}</Text><View style={styles.publicationSearchCopy}><Text numberOfLines={1} style={styles.publicationSearchTitle}>{result.title}</Text><Text numberOfLines={2} style={styles.publicationSearchSub}>{result.subtitle}</Text></View><Text style={styles.publicationSearchArrow}>→</Text></TouchableOpacity>)}</View> : null}
             <View style={styles.resultsHeader}><Text style={styles.resultsTitle}>{filter === "SAVED" ? "Your saved markers" : query ? "Search results" : "Start anywhere"}</Text><Text style={styles.resultsCount}>{results.length} FOUND</Text></View>
           </>
         }
@@ -89,6 +93,18 @@ const styles = StyleSheet.create({
   featureTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 22, fontWeight: "700", lineHeight: 28, marginTop: 6 },
   featureSteps: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 15 },
   featureStep: { backgroundColor: "rgba(255,255,255,0.12)", color: "#DFFF4F", fontSize: 8, fontWeight: "900", letterSpacing: 0.6, paddingHorizontal: 8, paddingVertical: 7 },
+  libraryLinks: { flexDirection: "row", gap: 10, marginHorizontal: 22, marginTop: 18 },
+  libraryLink: { backgroundColor: "#FFFFFF", borderColor: "#DDD9E8", borderWidth: 1, flex: 1, padding: 13 },
+  libraryLinkKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  libraryLinkTitle: { color: "#151A52", fontFamily: "serif", fontSize: 18, fontWeight: "700", marginTop: 4 },
+  publicationSearch: { backgroundColor: "#FFFFFF", borderColor: "#DDD9E8", borderWidth: 1, marginHorizontal: 22, marginTop: 18, paddingTop: 14 },
+  publicationSearchKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.9, paddingHorizontal: 14 },
+  publicationSearchRow: { alignItems: "center", borderTopColor: "#ECE8F1", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 10, marginTop: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  publicationSearchType: { color: "#151A52", fontSize: 7, fontWeight: "900", letterSpacing: 0.55, width: 51 },
+  publicationSearchCopy: { flex: 1 },
+  publicationSearchTitle: { color: "#151A52", fontFamily: "serif", fontSize: 16, fontWeight: "700" },
+  publicationSearchSub: { color: "#6C6C7D", fontSize: 10, lineHeight: 14, marginTop: 3 },
+  publicationSearchArrow: { color: "#FF5B55", fontSize: 17 },
   resultsHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 28 },
   resultsTitle: { color: "#151A52", fontFamily: "serif", fontSize: 25, fontWeight: "700" },
   resultsCount: { color: "#FF5B55", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },

@@ -5,6 +5,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoView, useVideoPlayer } from "expo-video";
 
+import { CinematicEntry } from "@/components/cinematic-entry";
 import { ScreenContainer } from "@/components/screen-container";
 import { chapters } from "@/lib/book-data";
 import { PORTRAIT_HERO_COPY, PORTRAIT_HERO_IMAGE } from "@/lib/hero-art";
@@ -32,6 +33,8 @@ export default function LibraryScreen() {
   );
 
   const activeChapter = chapters.find((chapter) => chapter.id === position?.chapterId) ?? chapters[0];
+  const returningReader = Boolean(position);
+  const readingCompletion = Math.round(((chapters.findIndex((chapter) => chapter.id === activeChapter.id) + 1) / chapters.length) * 100);
 
   const navigate = (destination: MenuDestination) => {
     haptic.light();
@@ -46,6 +49,14 @@ export default function LibraryScreen() {
   const openFuture = () => {
     haptic.light();
     router.push("/reader?chapterId=epilogue" as never);
+  };
+  const openPrinciples = () => {
+    haptic.light();
+    router.push("/principles" as never);
+  };
+  const openQuotes = () => {
+    haptic.light();
+    router.push("/quotes?filter=saved" as never);
   };
 
   const toggleMotion = () => {
@@ -75,16 +86,16 @@ export default function LibraryScreen() {
 
         <View style={styles.content}>
           <View style={styles.statementBlock}>
-            <Text style={styles.kicker}>{PORTRAIT_HERO_COPY.eyebrow}</Text>
+            <Text style={styles.kicker}>{returningReader ? "WELCOME BACK" : PORTRAIT_HERO_COPY.eyebrow}</Text>
             <View style={styles.kickerRule} />
-            <Text style={styles.title}>Character{`\n`}Builds{`\n`}<Text style={styles.gold}>Nations.</Text></Text>
-            <Text style={styles.description}>{PORTRAIT_HERO_COPY.description}</Text>
+            <Text style={styles.title}>{returningReader ? <>You stopped{`\n`}<Text style={styles.gold}>here.</Text></> : <>Character{`\n`}Builds{`\n`}<Text style={styles.gold}>Nations.</Text></>}</Text>
+            <Text style={styles.description}>{returningReader ? `${activeChapter.title} · ${readingCompletion}% complete` : PORTRAIT_HERO_COPY.description}</Text>
           </View>
 
           <View style={[styles.actionsArea, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.actions}>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Begin reading the current OBI-ISM chapter" onPress={() => navigate("/reader")} style={styles.primaryAction}>
-                <Text style={styles.primaryActionText}>{position ? "Continue reading" : "Read the opening"}</Text><Text style={styles.primaryArrow}>→</Text>
+                <Text style={styles.primaryActionText}>{returningReader ? "Continue reading" : "Read the opening"}</Text><Text style={styles.primaryArrow}>→</Text>
               </TouchableOpacity>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore OBI-ISM ideas" onPress={() => navigate("/(tabs)/explore")} style={styles.secondaryAction}>
                 <Text style={styles.secondaryActionText}>Explore the ideas</Text>
@@ -92,8 +103,8 @@ export default function LibraryScreen() {
             </View>
             <View style={styles.discoveryRail}>
               <DiscoveryItem icon="▤" label="CHAPTERS" onPress={() => navigate("/contents")} />
-              <DiscoveryItem icon="✦" label="KEY IDEAS" onPress={() => navigate("/(tabs)/explore")} />
-              <DiscoveryItem icon="◇" label="SAVED" onPress={() => navigate("/(tabs)/account")} />
+              <DiscoveryItem icon="✦" label="PRINCIPLES" onPress={openPrinciples} />
+              <DiscoveryItem icon="◇" label="SAVED" onPress={openQuotes} />
               <DiscoveryItem icon="↗" label="THE FUTURE" onPress={openFuture} />
             </View>
             <View style={styles.footerRow}>
@@ -110,13 +121,15 @@ export default function LibraryScreen() {
             <View style={styles.menuHeader}><Text style={styles.menuBrand}>OBI–<Text style={styles.gold}>ISM</Text></Text><TouchableOpacity accessibilityRole="button" accessibilityLabel="Close OBI-ISM menu" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></TouchableOpacity></View>
             <View style={styles.menuLinks}>
               <MenuItem number="01" label="Continue reading" onPress={() => navigate("/reader")} />
-              <MenuItem number="02" label="Explore ideas" onPress={() => navigate("/(tabs)/explore")} />
-              <MenuItem number="03" label="View chapters" onPress={() => navigate("/contents")} />
-              <MenuItem number="04" label="My edition" onPress={() => navigate("/(tabs)/account")} />
+              <MenuItem number="02" label="Principles" onPress={openPrinciples} />
+              <MenuItem number="03" label="Quotes" onPress={() => router.push("/quotes" as never)} />
+              <MenuItem number="04" label="My journey" onPress={() => navigate("/(tabs)/account")} />
+              <MenuItem number="05" label="Profile" onPress={() => router.push("/profile" as never)} />
             </View>
             <Text style={styles.menuFoot}>A PRIVATE DIGITAL EDITION · 2026</Text>
           </View>
         )}
+        <CinematicEntry />
       </View>
     </ScreenContainer>
   );
