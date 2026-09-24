@@ -159,6 +159,7 @@ export default function ObiIsmWebsite() {
               <MenuItem index="03" label="Quotes" onPress={() => router.push("/quotes" as never)} />
               <MenuItem index="04" label="My journey" onPress={openEdition} />
               <MenuItem index="05" label="Profile" onPress={() => router.push("/profile" as never)} />
+              <MenuItem index="06" label="Public website" onPress={() => router.push("/website" as never)} />
             </View>
             <Text style={styles.menuFooter}>A PRIVATE DIGITAL EDITION · 2026</Text>
           </View>
