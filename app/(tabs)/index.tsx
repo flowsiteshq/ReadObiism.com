@@ -8,6 +8,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { CinematicEntry } from "@/components/cinematic-entry";
 import { ScreenContainer } from "@/components/screen-container";
 import { chapters } from "@/lib/book-data";
+import { getCinematicTopClearance } from "@/lib/cinematic-layout";
 import { PORTRAIT_HERO_COPY, PORTRAIT_HERO_IMAGE } from "@/lib/hero-art";
 import { haptic } from "@/lib/haptics";
 import { LANDMARK_TOUR_SECONDS, LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
@@ -74,7 +75,7 @@ export default function LibraryScreen() {
         <View pointerEvents="none" style={styles.leftVeil} />
         <View pointerEvents="none" style={styles.bottomVeil} />
 
-        <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+        <View style={[styles.header, { paddingTop: getCinematicTopClearance(insets.top) }]}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="OBI-ISM welcome screen" onPress={() => setMenuOpen(false)}>
             <Text style={styles.wordmark}>OBI–<Text style={styles.gold}>ISM</Text></Text>
             <Text style={styles.descriptor}>{PORTRAIT_HERO_COPY.brandLine}</Text>
@@ -117,7 +118,7 @@ export default function LibraryScreen() {
         </View>
 
         {menuOpen && (
-          <View style={[styles.menuSheet, { paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <View style={[styles.menuSheet, { paddingTop: getCinematicTopClearance(insets.top), paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.menuHeader}><Text style={styles.menuBrand}>OBI–<Text style={styles.gold}>ISM</Text></Text><TouchableOpacity accessibilityRole="button" accessibilityLabel="Close OBI-ISM menu" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></TouchableOpacity></View>
             <View style={styles.menuLinks}>
               <MenuItem number="01" label="Continue reading" onPress={() => navigate("/reader")} />

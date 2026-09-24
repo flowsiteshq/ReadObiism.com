@@ -2,15 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CinematicEntry } from "@/components/cinematic-entry";
 import { chapters } from "@/lib/book-data";
+import { getCinematicTopClearance } from "@/lib/cinematic-layout";
 import { PORTRAIT_HERO_COPY, PORTRAIT_HERO_IMAGE } from "@/lib/hero-art";
 import { formatLandmarkTourTime, getLandmarkForSecond, LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
 import { getReadingPosition, type ReadingPosition } from "@/lib/reader-storage";
 
 export default function ObiIsmWebsite() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const desktop = width >= 900;
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [videoSecond, setVideoSecond] = useState(0);
@@ -100,7 +103,7 @@ export default function ObiIsmWebsite() {
       <View pointerEvents="none" style={styles.leftVeil} />
       <View pointerEvents="none" style={styles.bottomVeil} />
 
-      <View style={[styles.shell, desktop && styles.shellDesktop]}>
+      <View style={[styles.shell, desktop && styles.shellDesktop, { paddingTop: desktop ? 38 : getCinematicTopClearance(insets.top) }]}>
         <View style={styles.header}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="OBI-ISM welcome screen" onPress={() => setMenuOpen(false)} style={styles.brandButton}>
             <Text style={[styles.brand, desktop && styles.brandDesktop]}>OBI–<Text style={styles.brandGold}>ISM</Text></Text>
@@ -145,7 +148,7 @@ export default function ObiIsmWebsite() {
 
       {menuOpen && (
         <View style={styles.menuSheet}>
-          <View style={[styles.menuShell, desktop && styles.shellDesktop]}>
+          <View style={[styles.menuShell, desktop && styles.shellDesktop, { paddingTop: desktop ? 38 : getCinematicTopClearance(insets.top) }]}>
             <View style={styles.header}>
               <Text style={styles.menuBrand}>OBI–<Text style={styles.brandGold}>ISM</Text></Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close navigation menu" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeText}>×</Text></TouchableOpacity>
