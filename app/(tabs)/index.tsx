@@ -126,6 +126,7 @@ export default function LibraryScreen() {
               <MenuItem number="03" label="Quotes" onPress={() => router.push("/quotes" as never)} />
               <MenuItem number="04" label="My journey" onPress={() => navigate("/(tabs)/account")} />
               <MenuItem number="05" label="Profile" onPress={() => router.push("/profile" as never)} />
+              <MenuItem number="06" label="Public website" onPress={() => router.push("/website" as never)} />
             </View>
             <Text style={styles.menuFoot}>A PRIVATE DIGITAL EDITION · 2026</Text>
           </View>
