@@ -1,0 +1,8 @@
+name = "steep-leaf-f57d"
+main = "dashboard-worker.js"
+compatibility_date = "2026-09-28"
+
+[[d1_databases]]
+binding = "OBI_DB"
+database_name = "obi-ism-payments"
+database_id = "2d960ba0-0189-478f-9ea7-0ce9efa9b7f0"
