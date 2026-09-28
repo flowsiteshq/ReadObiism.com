@@ -27,33 +27,9 @@
   <main>
     <section id="book" class="section cream"><div class="wrap"><p class="section-label">THE PUBLICATION</p><h2>A book for readers who believe national renewal begins with the character we practice every day.</h2><p class="intro">OBI-ISM is a focused digital publication for readers who want to examine the relationship between personal character, public leadership, and a more just society.</p><div class="cards"><article class="card"><p class="num">01</p><h3>Read the full work</h3><p>The complete approved manuscript, structured as a digital reading experience.</p></article><article class="card"><p class="num">02</p><h3>Follow the ideas</h3><p>Move through the publication’s principles, chapters, and source-backed passages.</p></article><article class="card"><p class="num">03</p><h3>Keep it personal</h3><p>Read with intention and return to the ideas that deserve more thought.</p></article></div></div></section>
     <section id="ideas" class="section dark"><div class="wrap"><p class="section-label">THE IDEAS</p><h2>Begin wherever the thought meets you.</h2><p class="section-intro">The book places character at the center of the practical work of building a fairer, more capable, and more prosperous Nigeria.</p><div class="principles"><article class="principle"><p class="num">01</p><div><h3>Character in public life</h3><p>The habits that shape leaders, institutions, and the trust required for a just society.</p></div><span class="gold">↗</span></article><article class="principle"><p class="num">02</p><div><h3>People before power</h3><p>A civic philosophy rooted in dignity, responsibility, and the common good.</p></div><span class="gold">↗</span></article><article class="principle"><p class="num">03</p><div><h3>The future we build</h3><p>How collective discipline and hopeful action turn aspiration into progress.</p></div><span class="gold">↗</span></article></div></div></section>
-    <section id="edition" class="section edition"><div class="wrap edition-grid"><div><p class="section-label">COMPLETE DIGITAL EDITION</p><h2>Start the OBI-ISM reading journey.</h2><p>The digital edition is a one-time <strong>$9.95 USD</strong> purchase. Secure, one-time checkout with protected reading access.</p></div><aside class="purchase-box"><p class="small">ONE-TIME PURCHASE</p><p class="price">$9.95</p><p class="purchase-note">USD · no subscription<br>Full interactive digital edition</p><button class="purchase-button" id="buy-edition" type="button">BUY THE DIGITAL EDITION →</button><p id="purchase-status" aria-live="polite" style="font-size:12px;line-height:1.4;margin:13px 0 0"></p></aside></div></section>
+    <section id="edition" class="section edition"><div class="wrap edition-grid"><div><p class="section-label">COMPLETE DIGITAL EDITION</p><h2>Start the OBI-ISM reading journey.</h2><p>The digital edition is a one-time <strong>$9.95 USD</strong> purchase. Secure, one-time checkout with protected reading access.</p></div><aside class="purchase-box"><p class="small">ONE-TIME PURCHASE</p><p class="price">$9.95</p><p class="purchase-note">USD · no subscription<br>Full interactive digital edition</p><button class="purchase-button" id="buy-edition" type="button" disabled>PURCHASES OPEN WITH READER LAUNCH</button><p id="purchase-status" aria-live="polite" style="font-size:12px;line-height:1.4;margin:13px 0 0">Secure Checkout and payment recording are configured. Purchases remain closed until the protected web reader is connected, so no customer is charged without immediate reading access.</p></aside></div></section>
   </main>
   <footer class="footer"><div class="wrap"><p class="brand">OBI–<span>ISM</span></p><p class="brand-sub">IDEAS · INTEGRITY · IMPACT</p><div class="rule"></div><p>Building a Just Society Through Character. Browser edition public launch in preparation; native iOS and Android editions follow their respective review processes.</p></div></footer>
-<script>
-(() => {
-  const buy = document.getElementById("buy-edition");
-  const status = document.getElementById("purchase-status");
-  if (!buy || !status) return;
-  const reset = (message = "") => { buy.disabled = false; buy.textContent = "BUY THE DIGITAL EDITION →"; status.textContent = message; };
-  buy.addEventListener("click", async () => {
-    const email = window.prompt("Enter the email address that should receive your OBI-ISM reading access:");
-    if (!email) return;
-    buy.disabled = true;
-    buy.textContent = "OPENING SECURE CHECKOUT…";
-    status.textContent = "";
-    try {
-      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
-      const payload = await response.json();
-      if (!response.ok || typeof payload.url !== "string") throw new Error(payload.error || "Unable to start checkout");
-      window.location.assign(payload.url);
-    } catch (error) {
-      reset("Secure checkout could not be opened. Please try again.");
-    }
-  });
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("purchase") === "cancelled") reset("Checkout was cancelled. No payment was taken.");
-})();
-</script>
+
 </body>
 </html>
