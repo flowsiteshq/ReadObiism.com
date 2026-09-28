@@ -1,3 +1,4 @@
+// Production deployment trigger: domain-native OBI-ISM payment worker.
 const PRICE = 995;
 const SKU = "obi_ism_complete_edition";
 const EVENT = "checkout.session.completed";
