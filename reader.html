@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="theme-color" content="#10130f" />
+  <title>OBI-ISM — Protected Reader</title>
+  <style>
+    :root{--ink:#10130f;--paper:#f8f3e8;--gold:#d5ac47;--muted:#777065;--rule:#ddd3c3;--danger:#a74834}*{box-sizing:border-box}html{background:var(--paper)}body{margin:0;background:var(--paper);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.reader-shell{min-height:100vh}.reader-bar{align-items:center;background:#10130f;color:#fff;display:flex;gap:16px;justify-content:space-between;padding:18px max(5vw,20px);position:sticky;top:0;z-index:3}.brand{font-family:Georgia,"Times New Roman",serif;font-size:25px;font-weight:700;letter-spacing:-.06em;margin:0}.brand span{color:var(--gold)}.secure{color:var(--gold);font-size:10px;font-weight:800;letter-spacing:.13em;text-align:right}.book{display:grid;grid-template-columns:280px minmax(0,1fr);margin:0 auto;max-width:1440px;min-height:calc(100vh - 67px)}.toc{border-right:1px solid var(--rule);padding:32px 22px}.toc h2{font-size:10px;letter-spacing:.17em;margin:0 0 16px}.toc button{background:transparent;border:0;border-bottom:1px solid var(--rule);color:#312f2b;cursor:pointer;display:block;font:inherit;font-size:13px;line-height:1.35;padding:13px 3px;text-align:left;width:100%}.toc button:hover,.toc button[aria-current="true"]{color:#8e6612;font-weight:700}.toc button small{color:var(--muted);display:block;font-size:9px;font-weight:800;letter-spacing:.12em;margin-bottom:4px}.reading{margin:0 auto;max-width:790px;padding:clamp(42px,8vw,110px) clamp(25px,7vw,88px) 130px;width:100%}.chapter-label{color:#9a701a;font-size:11px;font-weight:800;letter-spacing:.17em;margin:0 0 19px}.reading h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(39px,6vw,68px);letter-spacing:-.055em;line-height:.96;margin:0 0 42px}.reading p{font-family:Georgia,"Times New Roman",serif;font-size:clamp(18px,2vw,22px);line-height:1.72;margin:0 0 25px}.chapter-nav{border-top:1px solid var(--rule);display:flex;gap:12px;justify-content:space-between;margin-top:55px;padding-top:25px}.chapter-nav button{background:var(--ink);border:0;color:#fff;cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.12em;padding:14px 17px}.chapter-nav button:disabled{cursor:not-allowed;opacity:.35}.access-state{align-items:center;background:#10130f;color:#fff;display:flex;justify-content:center;min-height:100vh;padding:25px;text-align:center}.access-state .panel{max-width:520px}.access-state h1{font-family:Georgia,"Times New Roman",serif;font-size:54px;letter-spacing:-.06em;margin:0}.access-state p{color:#d8d1c5;line-height:1.55}.retry{background:var(--gold);border:0;color:var(--ink);cursor:pointer;font-size:11px;font-weight:900;letter-spacing:.12em;margin-top:18px;padding:16px 22px}.notice{background:#ede2bd;border:1px solid #d6bd78;color:#5f4a16;font-size:12px;line-height:1.5;margin-bottom:32px;padding:13px 15px}.footer-note{color:var(--muted);font-size:11px;line-height:1.45;margin-top:65px}.reader-shell{-webkit-user-select:none;user-select:none}@media(max-width:820px){.book{display:block}.toc{border-bottom:1px solid var(--rule);border-right:0;max-height:215px;overflow:auto;padding:20px}.reader-bar{padding:16px 20px}.reading{padding-top:48px}.secure{font-size:9px}.toc button{padding:10px 3px}}
+  </style>
+</head>
+<body>
+  <main id="app" class="access-state" aria-live="polite"><div class="panel"><h1>OBI–<span style="color:#d5ac47">ISM</span></h1><p>Preparing your protected reading edition…</p></div></main>
+  <script>
+    (() => {
+      const app = document.getElementById("app");
+      const params = new URLSearchParams(location.search);
+      const sessionId = params.get("session_id");
+      const tokenKey = sessionId ? `obi-ism.reader-device.${sessionId}` : "";
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+      const newToken = () => {
+        const bytes = crypto.getRandomValues(new Uint8Array(48));
+        return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
+      };
+      const fail = (message, retry = false) => {
+        app.className = "access-state";
+        app.innerHTML = `<div class="panel"><h1>Access <span style="color:#d5ac47">required</span></h1><p>${message}</p>${retry ? '<button class="retry" id="retry">RETRY ACCESS →</button>' : '<button class="retry" id="return">RETURN TO OBI-ISM →</button>'}</div>`;
+        const button = document.getElementById(retry ? "retry" : "return");
+        button.addEventListener("click", () => retry ? start() : location.assign("/"));
+      };
+      const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+      const render = (edition) => {
+        let current = 0;
+        const chapters = edition.chapters.filter((chapter) => chapter.kind !== "part");
+        app.className = "reader-shell";
+        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></header><section class="book"><nav class="toc" aria-label="Table of contents"><h2>CONTENTS</h2><div id="contents"></div></nav><article class="reading" id="reading"></article></section>`;
+        const contents = document.getElementById("contents");
+        const reading = document.getElementById("reading");
+        const show = (index) => {
+          current = Math.min(Math.max(index, 0), chapters.length - 1);
+          const chapter = chapters[current];
+          contents.innerHTML = chapters.map((item, itemIndex) => `<button data-chapter="${itemIndex}" aria-current="${itemIndex === current}"><small>${escape(item.label)}</small>${escape(item.title)}</button>`).join("");
+          reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>← PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT →</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
+          contents.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { show(Number(button.dataset.chapter)); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+          document.getElementById("previous").addEventListener("click", () => show(current - 1));
+          document.getElementById("next").addEventListener("click", () => show(current + 1));
+          document.title = `${chapter.title} — OBI-ISM`;
+        };
+        show(0);
+      };
+      async function start() {
+        if (!sessionId || !/^cs_[A-Za-z0-9_]{12,255}$/.test(sessionId)) return fail("Please complete checkout from the OBI-ISM website to open the reader.");
+        let deviceToken = localStorage.getItem(tokenKey);
+        if (!deviceToken) { deviceToken = newToken(); localStorage.setItem(tokenKey, deviceToken); }
+        try {
+          const claim = await fetch("/api/reader/claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken }) });
+          if (!claim.ok) { const body = await claim.json().catch(() => ({})); return fail(body.error || "We could not authorize this reader.", claim.status === 404); }
+          const reader = await fetch(`/api/reader?session_id=${encodeURIComponent(sessionId)}&device_token=${encodeURIComponent(deviceToken)}`, { cache: "no-store" });
+          if (!reader.ok) { const body = await reader.json().catch(() => ({})); return fail(body.error || "We could not load this protected edition.", reader.status === 403 || reader.status === 404); }
+          render(await reader.json());
+        } catch { fail("A secure connection is required to open the reader.", true); }
+      }
+      start();
+    })();
+  </script>
+</body>
+</html>
