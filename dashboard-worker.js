@@ -3,13 +3,17 @@
 const PRICE = 995;
 const SKU = "obi_ism_complete_edition";
 const EVENT = "checkout.session.completed";
+const NARRATOR_VOICE_ID = "F18yf5BixLZCvKiiW0yJ"; // Steven — West African Narrator
 
 const schema = `
 CREATE TABLE IF NOT EXISTS webhook_events (event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, status TEXT NOT NULL, received_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS book_sections (position INTEGER PRIMARY KEY, section_id TEXT UNIQUE NOT NULL, label TEXT NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, paragraphs_json TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS purchases_email_idx ON purchases(purchaser_email);`;
+CREATE INDEX IF NOT EXISTS purchases_email_idx ON purchases(purchaser_email);
+CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS account_sessions_account_idx ON obi_account_sessions(account_id);`;
 
 const encoder = new TextEncoder();
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
@@ -76,21 +80,107 @@ async function activePurchase(env, sessionId) {
   return env.OBI_DB.prepare("SELECT checkout_session_id FROM purchases WHERE checkout_session_id=? AND status='active'").bind(sessionId).first();
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+async function passwordDigest(password, salt) {
+  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: base64ToBytes(salt), iterations: 120000, hash: "SHA-256" }, key, 256);
+  return bytesToBase64(new Uint8Array(bits));
+}
+
+async function randomToken(bytes = 32) {
+  const value = crypto.getRandomValues(new Uint8Array(bytes));
+  return bytesToBase64(value).replace(/[^A-Za-z0-9]/g, "").slice(0, 48);
+}
+
+function cookieValue(request, name) {
+  const cookies = request.headers.get("Cookie") || "";
+  const match = cookies.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
+async function accountFromRequest(request, env) {
+  const token = cookieValue(request, "obiism_session");
+  if (!token) return null;
+  const tokenHash = await hashDeviceToken(token);
+  await ensure(env);
+  const row = await env.OBI_DB.prepare("SELECT a.id, a.email FROM obi_accounts a JOIN obi_account_sessions s ON s.account_id=a.id WHERE s.token_hash=? AND s.expires_at>? ").bind(tokenHash, new Date().toISOString()).first();
+  return row || null;
+}
+
+function authCookie(token) {
+  return `obiism_session=${encodeURIComponent(token)}; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=Lax`;
+}
+
+async function registerAccount(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || password.length > 128) return reply({ error: "Enter a valid email and a password of at least 8 characters." }, request, { status: 400 });
+  await ensure(env);
+  const existing = await env.OBI_DB.prepare("SELECT id FROM obi_accounts WHERE email=?").bind(email).first();
+  if (existing) return reply({ error: "An account already exists for this email. Sign in instead." }, request, { status: 409 });
+  const id = `acct_${await randomToken(18)}`;
+  const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const digest = await passwordDigest(password, salt);
+  const now = new Date();
+  const token = await randomToken();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare("INSERT INTO obi_accounts (id,email,password_hash,password_salt,created_at,last_signed_in) VALUES (?,?,?,?,?,?)").bind(id, email, digest, salt, now.toISOString(), now.toISOString()),
+    env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?,?)").bind(await hashDeviceToken(token), id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
+  ]);
+  return reply({ account: { email }, access: Boolean(await env.OBI_DB.prepare("SELECT checkout_session_id FROM purchases WHERE purchaser_email=? AND status='active' ORDER BY granted_at DESC LIMIT 1").bind(email).first()) }, request, { headers: { "set-cookie": authCookie(token) } });
+}
+
+async function loginAccount(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  await ensure(env);
+  const account = await env.OBI_DB.prepare("SELECT id,email,password_hash,password_salt FROM obi_accounts WHERE email=?").bind(email).first();
+  if (!account || !(await passwordDigest(password, account.password_salt)).startsWith(account.password_hash)) return reply({ error: "Email or password is incorrect." }, request, { status: 401 });
+  const now = new Date();
+  const token = await randomToken();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare("UPDATE obi_accounts SET last_signed_in=? WHERE id=?").bind(now.toISOString(), account.id),
+    env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?,?)").bind(await hashDeviceToken(token), account.id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
+  ]);
+  return reply({ account: { email: account.email }, access: Boolean(await env.OBI_DB.prepare("SELECT checkout_session_id FROM purchases WHERE purchaser_email=? AND status='active' ORDER BY granted_at DESC LIMIT 1").bind(account.email).first()) }, request, { headers: { "set-cookie": authCookie(token) } });
+}
+
+async function accountAccess(request, env) {
+  const account = await accountFromRequest(request, env);
+  if (!account) return reply({ authenticated: false, access: false }, request, { status: 401 });
+  const purchase = await env.OBI_DB.prepare("SELECT checkout_session_id FROM purchases WHERE purchaser_email=? AND status='active' ORDER BY granted_at DESC LIMIT 1").bind(account.email).first();
+  return reply({ authenticated: true, email: account.email, access: Boolean(purchase), sessionId: purchase?.checkout_session_id || null }, request);
+}
+
 async function checkout(request, env) {
   if (!env.OBI_STRIPE_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Checkout is not configured" }, request, { status: 503 });
   const { email = "", device_token: deviceToken = "" } = await request.json().catch(() => ({}));
-  if (typeof email !== "string" || !/^\S+@\S+\.\S+$/.test(email)) return reply({ error: "A valid email address is required" }, request, { status: 400 });
+  const signedIn = await accountFromRequest(request, env);
+  const checkoutEmail = signedIn?.email || email;
+  if (typeof checkoutEmail !== "string" || !/^\S+@\S+\.\S+$/.test(checkoutEmail)) return reply({ error: "A valid email address is required" }, request, { status: 400 });
   if (!validDeviceToken(deviceToken)) return reply({ error: "A secure reader device is required" }, request, { status: 400 });
 
   const origin = env.OBI_PUBLIC_APP_URL === "https://readobiism.com" ? env.OBI_PUBLIC_APP_URL : "https://readobiism.com";
   const deviceHash = await hashDeviceToken(deviceToken);
   const form = new URLSearchParams({
     mode: "payment",
-    customer_email: email.trim().toLowerCase(),
+    customer_email: checkoutEmail.trim().toLowerCase(),
     success_url: `${origin}/reader.html?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?purchase=cancelled`,
     "metadata[product_sku]": SKU,
-    "metadata[purchaser_email]": email.trim().toLowerCase(),
+    "metadata[purchaser_email]": checkoutEmail.trim().toLowerCase(),
     "metadata[device_hash]": deviceHash,
     "payment_intent_data[metadata][product_sku]": SKU,
     "line_items[0][quantity]": "1",
@@ -157,6 +247,29 @@ async function claimReader(request, env) {
   return reply({ access: true, deviceBound: true }, request);
 }
 
+async function narration(request, env) {
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, { status: 405, headers: { allow: "POST" } });
+  if (!env.ELEVENLABS_API_KEY?.startsWith("sk_")) return reply({ error: "Narration is not configured" }, request, { status: 503 });
+  const body = await request.json().catch(() => ({}));
+  const sessionId = body.session_id;
+  const deviceToken = body.device_token;
+  const text = typeof body.text === "string" ? body.text.trim() : "";
+  if (!validSessionId(sessionId) || !validDeviceToken(deviceToken) || !text || text.length > 8000) {
+    return reply({ error: "Invalid narration request" }, request, { status: 400 });
+  }
+  if (!(await activePurchase(env, sessionId))) return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  const deviceHash = await hashDeviceToken(deviceToken);
+  const boundDevice = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
+  if (!boundDevice || !same(boundDevice.device_hash, deviceHash)) return reply({ error: "Reader is not authorized on this device" }, request, { status: 403 });
+  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${NARRATOR_VOICE_ID}`, {
+    method: "POST",
+    headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "content-type": "application/json", accept: "audio/mpeg" },
+    body: JSON.stringify({ text, model_id: "eleven_v4", voice_settings: { stability: 0.58, similarity_boost: 0.8, style: 0.2, use_speaker_boost: true } }),
+  });
+  if (!response.ok) return reply({ error: "Narration service is temporarily unavailable" }, request, { status: 502 });
+  return new Response(response.body, { status: 200, headers: { ...cors(request), "content-type": "audio/mpeg", "cache-control": "private, no-store" } });
+}
+
 async function reader(request, env) {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id");
@@ -203,9 +316,13 @@ export default {
       },
     });
     if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
+    if (path === "/api/account/register" && request.method === "POST") return registerAccount(request, env);
+    if (path === "/api/account/login" && request.method === "POST") return loginAccount(request, env);
+    if (path === "/api/account/access" && request.method === "GET") return accountAccess(request, env);
     if (path === "/api/stripe/webhook") return webhook(request, env);
     if (path === "/api/checkout" && request.method === "POST") return checkout(request, env);
     if (path === "/api/reader/claim" && request.method === "POST") return claimReader(request, env);
+    if (path === "/api/narration" && request.method === "POST") return narration(request, env);
     if (path === "/api/reader" && request.method === "GET") return reader(request, env);
     if (path === "/api/access" && request.method === "GET") {
       const sessionId = new URL(request.url).searchParams.get("session_id");
