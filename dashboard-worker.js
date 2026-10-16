@@ -242,8 +242,11 @@ async function claimReader(request, env) {
   if (!(await activePurchase(env, sessionId))) return reply({ error: "Purchase is not ready yet. Please retry shortly." }, request, { status: 404 });
   const deviceHash = await hashDeviceToken(deviceToken);
   const existing = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
-  if (existing && !same(existing.device_hash, deviceHash)) return reply({ error: "This edition is already active on another device." }, request, { status: 409 });
+  if (existing && existing.device_hash !== "UNBOUND" && !same(existing.device_hash, deviceHash)) return reply({ error: "This edition is already active on another device." }, request, { status: 409 });
   if (!existing) return reply({ error: "Purchase is being finalized. Please retry shortly." }, request, { status: 404 });
+  if (existing.device_hash === "UNBOUND") {
+    await env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=? WHERE checkout_session_id=? AND device_hash='UNBOUND'").bind(deviceHash, new Date().toISOString(), sessionId).run();
+  }
   return reply({ access: true, deviceBound: true }, request);
 }
 
