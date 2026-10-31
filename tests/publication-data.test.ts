@@ -9,7 +9,7 @@ describe("approved OBI-ISM publication data", () => {
     expect(publicationPrinciples.every((principle) => principle.explanation.length > 40 && principle.excerpt.length > 40)).toBe(true);
   });
 
-  it("uses exact reader passages for every quote card", () => {
+  it("uses public section summaries instead of bundled reader paragraphs", () => {
     expect(publicationQuotes).toHaveLength(7);
     expect(publicationQuotes.every((quote) => quote.text.length > 40 && quote.chapterId.length > 0)).toBe(true);
   });

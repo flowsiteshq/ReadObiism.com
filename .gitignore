@@ -64,3 +64,8 @@ Thumbs.db
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 .project-config.json
+
+# Cloudflare local secrets and generated manuscript seeds
+.dev.vars
+.dev.vars.*
+.wrangler/

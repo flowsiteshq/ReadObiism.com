@@ -1,26 +1,64 @@
+import { useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack, router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { VideoView, useVideoPlayer } from "expo-video";
 
+import { AppScreen } from "@/components/app-screen";
 import { PORTRAIT_HERO_IMAGE } from "@/lib/hero-art";
 import { haptic } from "@/lib/haptics";
+import { LANDMARK_TOUR_VIDEO } from "@/lib/landmark-tour";
 import { publicationPrinciples } from "@/lib/publication-data";
 import { WEBSITE_STATUS, WEBSITE_VALUE_POINTS } from "@/lib/website-content";
 
 export default function WebsiteScreen() {
+  const [videoPlaying, setVideoPlaying] = useState(true);
+  const player = useVideoPlayer(LANDMARK_TOUR_VIDEO, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+  });
+
+  useEffect(() => {
+    player.play();
+    return () => player.pause();
+  }, [player]);
+
   const readEdition = () => { haptic.light(); router.push("/reader?chapterId=preface" as never); };
   const exploreIdeas = () => { haptic.light(); router.push("/principles" as never); };
+  const toggleVideo = () => {
+    haptic.selection();
+    if (videoPlaying) player.pause();
+    else player.play();
+    setVideoPlaying((playing) => !playing);
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+    <AppScreen backgroundColor="#050608" statusBarColor="#050608" statusBarStyle="light">
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" backgroundColor="#050608" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}>
-          <Image accessibilityIgnoresInvertColors source={{ uri: PORTRAIT_HERO_IMAGE }} style={styles.heroArt} resizeMode="cover" />
+          <Image accessibilityIgnoresInvertColors source={{ uri: PORTRAIT_HERO_IMAGE }} style={styles.heroPortrait} resizeMode="cover" />
+          <VideoView
+            contentFit="cover"
+            nativeControls={false}
+            player={player}
+            playsInline
+            pointerEvents="none"
+            style={styles.heroVideo}
+          />
           <View pointerEvents="none" style={styles.heroVeil} />
           <View pointerEvents="none" style={styles.heroFade} />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={videoPlaying ? "Pause hero video" : "Play hero video"}
+            onPress={toggleVideo}
+            style={styles.videoControl}
+          >
+            <Text style={styles.videoControlText}>{videoPlaying ? "PAUSE FILM" : "PLAY FILM"}</Text>
+          </TouchableOpacity>
           <View style={styles.pageWidth}>
             <View style={styles.topbar}><TouchableOpacity accessibilityRole="button" accessibilityLabel="OBI-ISM public website" onPress={() => router.replace("/website" as never)}><Text style={styles.brand}>OBI–<Text style={styles.gold}>ISM</Text></Text><Text style={styles.brandSub}>IDEAS · INTEGRITY · IMPACT</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" accessibilityLabel="Open the OBI-ISM reader" onPress={readEdition} style={styles.readOnlineButton}><Text style={styles.readOnlineText}>READ ONLINE</Text><Text style={styles.readOnlineArrow}>→</Text></TouchableOpacity></View>
             <View style={styles.heroCopy}><Text style={styles.heroKicker}>{WEBSITE_STATUS}</Text><Text style={styles.heroTitle}>Building a just society through <Text style={styles.gold}>character.</Text></Text><Text style={styles.heroDeck}>A digital publication for the people, institutions, and future we choose to build together.</Text><View style={styles.heroActions}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Read the complete OBI-ISM edition" onPress={readEdition} style={styles.primaryButton}><Text style={styles.primaryButtonText}>READ THE OPENING</Text><Text style={styles.primaryArrow}>→</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore OBI-ISM principles" onPress={exploreIdeas} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>EXPLORE THE IDEAS</Text></TouchableOpacity></View></View>
@@ -49,7 +87,7 @@ export default function WebsiteScreen() {
 
         <View style={styles.footer}><View style={styles.pageWidth}><Text style={styles.footerBrand}>OBI–<Text style={styles.gold}>ISM</Text></Text><Text style={styles.footerTag}>IDEAS · INTEGRITY · IMPACT</Text><View style={styles.footerRule} /><Text style={styles.footerText}>Browser edition available now. Native iOS and Android editions are in preparation.</Text></View></View>
       </ScrollView>
-    </SafeAreaView>
+    </AppScreen>
   );
 }
 
@@ -62,15 +100,18 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1 },
   pageWidth: { alignSelf: "center", maxWidth: 1180, width: "100%" },
   hero: { backgroundColor: "#040609", minHeight: 760, overflow: "hidden", paddingHorizontal: 25, position: "relative" },
-  heroArt: { bottom: 0, height: "100%", opacity: 0.96, position: "absolute", right: 0, width: "100%" },
-  heroVeil: { backgroundColor: "rgba(3, 8, 15, 0.48)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  heroPortrait: { bottom: 0, height: "100%", opacity: 0.48, position: "absolute", right: 0, width: "100%" },
+  heroVideo: { bottom: 0, left: 0, opacity: 0.28, position: "absolute", right: 0, top: 0 },
+  heroVeil: { backgroundColor: "rgba(3, 8, 15, 0.58)", bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
   heroFade: { backgroundColor: "rgba(0,0,0,0.86)", bottom: 0, height: "33%", left: 0, position: "absolute", right: 0 },
+  videoControl: { borderColor: "rgba(233,196,106,0.7)", borderWidth: 1, bottom: 28, minHeight: 36, paddingHorizontal: 10, paddingVertical: 9, position: "absolute", right: 25, zIndex: 2 },
+  videoControlText: { color: "#E9C46A", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   topbar: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", paddingTop: 20 },
   brand: { color: "#FFFFFF", fontFamily: "serif", fontSize: 40, fontWeight: "700", letterSpacing: -1.1, lineHeight: 38 },
   gold: { color: "#E9C46A" },
-  brandSub: { color: "#F4F2EB", fontSize: 8, fontWeight: "900", letterSpacing: 2.7, marginTop: 8 },
+  brandSub: { color: "#F4F2EB", fontSize: 9.5, fontWeight: "900", letterSpacing: 2.7, marginTop: 8 },
   readOnlineButton: { alignItems: "center", borderColor: "rgba(233,196,106,0.85)", borderWidth: 1, flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  readOnlineText: { color: "#E9C46A", fontSize: 8, fontWeight: "900", letterSpacing: 0.85 },
+  readOnlineText: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 0.85 },
   readOnlineArrow: { color: "#E9C46A", fontSize: 17 },
   heroCopy: { marginTop: 110, maxWidth: 535 },
   heroKicker: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 1.4 },
@@ -83,8 +124,8 @@ const styles = StyleSheet.create({
   secondaryButton: { alignItems: "center", borderColor: "rgba(255,255,255,0.75)", borderWidth: 1, paddingVertical: 16 },
   secondaryButtonText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
   heroFoot: { alignItems: "flex-start", borderTopColor: "rgba(255,255,255,0.24)", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 76, paddingBottom: 26, paddingTop: 15 },
-  heroFootText: { color: "#F5F2E8", fontSize: 8, fontWeight: "900", letterSpacing: 1.05 },
-  heroFootStatus: { color: "#E9C46A", fontSize: 8, fontWeight: "900", letterSpacing: 0.8, textAlign: "right" },
+  heroFootText: { color: "#F5F2E8", fontSize: 9, fontWeight: "900", letterSpacing: 1.05 },
+  heroFootStatus: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 0.8, textAlign: "right" },
   creamSection: { backgroundColor: "#F7F1E4", paddingHorizontal: 25, paddingVertical: 64 },
   intro: { maxWidth: 810 },
   sectionKicker: { color: "#AD7F1F", fontSize: 9, fontWeight: "900", letterSpacing: 1.25 },
@@ -117,14 +158,14 @@ const styles = StyleSheet.create({
   protectionItemTitle: { color: "#171715", fontFamily: "serif", fontSize: 21, fontWeight: "700", marginTop: 8 },
   protectionBody: { color: "#615E56", fontSize: 12, lineHeight: 18, marginTop: 6 },
   publicCta: { backgroundColor: "#E9C46A", gap: 18, marginTop: 40, padding: 22 },
-  publicCtaKicker: { color: "#3A2E12", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  publicCtaKicker: { color: "#3A2E12", fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
   publicCtaTitle: { color: "#17150F", fontFamily: "serif", fontSize: 27, fontWeight: "700", lineHeight: 33, marginTop: 8 },
   publicCtaButton: { alignItems: "center", backgroundColor: "#171715", flexDirection: "row", gap: 8, justifyContent: "center", paddingHorizontal: 15, paddingVertical: 13 },
   publicCtaButtonText: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
   publicCtaButtonArrow: { color: "#E9C46A", fontSize: 18 },
   footer: { backgroundColor: "#050608", paddingHorizontal: 25, paddingVertical: 42 },
   footerBrand: { color: "#FFFFFF", fontFamily: "serif", fontSize: 35, fontWeight: "700", letterSpacing: -0.9 },
-  footerTag: { color: "#F1F0EB", fontSize: 8, fontWeight: "900", letterSpacing: 2.3, marginTop: 7 },
+  footerTag: { color: "#F1F0EB", fontSize: 9, fontWeight: "900", letterSpacing: 2.3, marginTop: 7 },
   footerRule: { backgroundColor: "#E9C46A", height: 2, marginTop: 27, width: 36 },
   footerText: { color: "#BDBBB5", fontSize: 11, lineHeight: 17, marginTop: 13, maxWidth: 430 },
 });

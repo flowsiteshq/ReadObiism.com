@@ -82,7 +82,7 @@ const config: ExpoConfig = {
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/images/favicon.png",
+    favicon: "./assets/images/favicon-48.png",
   },
   plugins: [
     "expo-router",
@@ -101,7 +101,7 @@ const config: ExpoConfig = {
     [
       "expo-video",
       {
-        supportsBackgroundPlayback: true,
+        supportsBackgroundPlayback: false,
         supportsPictureInPicture: true,
       },
     ],

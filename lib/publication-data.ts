@@ -29,7 +29,7 @@ export const publicationPrinciples: PublicationPrinciple[] = principleSources.ma
     title: chapter.title,
     chapterId: chapter.id,
     explanation: chapter.summary,
-    excerpt: chapter.paragraphs[0],
+    excerpt: chapter.summary,
   };
 });
 
@@ -41,13 +41,13 @@ export type PublicationQuote = {
 };
 
 const quoteSources = [
-  { id: "preface-character-infrastructure", chapterId: "preface", paragraphIndex: 9 },
-  { id: "introduction-public-infrastructure", chapterId: "introduction", paragraphIndex: 4 },
-  { id: "chapter-4-discipline", chapterId: "chapter-4", paragraphIndex: 0 },
-  { id: "chapter-7-prudence", chapterId: "chapter-7", paragraphIndex: 0 },
-  { id: "chapter-8-honesty", chapterId: "chapter-8", paragraphIndex: 0 },
-  { id: "chapter-18-public-funds", chapterId: "chapter-18", paragraphIndex: 0 },
-  { id: "epilogue-question", chapterId: "epilogue", paragraphIndex: 0 },
+  { id: "preface-character-infrastructure", chapterId: "preface" },
+  { id: "introduction-public-infrastructure", chapterId: "introduction" },
+  { id: "chapter-4-discipline", chapterId: "chapter-4" },
+  { id: "chapter-7-prudence", chapterId: "chapter-7" },
+  { id: "chapter-8-honesty", chapterId: "chapter-8" },
+  { id: "chapter-18-public-funds", chapterId: "chapter-18" },
+  { id: "epilogue-question", chapterId: "epilogue" },
 ] as const;
 
 export const publicationQuotes: PublicationQuote[] = quoteSources.map((source) => {
@@ -56,7 +56,7 @@ export const publicationQuotes: PublicationQuote[] = quoteSources.map((source) =
     id: source.id,
     chapterId: chapter.id,
     chapterTitle: chapter.title,
-    text: chapter.paragraphs[source.paragraphIndex] ?? chapter.paragraphs[0],
+    text: chapter.summary,
   };
 });
 
