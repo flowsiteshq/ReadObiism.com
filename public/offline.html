@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OBI-ISM — Reconnect to verify your edition</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #FFF6E7; color: #15120D; }
+    main { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { max-width: 420px; width: 100%; background: #0B0F14; color: #FFFFFF; padding: 32px; box-shadow: 0 40px 80px rgba(11,15,20,0.18); }
+    .kicker { color: #E9C46A; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 900; }
+    h1 { font-family: "Times New Roman", serif; font-size: 32px; margin: 12px 0 16px; }
+    p { color: rgba(255,255,255,0.8); line-height: 1.7; margin: 0 0 20px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    button { appearance: none; border: none; background: #E9C46A; color: #15120D; padding: 12px 18px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <div class="kicker">OBI-ISM</div>
+      <h1>Reconnect to verify your edition</h1>
+      <p>You appear to be offline. The reader requires an active connection to confirm your licence. Reconnect and try again.</p>
+      <div class="actions">
+        <button onclick="location.reload()">Retry</button>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

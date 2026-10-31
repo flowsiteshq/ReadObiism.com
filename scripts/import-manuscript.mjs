@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -101,7 +101,20 @@ const manuscriptSections = located.map((section, index) => {
   return { ...metadata, summary, paragraphs };
 });
 
-const file = `// Generated from the approved OBI-ISM manuscript. Do not edit manually; update the source text and run scripts/import-manuscript.mjs.\n\nexport type BookSectionKind = "frontmatter" | "part" | "chapter" | "backmatter" | "appendix";\n\nexport type BookChapter = {\n  id: string;\n  label: string;\n  title: string;\n  summary: string;\n  paragraphs: string[];\n  kind: BookSectionKind;\n  part?: string;\n};\n\nexport const BOOK_TITLE = "OBI-ISM";\nexport const BOOK_SUBTITLE = "Building a Just Society Through Character";\nexport const BOOK_AUTHOR = "Eze Echesi & Mpamugo";\n\nexport const chapters: BookChapter[] = ${JSON.stringify(manuscriptSections, null, 2)};\n\nexport function getChapter(id?: string) {\n  return chapters.find((chapter) => chapter.id === id) ?? chapters[0];\n}\n`;
+const publicSections = manuscriptSections.map((section) => ({ ...section, paragraphs: [] }));
+const file = `// Generated from the approved OBI-ISM manuscript. Metadata only: never add reader paragraphs to this public app module.\n\nexport type BookSectionKind = "frontmatter" | "part" | "chapter" | "backmatter" | "appendix";\n\nexport type BookChapter = {\n  id: string;\n  label: string;\n  title: string;\n  summary: string;\n  paragraphs: string[];\n  kind: BookSectionKind;\n  part?: string;\n};\n\nexport const BOOK_TITLE = "OBI-ISM";\nexport const BOOK_SUBTITLE = "Building a Just Society Through Character";\nexport const BOOK_AUTHOR = "Eze Echesi & Mpamugo";\n\nexport const chapters: BookChapter[] = ${JSON.stringify(publicSections, null, 2)};\n\nexport function getChapter(id?: string) {\n  return chapters.find((chapter) => chapter.id === id) ?? chapters[0];\n}\n`;
 
 writeFileSync(targetPath, file, "utf8");
-console.log(`Imported ${manuscriptSections.length} reader sections and ${manuscriptSections.reduce((total, section) => total + section.paragraphs.length, 0)} paragraphs.`);
+console.log(`Imported ${manuscriptSections.length} metadata sections; bundled paragraphs: 0.`);
+
+if (process.argv.includes("--seed-sql")) {
+  const sqlPath = join(projectRoot, ".wrangler", "book-sections.seed.sql");
+  const quote = (value) => `'${String(value).replace(/'/g, "''")}'`;
+  const statements = manuscriptSections.map((section, index) =>
+    `INSERT OR REPLACE INTO book_sections (position,section_id,label,title,kind,paragraphs_json) VALUES (${index},${quote(section.id)},${quote(section.label)},${quote(section.title)},${quote(section.kind)},${quote(JSON.stringify(section.paragraphs))});`,
+  );
+  mkdirSync(dirname(sqlPath), { recursive: true });
+  writeFileSync(sqlPath, `BEGIN TRANSACTION;\n${statements.join("\n")}\nCOMMIT;\n`, "utf8");
+  console.log(`Wrote D1 seed: ${sqlPath}`);
+  console.log("Apply with: wrangler d1 execute obi-ism-payments --remote --file .wrangler/book-sections.seed.sql");
+}

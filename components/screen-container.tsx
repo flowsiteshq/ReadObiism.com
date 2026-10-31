@@ -1,5 +1,5 @@
 import { View, type ViewProps } from "react-native";
-import { SafeAreaView, type Edge } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets, type Edge } from "react-native-safe-area-context";
 
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,12 @@ export interface ScreenContainerProps extends ViewProps {
    * Additional className for the SafeAreaView (content layer).
    */
   safeAreaClassName?: string;
+  /**
+   * Colour painted behind the device status bar. Without it the status bar area
+   * stays transparent, so light icons land on the light page colour and
+   * disappear on Android (edge-to-edge builds).
+   */
+  statusBarColor?: string;
 }
 
 /**
@@ -44,9 +50,13 @@ export function ScreenContainer({
   className,
   containerClassName,
   safeAreaClassName,
+  statusBarColor,
   style,
   ...props
 }: ScreenContainerProps) {
+  const insets = useSafeAreaInsets();
+  const resolvedEdges = statusBarColor ? edges.filter((edge) => edge !== "top") : edges;
+
   return (
     <View
       className={cn(
@@ -56,8 +66,9 @@ export function ScreenContainer({
       )}
       {...props}
     >
+      {statusBarColor ? <View style={{ backgroundColor: statusBarColor, height: insets.top }} /> : null}
       <SafeAreaView
-        edges={edges}
+        edges={resolvedEdges}
         className={cn("flex-1", safeAreaClassName)}
         style={style}
       >

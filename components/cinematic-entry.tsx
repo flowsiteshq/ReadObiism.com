@@ -3,21 +3,26 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { hasSeenCinematicEntry, markCinematicEntrySeen } from "@/lib/entry-storage";
 
+// The cover should play once per app launch, not every time the home tab remounts.
+let playedThisSession = false;
+
 export function CinematicEntry() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(!playedThisSession);
 
   useEffect(() => {
+    if (playedThisSession) return;
+    playedThisSession = true;
     let active = true;
     const finish = () => {
         if (active) setVisible(false);
         void markCinematicEntrySeen();
     };
     // Never let an unavailable local store block the opening cover.
-    let timer: ReturnType<typeof setTimeout> = setTimeout(finish, 2200);
+    let timer: ReturnType<typeof setTimeout> = setTimeout(finish, 1200);
     void hasSeenCinematicEntry().then((returning) => {
       if (!returning) return;
       clearTimeout(timer);
-      timer = setTimeout(finish, 450);
+      timer = setTimeout(finish, 350);
     });
     return () => {
       active = false;
@@ -36,5 +41,5 @@ const styles = StyleSheet.create({
   brand: { color: "#FFFFFF", fontFamily: "serif", fontSize: 48, fontWeight: "700", letterSpacing: -1.2 },
   gold: { color: "#E9C46A" },
   tagline: { color: "#F2EEE6", fontSize: 9, fontWeight: "900", letterSpacing: 3.2, marginTop: 10 },
-  note: { color: "#A8A8A4", fontSize: 8, fontWeight: "900", letterSpacing: 1.8, marginTop: 42 },
+  note: { color: "#B8B8B4", fontSize: 9, fontWeight: "900", letterSpacing: 1.8, marginTop: 42 },
 });

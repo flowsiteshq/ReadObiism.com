@@ -1,16 +1,18 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack, router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppScreen } from "@/components/app-screen";
 import { haptic } from "@/lib/haptics";
 
 export default function ProfileScreen() {
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+    <AppScreen backgroundColor="#F8F3E8" statusBarColor="#07090C" statusBarStyle="light">
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" backgroundColor="#07090C" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>←</Text></TouchableOpacity><Text style={styles.kicker}>PROFILE & PREFERENCES</Text><Text style={styles.title}>Your private edition, on your terms.</Text><Text style={styles.deck}>Reading controls stay quiet, personal, and within the boundaries of this protected publication.</Text></View>
         <View style={styles.body}>
           <Text style={styles.sectionKicker}>READING PREFERENCES</Text>
@@ -23,7 +25,7 @@ export default function ProfileScreen() {
           <View style={styles.note}><Text style={styles.noteKicker}>PUBLICATION STATUS</Text><Text style={styles.noteBody}>The current reader is an interactive digital publication. Sensitive access decisions must be enforced by a production server, not only by interface controls.</Text></View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AppScreen>
   );
 }
 
@@ -36,7 +38,7 @@ const styles = StyleSheet.create({
   safeArea: { backgroundColor: "#F8F3E8", flex: 1 },
   scroll: { paddingBottom: 36 },
   hero: { backgroundColor: "#07090C", paddingBottom: 31, paddingHorizontal: 23, paddingTop: 12 },
-  backButton: { alignItems: "center", borderColor: "rgba(233,196,106,0.7)", borderRadius: 20, borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
+  backButton: { alignItems: "center", borderColor: "rgba(233,196,106,0.7)", borderRadius: 22, borderWidth: 1, height: 44, justifyContent: "center", width: 44 },
   backText: { color: "#E9C46A", fontSize: 20 },
   kicker: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 1.3, marginTop: 27 },
   title: { color: "#FFFFFF", fontFamily: "serif", fontSize: 37, fontWeight: "700", letterSpacing: -0.8, lineHeight: 42, marginTop: 7 },
@@ -47,8 +49,8 @@ const styles = StyleSheet.create({
   settingCopy: { flex: 1 },
   settingTitle: { color: "#171715", fontFamily: "serif", fontSize: 19, fontWeight: "700" },
   settingBody: { color: "#666359", fontSize: 11, lineHeight: 16, marginTop: 5 },
-  settingAction: { color: "#B08A31", fontSize: 8, fontWeight: "900", letterSpacing: 0.7, marginTop: 6 },
+  settingAction: { color: "#8A6A1E", fontSize: 9, fontWeight: "900", letterSpacing: 0.7, marginTop: 6 },
   note: { backgroundColor: "#E9C46A", marginTop: 26, padding: 18 },
-  noteKicker: { color: "#171715", fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  noteKicker: { color: "#171715", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
   noteBody: { color: "#171715", fontFamily: "serif", fontSize: 17, fontWeight: "700", lineHeight: 23, marginTop: 7 },
 });

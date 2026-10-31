@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { EditionAccessCard } from "@/components/edition-access-card";
 import { chapters } from "@/lib/book-data";
 import { haptic } from "@/lib/haptics";
 import { getReadingPosition, getReadingPulse, saveReadingGoal, type ReadingGoal, type ReadingPosition, type ReadingPulse } from "@/lib/reader-storage";
@@ -27,9 +28,14 @@ export default function AccountScreen() {
   };
 
   return (
-    <ScreenContainer className="p-0" containerClassName="bg-background">
-      <StatusBar style="light" backgroundColor="#151A52" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScreenContainer className="p-0" containerClassName="bg-background" statusBarColor="#0B0F14">
+      <StatusBar style="light" backgroundColor="#0B0F14" />
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.page}>
           <View style={styles.hero}>
             <View style={styles.heroCircle} /><View style={styles.heroLine} />
@@ -39,14 +45,15 @@ export default function AccountScreen() {
             <Image source={COVER} contentFit="cover" style={styles.cover} />
           </View>
           <View style={styles.body}>
+            <EditionAccessCard />
             <View style={styles.continueCard}>
               <View><Text style={styles.continueKicker}>{position ? "WELCOME BACK" : "BEGIN THE JOURNEY"}</Text><Text numberOfLines={2} style={styles.continueTitle}>{activeChapter.title}</Text><Text style={styles.continueMeta}>{completion}% THROUGH THE EDITION</Text></View>
               <TouchableOpacity accessibilityRole="button" onPress={() => { haptic.light(); router.push(`/reader?chapterId=${activeChapter.id}` as never); }} style={styles.continueButton}><Text style={styles.continueButtonText}>{position ? "CONTINUE" : "OPEN"}</Text><Text style={styles.continueButtonArrow}>→</Text></TouchableOpacity>
             </View>
             <View style={styles.statsRow}>
-              <Stat value={String(pulse.sectionsThisWeek).padStart(2, "0")} label="SECTIONS{`\n`}THIS WEEK" accent="#FF5B55" />
-              <Stat value={String(pulse.activeDays).padStart(2, "0")} label="DAYS{`\n`}OF FOCUS" accent="#6CD9FF" />
-              <Stat value={String(pulse.bookmarks).padStart(2, "0")} label="SAVED{`\n`}MARKERS" accent="#DFFF4F" />
+              <Stat value={String(pulse.sectionsThisWeek).padStart(2, "0")} label={"SECTIONS\nTHIS WEEK"} accent="#E9C46A" />
+              <Stat value={String(pulse.activeDays).padStart(2, "0")} label={"DAYS\nOF FOCUS"} accent="#9A6E1B" />
+              <Stat value={String(pulse.bookmarks).padStart(2, "0")} label={"SAVED\nMARKERS"} accent="#7A5B22" />
             </View>
 
             <View style={styles.goalCard}>
@@ -69,52 +76,52 @@ export default function AccountScreen() {
   );
 }
 
-function Stat({ value, label, accent }: { value: string; label: string; accent: string }) { return <View style={[styles.stat, { borderTopColor: accent }]}><Text style={[styles.statValue, { color: accent }]}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>; }
+function Stat({ value, label, accent }: { value: string; label: string; accent: string }) { return <View style={[styles.stat, { borderTopColor: accent }]}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>; }
 function SecurityRow({ mark, title, body }: { mark: string; title: string; body: string }) { return <View style={styles.securityRow}><Text style={styles.securityMark}>{mark}</Text><View style={styles.securityCopy}><Text style={styles.securityTitle}>{title}</Text><Text style={styles.securityBody}>{body}</Text></View></View>; }
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1 }, page: { alignSelf: "center", maxWidth: 650, width: "100%" },
-  hero: { backgroundColor: "#151A52", minHeight: 290, overflow: "hidden", paddingHorizontal: 23, paddingTop: 43 },
-  heroCircle: { backgroundColor: "#FF5B55", borderRadius: 135, height: 255, opacity: 0.92, position: "absolute", right: -120, top: 14, width: 255 },
-  heroLine: { borderColor: "#DFFF4F", borderRadius: 114, borderWidth: 1, height: 228, position: "absolute", right: -75, top: 45, width: 228 },
-  kicker: { color: "#DFFF4F", fontSize: 9, fontWeight: "900", letterSpacing: 1.1, maxWidth: "61%" },
+  hero: { backgroundColor: "#0B0F14", minHeight: 290, overflow: "hidden", paddingHorizontal: 23, paddingTop: 43 },
+  heroCircle: { backgroundColor: "#E9C46A", borderRadius: 135, height: 255, opacity: 0.92, position: "absolute", right: -120, top: 14, width: 255 },
+  heroLine: { borderColor: "#E9C46A", borderRadius: 114, borderWidth: 1, height: 228, position: "absolute", right: -75, top: 45, width: 228 },
+  kicker: { color: "#E9C46A", fontSize: 10, fontWeight: "900", letterSpacing: 1.1, maxWidth: "61%" },
   heroTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 34, fontWeight: "700", lineHeight: 40, marginTop: 8, maxWidth: "76%" },
-  heroBody: { color: "#C4C9FB", fontSize: 12, lineHeight: 18, marginTop: 10, maxWidth: "64%" },
+  heroBody: { color: "#C9C4B8", fontSize: 12, lineHeight: 18, marginTop: 10, maxWidth: "64%" },
   cover: { bottom: -28, height: 177, position: "absolute", right: 10, transform: [{ rotate: "-8deg" }], width: 118 },
   body: { backgroundColor: "#FFF6E7", paddingBottom: 40, paddingHorizontal: 22, paddingTop: 24 },
-  continueCard: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginBottom: 18, padding: 17 },
-  continueKicker: { color: "#DFFF4F", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  continueCard: { alignItems: "center", backgroundColor: "#0B0F14", flexDirection: "row", justifyContent: "space-between", marginBottom: 18, padding: 17 },
+  continueKicker: { color: "#E9C46A", fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
   continueTitle: { color: "#FFFFFF", fontFamily: "serif", fontSize: 21, fontWeight: "700", lineHeight: 26, marginTop: 5, maxWidth: 210 },
-  continueMeta: { color: "#C4C9FB", fontSize: 8, fontWeight: "900", letterSpacing: 0.7, marginTop: 7 },
-  continueButton: { alignItems: "center", backgroundColor: "#DFFF4F", flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 11 },
-  continueButtonText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.6 },
-  continueButtonArrow: { color: "#151A52", fontSize: 18 },
+  continueMeta: { color: "#C9C4B8", fontSize: 9, fontWeight: "900", letterSpacing: 0.7, marginTop: 7 },
+  continueButton: { alignItems: "center", backgroundColor: "#E9C46A", flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 44, paddingHorizontal: 14, paddingVertical: 12 },
+  continueButtonText: { color: "#0B0F14", fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
+  continueButtonArrow: { color: "#0B0F14", fontSize: 18 },
   statsRow: { flexDirection: "row", gap: 9 },
   stat: { backgroundColor: "#FFFFFF", borderTopWidth: 6, flex: 1, minHeight: 96, padding: 10 },
   statValue: { fontFamily: "serif", fontSize: 27, fontWeight: "700" },
-  statLabel: { color: "#6B6D82", fontSize: 7, fontWeight: "900", letterSpacing: 0.35, lineHeight: 10, marginTop: 8 },
-  goalCard: { backgroundColor: "#6CD9FF", marginTop: 23, padding: 18 },
-  cardKicker: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
-  goalTitle: { color: "#151A52", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 29, marginTop: 6 },
+  statLabel: { color: "#5A5F72", fontSize: 9, fontWeight: "900", letterSpacing: 0.35, lineHeight: 10, marginTop: 8 },
+  goalCard: { backgroundColor: "#E9C46A", marginTop: 23, padding: 18 },
+  cardKicker: { color: "#0B0F14", fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  goalTitle: { color: "#0B0F14", fontFamily: "serif", fontSize: 24, fontWeight: "700", lineHeight: 29, marginTop: 6 },
   goalOptions: { flexDirection: "row", gap: 8, marginTop: 16 },
-  goalOption: { backgroundColor: "rgba(255,255,255,0.55)", flex: 1, paddingVertical: 12 },
-  goalOptionActive: { backgroundColor: "#151A52" },
-  goalValue: { color: "#151A52", fontFamily: "serif", fontSize: 23, fontWeight: "700", textAlign: "center" },
-  goalValueActive: { color: "#DFFF4F" }, goalLabel: { color: "#151A52", fontSize: 7, fontWeight: "900", letterSpacing: 0.45, marginTop: 2, textAlign: "center" }, goalLabelActive: { color: "#FFFFFF" },
-  goalNote: { color: "#253660", fontSize: 9, lineHeight: 13, marginTop: 12 },
-  savedPassagesCard: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#DDD9EE", borderWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 23, padding: 17 },
-  savedPassagesKicker: { color: "#FF5B55", fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
-  savedPassagesTitle: { color: "#151A52", fontFamily: "serif", fontSize: 22, fontWeight: "700", marginTop: 5 },
-  savedPassagesBody: { color: "#696B7E", fontSize: 11, marginTop: 5 },
-  savedPassagesButton: { alignItems: "center", borderColor: "#151A52", borderWidth: 1, flexDirection: "row", gap: 6, paddingHorizontal: 12, paddingVertical: 10 },
-  savedPassagesButtonText: { color: "#151A52", fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
-  savedPassagesButtonArrow: { color: "#151A52", fontSize: 18 },
-  sectionKicker: { color: "#FF5B55", fontSize: 9, fontWeight: "900", letterSpacing: 1.05, marginTop: 31 },
-  securityCard: { backgroundColor: "#FFFFFF", borderColor: "#DDD9EE", borderWidth: 1, marginTop: 10 },
-  securityRow: { borderBottomColor: "#E5E2F0", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 12, padding: 15 },
-  securityMark: { color: "#FF5B55", fontFamily: "serif", fontSize: 17, width: 25 }, securityCopy: { flex: 1 }, securityTitle: { color: "#151A52", fontSize: 14, fontWeight: "900" }, securityBody: { color: "#696B7E", fontSize: 11, lineHeight: 16, marginTop: 4 },
-  profileButton: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginTop: 18, paddingHorizontal: 17, paddingVertical: 15 },
+  goalOption: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.55)", flex: 1, justifyContent: "center", minHeight: 52, paddingVertical: 12 },
+  goalOptionActive: { backgroundColor: "#0B0F14" },
+  goalValue: { color: "#0B0F14", fontFamily: "serif", fontSize: 23, fontWeight: "700", textAlign: "center" },
+  goalValueActive: { color: "#E9C46A" }, goalLabel: { color: "#0B0F14", fontSize: 9, fontWeight: "900", letterSpacing: 0.45, marginTop: 2, textAlign: "center" }, goalLabelActive: { color: "#FFFFFF" },
+  goalNote: { color: "#3A3324", fontSize: 10, lineHeight: 13, marginTop: 12 },
+  savedPassagesCard: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#E3DCC8", borderWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 23, padding: 17 },
+  savedPassagesKicker: { color: "#9A6E1B", fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  savedPassagesTitle: { color: "#0B0F14", fontFamily: "serif", fontSize: 22, fontWeight: "700", marginTop: 5 },
+  savedPassagesBody: { color: "#5A5F72", fontSize: 11, marginTop: 5 },
+  savedPassagesButton: { alignItems: "center", borderColor: "#0B0F14", borderWidth: 1, flexDirection: "row", gap: 6, justifyContent: "center", minHeight: 44, paddingHorizontal: 14, paddingVertical: 12 },
+  savedPassagesButtonText: { color: "#0B0F14", fontSize: 9, fontWeight: "900", letterSpacing: 0.65 },
+  savedPassagesButtonArrow: { color: "#0B0F14", fontSize: 18 },
+  sectionKicker: { color: "#9A6E1B", fontSize: 10, fontWeight: "900", letterSpacing: 1.05, marginTop: 31 },
+  securityCard: { backgroundColor: "#FFFFFF", borderColor: "#E3DCC8", borderWidth: 1, marginTop: 10 },
+  securityRow: { borderBottomColor: "#E3DCC8", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 12, padding: 15 },
+  securityMark: { color: "#9A6E1B", fontFamily: "serif", fontSize: 17, width: 25 }, securityCopy: { flex: 1 }, securityTitle: { color: "#0B0F14", fontSize: 14, fontWeight: "900" }, securityBody: { color: "#5A5F72", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  profileButton: { alignItems: "center", backgroundColor: "#0B0F14", flexDirection: "row", justifyContent: "space-between", marginTop: 18, minHeight: 48, paddingHorizontal: 17, paddingVertical: 15 },
   profileButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
-  profileButtonArrow: { color: "#DFFF4F", fontSize: 20 },
-  supportButton: { alignItems: "center", backgroundColor: "#151A52", flexDirection: "row", justifyContent: "space-between", marginTop: 23, paddingHorizontal: 17, paddingVertical: 15 }, supportButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, supportButtonArrow: { color: "#DFFF4F", fontSize: 20 }, supportNote: { color: "#717185", fontSize: 10, lineHeight: 15, marginTop: 10, textAlign: "center" },
+  profileButtonArrow: { color: "#E9C46A", fontSize: 20 },
+  supportButton: { alignItems: "center", backgroundColor: "#0B0F14", flexDirection: "row", justifyContent: "space-between", marginTop: 23, paddingHorizontal: 17, paddingVertical: 15 }, supportButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, supportButtonArrow: { color: "#E9C46A", fontSize: 20 }, supportNote: { color: "#5A5F72", fontSize: 10, lineHeight: 15, marginTop: 10, textAlign: "center" },
 });

@@ -13,13 +13,18 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#151A52",
+        lazy: true,
+        tabBarActiveTintColor: "#0B0F14",
         tabBarButton: HapticTab,
-        tabBarInactiveTintColor: "#777A9C",
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "900", letterSpacing: 0.15 },
+        // Keep the bar out of the way of the keyboard instead of letting it
+        // float over the inputs (which ate taps on the account/explore forms).
+        tabBarHideOnKeyboard: true,
+        tabBarInactiveTintColor: "#5A5F72",
+        tabBarItemStyle: { paddingVertical: 2 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "900", letterSpacing: 0.15 },
         tabBarStyle: {
           backgroundColor: "#FFF6E7",
-          borderTopColor: "#DDD9EE",
+          borderTopColor: "#E3DCC8",
           borderTopWidth: StyleSheet.hairlineWidth,
           height: 62 + bottomPadding,
           paddingBottom: bottomPadding,
