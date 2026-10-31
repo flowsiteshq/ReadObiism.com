@@ -1,3 +1,4 @@
 # Keep the published web sources byte-stable across platforms so the
 # source-parity checks compare the same content on Windows, macOS and CI.
 web/** text eol=lf
+tests/fixtures/web-source/** text eol=lf
