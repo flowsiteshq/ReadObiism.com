@@ -1,0 +1,55 @@
+name: Publish web to gh-pages
+
+# GitHub Pages keeps publishing the gh-pages branch, exactly as it does today.
+# This workflow mirrors main:web/ into that branch so there is one source of
+# truth and no Pages setting has to change.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/publish-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-web
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Check out the published branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+
+      - name: Mirror web/ into gh-pages
+        run: |
+          rsync -a --delete \
+            --exclude ".git/" \
+            --exclude "README.md" \
+            --exclude "admin/" \
+            web/ pages/
+          rm -rf pages/admin pages/README.md
+
+      - name: Commit and push
+        working-directory: pages
+        run: |
+          git config user.name "obiism-publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "gh-pages is already up to date."
+            exit 0
+          fi
+          git commit -m "Publish web/ from ${GITHUB_SHA::7}"
+          git push origin HEAD:gh-pages
