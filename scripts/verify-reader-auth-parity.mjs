@@ -1,11 +1,12 @@
-// Compare extracted styles/scripts and remaining markup with the source pages.
+// Compare extracted styles/scripts and remaining markup with the frozen source
+// snapshot in tests/fixtures/web-source.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { useSharedApi } from "./web-api-refactor.mjs";
 const project = join(dirname(fileURLToPath(import.meta.url)), "..");
 for (const page of ["login", "reader"]) {
-  const source = readFileSync(join(project, "..", "readobiism-site", `${page}.html`), "utf8");
+  const source = readFileSync(join(project, "tests", "fixtures", "web-source", `${page}.html`), "utf8");
   const copied = readFileSync(join(project, "web", `${page}.html`), "utf8");
   const styles = [...source.matchAll(/<style>([\s\S]*?)<\/style>/g)];
   const scripts = [...source.matchAll(/<script>([\s\S]*?)<\/script>/g)];

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, noarchive" />
+  <meta name="theme-color" content="#07090c" />
+  <title>Redeem your OBI-ISM gift</title>
+  <style>
+    :root{--ink:#07090c;--gold:#ebc968;--cream:#f7f1e4;--muted:#6f6757;--dark:#17140e}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(120% 90% at 50% 0%,#18202b 0%,var(--ink) 58%);color:#fff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:clamp(22px,6vw,72px) 18px}
+    .page{display:flex;justify-content:center;align-items:flex-start;min-height:calc(100vh - 44px)}
+    .card{background:var(--cream);color:var(--dark);border-radius:22px;box-shadow:0 50px 120px -60px rgba(0,0,0,.95);max-width:600px;padding:clamp(26px,5vw,46px);width:100%;position:relative;overflow:hidden}
+    .card::before{content:"";position:absolute;inset:0;background:radial-gradient(80% 45% at 50% 0%,rgba(235,201,104,.28),transparent 70%);pointer-events:none}
+    .card>*{position:relative;z-index:1}
+    .brand{font-family:Georgia,"Times New Roman",serif;font-size:36px;font-weight:700;letter-spacing:-.07em;line-height:1;margin:0 0 18px}
+    .brand span{color:#a87918}
+    .eyebrow{color:#8b6a1c;font-size:10px;font-weight:900;letter-spacing:.24em;margin:0 0 12px}
+    h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(36px,7vw,54px);letter-spacing:-.055em;line-height:.98;margin:0 0 12px}
+    .sub{color:#5f584c;font-size:15px;line-height:1.6;margin:0 0 26px;max-width:470px}
+    .field{display:flex;flex-direction:column;gap:8px;margin:0 0 16px}
+    label{color:#6f6757;font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+    input{background:#fff;border:1px solid rgba(23,20,14,.2);border-radius:16px;color:var(--dark);font:inherit;padding:15px 18px;width:100%;transition:border-color .18s ease,box-shadow .18s ease}
+    input::placeholder{color:rgba(95,88,76,.55)}
+    input:focus{outline:none;border-color:rgba(167,121,24,.9);box-shadow:0 0 0 4px rgba(233,196,106,.18)}
+    input#code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:19px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    .submit{background:linear-gradient(90deg,#17140e,#231d14);border:0;border-radius:999px;color:var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;font:inherit;font-size:11px;font-weight:900;letter-spacing:.18em;padding:18px 26px;text-transform:uppercase;width:100%;transition:transform .18s ease,box-shadow .18s ease}
+    .submit:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 34px 70px -44px rgba(23,20,14,1)}
+    .submit:disabled{cursor:wait;opacity:.7;transform:none}
+    .submit .arrow{font-size:18px;font-weight:400}
+    .status{color:#5f584c;font-size:12px;line-height:1.6;margin:14px 0 0;text-align:center;min-height:18px}
+    .status.error{color:#7b2f23;font-weight:700}
+    .note{border-left:3px solid var(--gold);color:#5f584c;font-size:12px;line-height:1.6;margin:24px 0 0;padding:2px 0 2px 14px}
+    .footer-links{border-top:1px solid rgba(23,20,14,.14);display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:26px;padding-top:18px}
+    .footer-links a{color:#7a5a13;font-size:11px;font-weight:800;letter-spacing:.05em;text-decoration:underline;text-underline-offset:3px}
+    @media(max-width:520px){.card{padding:24px}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <p class="brand">OBI–<span>ISM</span></p>
+      <p class="eyebrow">GIFT REDEMPTION</p>
+      <h1>Unlock your gift.</h1>
+      <p class="sub">Enter the unique code from your friend, then confirm the email address the gift was sent to. The edition unlocks on this device.</p>
+      <form id="redeem-form" novalidate>
+        <div class="field">
+          <label for="code">UNIQUE GIFT CODE</label>
+          <input id="code" name="code" type="text" autocomplete="off" spellcheck="false" maxlength="24" placeholder="OBI-7K2M-P9QX-4HWD" required />
+        </div>
+        <div class="field">
+          <label for="email">EMAIL THE GIFT WAS SENT TO</label>
+          <input id="email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="friend@example.com" required />
+        </div>
+        <button class="submit" id="redeem-button" type="submit">UNLOCK THE GIFT <span class="arrow">→</span></button>
+        <p class="status" id="status" aria-live="polite"></p>
+      </form>
+      <p class="note">The code is single-use and binds to one device. If you open this page on a different browser later, the edition will be locked there.</p>
+      <div class="footer-links"><a href="index.html">Back to OBI-ISM</a><a href="mailto:sensei30002003@gmail.com?subject=OBI-ISM%20gift%20support">Gift support</a></div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const API_BASE = (["127.0.0.1", "localhost"].includes(location.hostname) && location.port === "5500") ? "http://127.0.0.1:8787" : "";
+      const apiFetch = (path, options = {}) => {
+        const token = localStorage.getItem("obi-ism.session-token");
+        return fetch(`${API_BASE}${path}`, { ...options, credentials: "include", headers: { ...(options.headers || {}), ...(token ? { authorization: `Bearer ${token}` } : {}) } });
+      };
+      const form = document.getElementById("redeem-form");
+      const codeInput = document.getElementById("code");
+      const emailInput = document.getElementById("email");
+      const button = document.getElementById("redeem-button");
+      const status = document.getElementById("status");
+      const params = new URLSearchParams(location.search);
+      const prefill = (params.get("code") || "").trim().toUpperCase();
+      if (prefill) codeInput.value = prefill;
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+      const newDeviceToken = () => {
+        const bytes = crypto.getRandomValues(new Uint8Array(48));
+        return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
+      };
+      const setStatus = (message, isError = false) => {
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+      };
+      codeInput.addEventListener("input", () => {
+        const cleaned = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+        const groups = [];
+        if (cleaned.startsWith("OBI")) {
+          groups.push("OBI");
+          const rest = cleaned.slice(3);
+          for (let index = 0; index < rest.length && groups.length < 4; index += 4) groups.push(rest.slice(index, index + 4));
+        }
+        codeInput.value = groups.length ? groups.join("-") : cleaned;
+      });
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const code = codeInput.value.trim().toUpperCase();
+        const email = emailInput.value.trim().toLowerCase();
+        if (!/^OBI-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+          setStatus("Enter the full gift code, for example OBI-7K2M-P9QX-4HWD.", true);
+          codeInput.focus();
+          return;
+        }
+        if (!/^\S+@\S+\.\S+$/.test(email)) {
+          setStatus("Enter the email address the gift was sent to.", true);
+          emailInput.focus();
+          return;
+        }
+        button.disabled = true;
+        button.innerHTML = "UNLOCKING YOUR EDITION…";
+        setStatus("Checking your gift code…");
+        try {
+          const deviceToken = newDeviceToken();
+          const response = await apiFetch("/api/gift/redeem", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ code, email, device_token: deviceToken }),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok || !body.session_id) throw new Error(body.error || "This gift could not be unlocked.");
+          localStorage.setItem(`obi-ism.reader-device.${body.session_id}`, deviceToken);
+          localStorage.setItem("obi-ism.last-session", body.session_id);
+          setStatus(body.alreadyRedeemed ? "This gift is already active on this device. Opening your edition…" : "Gift unlocked. Opening your edition…");
+          location.assign(`reader.html?session_id=${encodeURIComponent(body.session_id)}`);
+        } catch (error) {
+          setStatus(error.message || "This gift could not be unlocked. Please try again.", true);
+          button.disabled = false;
+          button.innerHTML = 'UNLOCK THE GIFT <span class="arrow">→</span>';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

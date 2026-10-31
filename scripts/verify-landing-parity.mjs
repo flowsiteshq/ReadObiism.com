@@ -1,10 +1,11 @@
-// Verify that the initial extraction changed only the placement of CSS and JS.
+// Verify that the initial extraction changed only the placement of CSS and JS,
+// using the frozen source snapshot in tests/fixtures/web-source.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { useSharedApi } from "./web-api-refactor.mjs";
 const project = join(dirname(fileURLToPath(import.meta.url)), "..");
-const source = readFileSync(join(project, "..", "readobiism-site", "index.html"), "utf8");
+const source = readFileSync(join(project, "tests", "fixtures", "web-source", "index.html"), "utf8");
 const copied = readFileSync(join(project, "web", "index.html"), "utf8");
 const css = readFileSync(join(project, "web", "assets", "css", "pages", "landing.css"), "utf8");
 const js = readFileSync(join(project, "web", "assets", "js", "pages", "landing.js"), "utf8");
