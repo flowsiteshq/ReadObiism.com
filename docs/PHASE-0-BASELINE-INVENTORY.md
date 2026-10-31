@@ -116,3 +116,17 @@ The rebuild's 25 copied `main` files should not be committed as "rebuild work" b
 3. Confirm the Cloudflare production trigger and who can change it.
 4. Decide whether the read-only admin UI ships as-is for internal use or waits for role-based auth.
 5. Approve the Phase 1 local-origin decision (`http://127.0.0.1:5514` per the rebuild scripts) before any reader-bound testing.
+
+## 8. Execution record (31 October 2026)
+
+The checkpoint was executed locally. Nothing was pushed, deployed or published.
+
+- `main` advanced from `230e990` to `d5d3a09` in nine commits: API split, mobile/PWA, admin UI, web migration, database baseline, tooling, docs, schema-test fix, and LF normalisation.
+- Tag `checkpoint/phase0-main` marks the result. `checkpoint/pre-harmonize-main` and `checkpoint/pre-harmonize-gh-pages` mark the previous revisions.
+- `feature/obi-web-rebuild` was merged into `main` (fast-forward content) and deleted. Its worktree is deregistered; the directory still exists because a running Wrangler process holds a cache file.
+- `gh-pages` remains at `ff41b22` with its 20 dirty files untouched. It is now superseded by `main`/`web/`.
+- Dirty-file backup: `_backups/phase0-2026-10-31/` (52 `main` files, 20 `gh-pages` files, both patches).
+- Verification on the unified `main`: 68 tests passed, 1 skipped; `tsc --noEmit` clean; all five parity checks pass; `wrangler deploy --dry-run` bundles 66.44 KiB with the `OBI_DB` binding.
+
+Remaining before any push: fix the Cloudflare production gate, decide the GitHub Pages source, and retire `gh-pages` as a source branch.
+
