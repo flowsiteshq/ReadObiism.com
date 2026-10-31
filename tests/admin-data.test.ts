@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { handleAdminAuth } from '../api/src/admin-auth.js';
 const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
 
 function setup() {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../database/migrations/0001_local_schema_baseline.sql', import.meta.url), 'utf8'));
+  const schemaPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'database', 'migrations', '0001_local_schema_baseline.sql');
+  db.exec(readFileSync(schemaPath, 'utf8'));
   db.exec(`INSERT INTO obi_accounts VALUES ('acct_1','reader@example.test','private_password_hash','private_salt','2026-10-01T12:00:00Z','2026-10-01T12:00:00Z');
     INSERT INTO purchases VALUES ('obi_reference','private_payment_id','reader@example.test',995,'usd','edition','active','2026-10-01T12:00:00Z');
     INSERT INTO reader_devices VALUES ('obi_reference','private_device_hash','2026-10-01T12:00:00Z');`);
