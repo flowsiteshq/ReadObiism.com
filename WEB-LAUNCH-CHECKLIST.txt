@@ -1,0 +1,234 @@
+OBI-ISM — WEB / PWA LAUNCH CHECKLIST
+======================================================================
+Created: Oct 28, 2026
+Target:  public web + PWA launch before Nov 1, 2026
+Scope:   PWA app (Expo web export), landing site (gh-pages),
+         web reader, and the Cloudflare Worker API it depends on.
+Related: FIXES-TO-MATCH-PROPOSAL.txt (full product), Section G (UI)
+
+HOW TO USE
+----------------------------------------------------------------------
+Work top to bottom. Do not start a section until the blockers above it
+are cleared. Every item is either a hard gate, a launch requirement, or
+deliberately deferred.
+
+  [BLOCKER]  cannot launch without it
+  [LAUNCH]   must be in by Nov 1
+  [POST]     scheduled immediately after launch
+  [x] done    [ ] open
+
+Current status: 16 items already done (marked [x]); 11 blockers open;
+46 launch items and 15 post-launch items remaining.
+
+
+A. CONTENT & LICENSING
+----------------------------------------------------------------------
+[x] [BLOCKER] Strip all paragraphs from lib/book-data.ts. The web bundle
+              now carries metadata only; the importer cannot reintroduce
+              paragraphs.
+[x] [BLOCKER] Production export omits source maps. Expo does this by
+              default; scripts/verify-web-export.mjs fails the build if a
+              .map file or sourceMappingURL appears.
+[ ] [BLOCKER] Verify D1 book_sections is populated. Local D1 verified:
+              39/39 sections populated. Remote verification still needs a
+              Cloudflare API token; seed SQL is in .wrangler/.
+[x] [BLOCKER] Confirm /api/reader returns 403 without a valid session
+              and device token. Covered by tests and a local probe.
+[x] [LAUNCH]  Reader fetches per section, not the entire book in one
+              response. Catalogue returns metadata only; text requires a
+              section_id.
+[x] [LAUNCH]  Service worker never caches /api/*; nothing in IndexedDB
+              or localStorage holds chapter text.
+[x] [LAUNCH]  License revalidated on each session start; locked state
+              when expired.
+[x] [LAUNCH]  @media print hides all reading content.
+[ ] [POST]    AES-256-GCM at rest + short-lived content keys (A2).
+[ ] [POST]    Per-reader watermarking (A5).
+[ ] [POST]    Rate limiting and abuse detection on /api/reader.
+
+
+B. ACCOUNTS & AUTH
+----------------------------------------------------------------------
+[x] Register / login endpoints exist in the worker.
+[x] Sign-in UI + live status card in the app.
+[ ] [BLOCKER] Web session flow verified end-to-end against the DEPLOYED
+              worker (current worker changes are local only).
+[ ] [LAUNCH]  Password reset — or a documented manual process plus a
+              working support email.
+[ ] [LAUNCH]  Rate limiting / lockout on login.
+[ ] [LAUNCH]  CSRF review for cookie auth (SameSite=Lax is partial).
+[ ] [LAUNCH]  Account deletion works end-to-end (delete-account.html).
+[ ] [LAUNCH]  Expired-session handling with a clear re-auth path.
+[ ] [POST]    Email verification at registration.
+[ ] [POST]    Concurrent-session cap + anomaly logging.
+
+
+C. PAYMENTS
+----------------------------------------------------------------------
+[x] Stripe Checkout + signed webhook + idempotent event table.
+[ ] [BLOCKER] Live Stripe key configured (checkout returns 503 without).
+[ ] [BLOCKER] Checkout wired inside the web app (currently only on the
+              static landing page).
+[ ] [LAUNCH]  Success / cancel / retry states, plus a clear
+              "payment received — unlocking your edition" handoff.
+[ ] [LAUNCH]  Purchase receipt email (requires a transactional email
+              provider and authenticated domain).
+[ ] [LAUNCH]  Test-mode purchase -> claim -> reader, on a clean browser
+              profile with no prior storage.
+[ ] [LAUNCH]  Refund path revokes access (webhook handling).
+[ ] [LAUNCH]  Price display with tax decision (Stripe Tax or Nigerian
+              VAT at 7.5%).
+[ ] [POST]    Naira rail (blocked on Nigerian entity + Paystack).
+[ ] [POST]    Refund / reconciliation tooling.
+
+
+D. READER (WEB)
+----------------------------------------------------------------------
+[x] Brand re-skin, AA contrast, 44 px targets, 18–26 px type scale.
+[ ] [LAUNCH]  Resume reading position across reloads.
+[ ] [LAUNCH]  Keyboard navigation with visible focus.
+[ ] [LAUNCH]  Deep links (/reader?chapterId=...) survive refresh and
+              can be shared.
+[ ] [LAUNCH]  Error, retry, and "edition is being prepared" states.
+[ ] [LAUNCH]  Loading skeleton (no blank flash on first paint).
+[ ] [LAUNCH]  Mobile Safari reading test: safe areas, 100vh behaviour,
+              momentum scrolling.
+[ ] [POST]    Dark mode.
+[ ] [POST]    In-book search (worker-side, not client-side).
+[ ] [POST]    Annotation / quote export inside the app only.
+
+
+E. LANDING PAGE (gh-pages)
+----------------------------------------------------------------------
+[x] Relative links so the site works from a subfolder and from the
+    domain root.
+[x] [LAUNCH]  Reapply the typography / touch-target / focus-visible /
+              reduced-motion polish that was reverted. One change at a
+              time, verified in the browser after each.
+[x] [LAUNCH]  Terms and Refund links in the footer.
+[x] [LAUNCH]  Working support contact.
+[x] [LAUNCH]  Video: poster, preload="metadata", no autoplay when the
+              browser sends Save-Data.
+[ ] [LAUNCH]  Naira estimate beside the USD price, clearly marked
+              indicative.
+[x] [LAUNCH]  404 page.
+[ ] [POST]    OG image refresh, structured data, sitemap.
+
+
+F. PWA MECHANICS
+----------------------------------------------------------------------
+[x] [BLOCKER] manifest.json: name, short_name, start_url, scope,
+              display standalone, theme/background colours, 192/512
+              icons plus a maskable icon.
+[x] [BLOCKER] Service worker: precache the shell only, versioned
+              caches, skipWaiting behind an explicit update prompt.
+[x] [BLOCKER] Offline fallback page ("reconnect to verify your
+              edition").
+[ ] [LAUNCH]  iOS: apple-touch-icon and status-bar meta are in place;
+              custom launch/splash images still open.
+[ ] [LAUNCH]  Install prompt shown once, dismissible, after a
+              meaningful interaction.
+[ ] [LAUNCH]  Cold start on a deep link in standalone mode.
+[ ] [POST]    navigator.storage.persist() for installed users.
+
+
+G. PERFORMANCE (NIGERIA-FIRST)
+----------------------------------------------------------------------
+[ ] [LAUNCH]  Route-level code splitting; keep server/, tRPC, and the
+              LLM modules out of the web bundle entirely.
+[ ] [LAUNCH]  Images as WebP/AVIF with srcset; lazy-load below the fold.
+[ ] [LAUNCH]  Font subsetting with font-display: swap.
+[ ] [LAUNCH]  Cache headers on Cloudflare Pages for hashed assets.
+[ ] [LAUNCH]  Targets: LCP < 2.5 s, CLS < 0.1, INP < 200 ms on 3G.
+[ ] [LAUNCH]  Measure real transfer size — video and hero image are the
+              heavy items.
+
+
+H. SECURITY HEADERS & HYGIENE
+----------------------------------------------------------------------
+[ ] [BLOCKER] HTTPS + HSTS.
+[ ] [LAUNCH]  Content-Security-Policy (start permissive, tighten after
+              launch).
+[ ] [LAUNCH]  X-Frame-Options / frame-ancestors, Referrer-Policy,
+              Permissions-Policy.
+[x] Secrets live only in the worker (Stripe secret never in the client).
+[ ] [LAUNCH]  Cookie flags verified in production (Secure, HttpOnly,
+              SameSite).
+[ ] [POST]    Dependency audit and lockfile review.
+
+
+I. LEGAL & COMPLIANCE
+----------------------------------------------------------------------
+[ ] [BLOCKER] Terms of Use page.
+[ ] [BLOCKER] Refund Policy page.
+[ ] [LAUNCH]  Privacy Policy updated for PWA, analytics, and cookies.
+[ ] [LAUNCH]  NDPR (Nigeria) + GDPR (EU buyers) statements: what is
+              collected, retention, deletion route.
+[ ] [LAUNCH]  Licence wording: single-reader, one device, no resale, no
+              redistribution.
+[ ] [LAUNCH]  Business identity and contact on the site (trust, and
+              required later for store review).
+
+
+J. MONITORING & OPERATIONS
+----------------------------------------------------------------------
+[ ] [LAUNCH]  Error tracking (Sentry or equivalent).
+[ ] [LAUNCH]  Privacy-friendly analytics (Plausible / Umami). No
+              ad-tech.
+[ ] [LAUNCH]  Uptime checks for readobiism.com and /api/health.
+[ ] [LAUNCH]  Alert email that a human actually reads.
+[ ] [POST]    D1 automated backups plus a restore drill.
+[ ] [POST]    Log drain / request logging.
+
+
+K. QA MATRIX BEFORE LAUNCH
+----------------------------------------------------------------------
+[ ] [BLOCKER] Chrome, Safari iOS, Chrome Android, Firefox, Edge.
+[ ] [BLOCKER] Small (360x640), tablet, desktop, landscape.
+[ ] [BLOCKER] Slow 3G plus offline toggle mid-read.
+[ ] [BLOCKER] Full purchase on a clean profile, then sign out/in, then
+              read again.
+[ ] [LAUNCH]  Two-device conflict (409) shows a human message.
+[ ] [LAUNCH]  Keyboard-only pass and screen reader (VoiceOver / NVDA).
+[ ] [LAUNCH]  Cancel checkout, refresh mid-payment, expired session.
+[ ] [LAUNCH]  Lighthouse PWA installability audit.
+
+
+DEFINITION OF DONE FOR NOV 1
+----------------------------------------------------------------------
+1. No book text in any public file (bundle, source map, cache, or API
+   response without a licence).
+2. Purchase -> account -> licensed reader works on a clean browser.
+3. PWA installs, opens offline to a clear message, and updates cleanly.
+4. Terms, Refund, and Privacy pages are live and linked.
+5. Analytics, error tracking, and uptime alerting are active.
+6. Tested on iOS Safari and a low-end Android browser — not only on
+   desktop Chrome.
+
+
+THE 11 BLOCKERS (clear these first)
+----------------------------------------------------------------------
+CONTENT (A)
+ 1. Verify or seed remote D1 book_sections (local is verified 39/39)
+
+ACCOUNTS (B)
+ 2. Deploy the worker, then verify the web session flow end-to-end
+
+PAYMENTS (C)
+ 3. Live Stripe key configured
+ 4. Checkout wired inside the web app
+
+SECURITY (H)
+ 5. HTTPS + HSTS enforced
+
+LEGAL (I)
+ 6. Terms of Use page
+ 7. Refund Policy page
+
+QA (K)
+ 8. Chrome, Safari iOS, Chrome Android, Firefox, Edge
+ 9. Small / tablet / desktop / landscape viewports
+10. Slow 3G plus offline toggle mid-read
+11. Full purchase on a clean profile, then sign out/in, then re-read
+
+TOTAL: 88 items — 11 blockers, 46 launch items, 16 done, 15 post-launch.
