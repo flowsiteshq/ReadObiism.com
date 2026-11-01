@@ -1,0 +1,43 @@
+/* Reader navigation: preserve the original palette and reading typography. */
+.chapter-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 0 12px;
+}
+.chapter-toggle:hover { background: rgba(213, 172, 71, .12); }
+.toc { top: var(--reader-header-height, 72px); max-height: calc(100vh - var(--reader-header-height, 72px)); }
+.toc[hidden], .toc-backdrop[hidden] { display: none !important; }
+.book.toc-collapsed { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 821px) {
+  .toc .toc-close { display: none; }
+}
+@media (max-width: 820px) {
+  body.reader-toc-open { overflow: hidden; }
+  .toc {
+    top: 0;
+    bottom: auto;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding-top: calc(22px + env(safe-area-inset-top));
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .toc .toc-close {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    align-items: center;
+    justify-content: center;
+    font: 800 10px/1.2 ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: .1em;
+  }
+}

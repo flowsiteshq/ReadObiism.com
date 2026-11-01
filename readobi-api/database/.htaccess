@@ -1,0 +1,3 @@
+# Protect database schemas and SQL seeds from direct web requests
+Order deny,allow
+Deny from all

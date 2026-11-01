@@ -1,0 +1,1007 @@
+/**
+ * ==============================================================================
+ * ALG Studio Enterprise UI Suite — CSS Primitives & Components (2026)
+ * ==============================================================================
+ * Standardized primitives for:
+ * - Shimmer Skeletons
+ * - Empty States
+ * - Toast Notifications
+ * - Global Command Palette (Ctrl + K)
+ * - Drag-and-Drop Uploader
+ * - Data Table Bulk Actions Toolbar
+ * - Multi-Tenant Switcher
+ * ==============================================================================
+ */
+
+/* 1. Shimmer Loading Skeletons */
+.alg-skeleton {
+  background: linear-gradient(90deg, #f0f1f5 25%, #e6e8ee 50%, #f0f1f5 75%);
+  background-size: 200% 100%;
+  animation: alg-skeleton-loading 1.5s infinite;
+  border-radius: 6px;
+  display: inline-block;
+}
+.dark-mode .alg-skeleton {
+  background: linear-gradient(90deg, #1D1D1D 25%, #2a2f42 50%, #1D1D1D 75%);
+  background-size: 200% 100%;
+}
+@keyframes alg-skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 2. Reusable Empty States */
+.alg-empty-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  border: 1px dashed var(--m-border, #e2e8f0);
+  border-radius: 12px;
+  background: #ffffff;
+}
+.dark-mode .alg-empty-state {
+  background: #1a1e2d;
+  border-color: #2d3748;
+}
+.alg-empty-state__icon {
+  font-size: 3rem;
+  color: var(--brand-primary, #6366f1);
+  margin-bottom: 1rem;
+  opacity: 0.85;
+}
+.alg-empty-state__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+}
+.dark-mode .alg-empty-state__title { color: #f8fafc; }
+.alg-empty-state__description {
+  font-size: 0.95rem;
+  color: #64748b;
+  max-width: 28rem;
+  margin: 0 auto 1.5rem auto;
+}
+
+/* 3. Toast Notifications */
+.alg-toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 1090;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 400px;
+  width: calc(100% - 3rem);
+  pointer-events: none;
+}
+.alg-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  border-left: 4px solid var(--brand-primary, #6366f1);
+  animation: alg-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
+}
+.dark-mode .alg-toast {
+  background: #1D1D1D;
+  color: #f8fafc;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+.alg-toast--success { border-left-color: #10b981; }
+.alg-toast--error   { border-left-color: #ef4444; }
+.alg-toast--warning { border-left-color: #f59e0b; }
+.alg-toast--info    { border-left-color: #3b82f6; }
+.alg-toast--loading { border-left-color: #3b82f6; }
+.alg-toast--leaving { opacity: 0; transform: translateX(100%); }
+@keyframes alg-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Icon chip styling */
+.alg-toast > i.fa-solid {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-top: 0 !important;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+}
+.alg-toast--success > i.fa-solid { background: #ecfdf5; color: #10b981; }
+.alg-toast--error   > i.fa-solid { background: #fef2f2; color: #ef4444; }
+.alg-toast--warning > i.fa-solid { background: #fffbeb; color: #f59e0b; }
+.alg-toast--info    > i.fa-solid { background: #eef2ff; color: #0138d8; }
+.alg-toast--loading > i.fa-solid { background: #eef2ff; color: #0138d8; }
+.dark-mode .alg-toast > i.fa-solid { background: rgba(255, 255, 255, 0.06); }
+
+.alg-toast .flex-grow-1 { min-width: 0; }
+.alg-toast .flex-grow-1 .small { line-height: 1.45; }
+.alg-toast .alg-toast-action { font-size: 12.5px; }
+
+/* 4. Command Palette (Ctrl + K) */
+.alg-cmd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1080;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.alg-cmd-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.alg-cmd-modal {
+  background: #ffffff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  transform: translateY(-10px);
+  transition: transform 0.2s ease;
+}
+.dark-mode .alg-cmd-modal {
+  background: #1D1D1D;
+  border-color: #334155;
+}
+.alg-cmd-overlay.active .alg-cmd-modal {
+  transform: translateY(0);
+}
+.alg-cmd-input {
+  width: 100%;
+  border: none;
+  padding: 1.1rem 1.25rem;
+  font-size: 1.1rem;
+  outline: none;
+  background: transparent;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dark-mode .alg-cmd-input {
+  color: #f8fafc;
+  border-bottom-color: #334155;
+}
+.alg-cmd-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+  list-style: none;
+  margin: 0;
+}
+.alg-cmd-item {
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: #334155;
+  transition: background 0.15s;
+}
+.dark-mode .alg-cmd-item { color: #cbd5e1; }
+.alg-cmd-item:hover, .alg-cmd-item.selected {
+  background: #f1f5f9;
+  color: var(--brand-primary, #6366f1);
+}
+.dark-mode .alg-cmd-item:hover, .dark-mode .alg-cmd-item.selected {
+  background: #2d3748;
+  color: #ffffff;
+}
+
+/* 5. Drag-and-Drop File Uploader */
+.alg-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+.dark-mode .alg-dropzone {
+  background: #161925;
+  border-color: #334155;
+}
+.alg-dropzone:hover, .alg-dropzone.dragover {
+  border-color: var(--brand-primary, #6366f1);
+  background: #eef2ff;
+}
+.dark-mode .alg-dropzone:hover, .dark-mode .alg-dropzone.dragover {
+  background: #1e2238;
+}
+
+/* 6. Data Table Bulk Action Toolbar */
+.alg-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: #3730a3;
+  font-size: 0.9rem;
+}
+.dark-mode .alg-bulk-toolbar {
+  background: #1e2238;
+  border-color: #3730a3;
+  color: #c7d2fe;
+}
+
+/* 7. Uploader Queue Styles */
+.alg-queue-item {
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+.dark-mode .alg-queue-item {
+  background: #1e2238 !important;
+  border-color: #334155 !important;
+  color: #f8fafc;
+}
+
+/* ==============================================================================
+ * 8. Universal Searchable Select & Multi-Select (AlgSelect)
+ * ============================================================================== */
+.alg-select-container {
+  position: relative;
+  width: 100%;
+  display: block;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+.alg-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-height: 42px;
+  padding: 0.45rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  user-select: none;
+}
+.alg-select-container.active .alg-select-trigger,
+.alg-select-trigger:focus {
+  border-color: var(--brand-primary, #4361ee);
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+.alg-select-placeholder {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+.alg-select-value {
+  color: #1e293b;
+  font-size: 0.925rem;
+  font-weight: 500;
+}
+.alg-select-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #eef2ff;
+  color: var(--brand-primary, #4361ee);
+  border: 1px solid #c7d2fe;
+  font-size: 0.825rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.alg-select-tag-remove {
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 0.75rem;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.alg-select-tag-remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+.alg-select-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  color: #94a3b8;
+}
+.alg-select-arrow {
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+.alg-select-container.active .alg-select-arrow {
+  transform: rotate(180deg);
+}
+.alg-select-clear {
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: color 0.15s ease;
+}
+.alg-select-clear:hover {
+  color: #ef4444;
+}
+.alg-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  z-index: 1050;
+  overflow: hidden;
+  animation: algSelectFadeIn 0.15s ease-out;
+}
+@keyframes algSelectFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.alg-select-search-box {
+  position: relative;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.alg-select-search-icon {
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.alg-select-search-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem 0.4rem 2.2rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+}
+.alg-select-search-input:focus {
+  border-color: var(--brand-primary, #4361ee);
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.1);
+}
+.alg-select-options {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.35rem 0;
+  margin: 0;
+  list-style: none;
+}
+.alg-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.9rem;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.alg-select-option:hover {
+  background: #f1f5f9;
+  color: var(--brand-primary, #4361ee);
+}
+.alg-select-option.selected {
+  background: #eef2ff;
+  color: var(--brand-primary, #4361ee);
+  font-weight: 600;
+}
+.alg-select-empty {
+  padding: 1rem;
+  color: #94a3b8;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+/* Dark Mode Select */
+.dark-mode .alg-select-trigger {
+  background: #161925;
+  border-color: #334155;
+}
+.dark-mode .alg-select-value {
+  color: #f1f5f9;
+}
+.dark-mode .alg-select-placeholder {
+  color: #64748b;
+}
+.dark-mode .alg-select-dropdown {
+  background: #161925;
+  border-color: #334155;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.dark-mode .alg-select-search-box {
+  background: #0f121d;
+  border-bottom-color: #1e293b;
+}
+.dark-mode .alg-select-search-input {
+  background: #161925;
+  border-color: #334155;
+  color: #f8fafc;
+}
+.dark-mode .alg-select-option {
+  color: #cbd5e1;
+}
+.dark-mode .alg-select-option:hover {
+  background: #1e2238;
+  color: #ffffff;
+}
+.dark-mode .alg-select-option.selected {
+  background: #282f48;
+  color: #93c5fd;
+}
+.dark-mode .alg-select-tag {
+  background: #1e2238;
+  border-color: #3730a3;
+  color: #c7d2fe;
+}
+
+/* ==============================================================================
+ * 9. Universal PDF Viewer & Modal (AlgPdfViewer)
+ * ============================================================================== */
+.alg-pdf-wrapper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.alg-pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.alg-pdf-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+.alg-pdf-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.alg-pdf-viewport {
+  position: relative;
+  width: 100%;
+  height: 580px;
+  overflow: auto;
+  background: #525659;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem;
+}
+.alg-pdf-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  transition: transform 0.2s ease;
+  transform-origin: top center;
+}
+.alg-pdf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: algPdfModalFadeIn 0.2s ease-out;
+}
+@keyframes algPdfModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.alg-pdf-modal-dialog {
+  position: relative;
+  width: 92vw;
+  max-width: 1150px;
+  height: 88vh;
+  background: #ffffff;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.alg-pdf-modal-dialog .alg-pdf-wrapper {
+  border: none;
+  border-radius: 0;
+  height: 100%;
+  flex: 1;
+}
+.alg-pdf-modal-dialog .alg-pdf-viewport {
+  height: 100%;
+  flex: 1;
+}
+
+/* Dark Mode PDF */
+.dark-mode .alg-pdf-wrapper {
+  background: #161925;
+  border-color: #334155;
+}
+.dark-mode .alg-pdf-toolbar {
+  background: #0f121d;
+  border-bottom-color: #334155;
+}
+.dark-mode .alg-pdf-title {
+  color: #f8fafc;
+}
+.dark-mode .alg-pdf-modal-dialog {
+  background: #161925;
+  border-color: #334155;
+}
+
+/* ==============================================================================
+ * 10. Universal Video Player (AlgVideoPlayer)
+ * ============================================================================== */
+.alg-player-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000000;
+  aspect-ratio: 16 / 9;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  user-select: none;
+  font-family: inherit;
+}
+.alg-player-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000000;
+  cursor: pointer;
+}
+.alg-player-big-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.alg-player-big-play:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  background: var(--brand-primary, #4361ee);
+  border-color: transparent;
+}
+.alg-player-big-play i {
+  margin-left: 4px;
+}
+.alg-player-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  padding: 1.25rem 1.25rem 0.85rem;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 10;
+  pointer-events: auto;
+}
+.alg-player-wrapper:hover .alg-player-controls,
+.alg-player-wrapper:not(.playing) .alg-player-controls,
+.alg-player-wrapper.active-controls .alg-player-controls {
+  opacity: 1;
+}
+.alg-player-timeline {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+  transition: height 0.15s ease;
+}
+.alg-player-timeline:hover {
+  height: 9px;
+}
+.alg-player-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.alg-player-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--brand-primary, #4361ee);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+.alg-player-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+}
+.alg-player-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 1.05rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.alg-player-btn:hover {
+  opacity: 1;
+  transform: scale(1.08);
+  color: var(--brand-primary, #4361ee);
+}
+.alg-player-volume {
+  width: 75px;
+  accent-color: var(--brand-primary, #4361ee);
+  cursor: pointer;
+  height: 4px;
+}
+.alg-player-time {
+  color: rgba(255, 255, 255, 0.85);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.825rem;
+}
+
+/* ==============================================================================
+ * 11. Mobile Ergonomics & Responsive Breakpoints (< 640px)
+ * ============================================================================== */
+@media (max-width: 640px) {
+  .alg-toast-container {
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: 100%;
+  }
+  .alg-toast {
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+  }
+  .alg-cmd-overlay {
+    padding: 1rem;
+    padding-top: 5vh;
+  }
+  .alg-cmd-modal {
+    width: 100%;
+    max-height: 80vh;
+  }
+  .alg-cmd-input {
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+  }
+  .alg-dropzone {
+    padding: 1.5rem 1rem;
+  }
+  .alg-bulk-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .alg-bulk-buttons {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .alg-datatable-container .input-group {
+    max-width: 100% !important;
+  }
+  .alg-dt-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  .alg-pdf-modal-dialog {
+    width: 96vw;
+    height: 92vh;
+  }
+  .alg-pdf-viewport {
+    height: 420px;
+    padding: 0.5rem;
+  }
+  .alg-player-controls {
+    padding: 0.75rem;
+  }
+  .alg-player-volume {
+    display: none;
+  }
+  .alg-player-big-play {
+    width: 52px;
+    height: 52px;
+    font-size: 1.25rem;
+  }
+}
+
+/* ==============================================================================
+ * 12. ALG Enterprise Rich Text Editor Primitives (WYSIWYG)
+ * ============================================================================== */
+.alg-rich-editor-wrapper {
+  border: 1px solid var(--m-border, #e2e8f0);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--m-surface, #ffffff);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.alg-rich-editor-wrapper:focus-within {
+  border-color: var(--brand-primary, #0138d8) !important;
+  box-shadow: 0 0 0 4px rgba(1, 56, 216, 0.14) !important;
+}
+.alg-editor-toolbar {
+  background: var(--m-surface-2, #f8fafc);
+  border-bottom: 1px solid var(--m-border, #e2e8f0);
+  padding: 6px 10px;
+}
+.btn-ghost-editor {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--m-text-muted, #475569);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-ghost-editor:hover,
+.btn-ghost-editor.active {
+  background: rgba(var(--brand-primary-rgb, 1, 56, 216), 0.1);
+  color: var(--brand-primary, #0138d8);
+  border-color: rgba(var(--brand-primary-rgb, 1, 56, 216), 0.25);
+}
+.dark-mode .btn-ghost-editor {
+  color: #94a3b8;
+}
+.dark-mode .btn-ghost-editor:hover,
+.dark-mode .btn-ghost-editor.active {
+  background: rgba(147, 197, 253, 0.18);
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.3);
+}
+.alg-editor-content {
+  min-height: 220px;
+  max-height: 550px;
+  overflow-y: auto;
+  color: var(--m-text, #0f172a);
+  outline: none !important;
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+.alg-editor-content:empty:before,
+.alg-editor-content[data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--m-muted, #94a3b8);
+  font-style: italic;
+  pointer-events: none;
+  display: block;
+}
+.alg-editor-content p {
+  margin-bottom: 0.85rem;
+}
+.alg-editor-content h3,
+.alg-editor-content h4 {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  color: var(--m-text, #0f172a);
+  letter-spacing: -0.02em;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.alg-editor-content ul,
+.alg-editor-content ol {
+  padding-left: 1.4rem;
+  margin-bottom: 0.85rem;
+}
+.alg-editor-content li {
+  margin-bottom: 0.35rem;
+}
+.alg-editor-content blockquote {
+  border-left: 4px solid var(--brand-primary, #0138d8);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: var(--m-text-muted, #475569);
+  font-style: italic;
+}
+.alg-editor-content mark {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.dark-mode .alg-editor-content mark,
+[data-bs-theme='dark'] .alg-editor-content mark {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+}
+
+/* Finance Form Section Primitives */
+.fin-form-section {
+  background: var(--m-surface-2, #f8fafc);
+  border: 1px solid var(--m-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px;
+}
+.fin-section-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-primary, #0138d8);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+
+
+
+/* ==========================================================================
+   ALG FORM STEP TABS � the standard page-tab navigation applied inside modals
+   (Student / Staff / School multi-step forms). Mirrors the page-level
+   *-tabs strip: icon chips, rounded pills, solid-primary active state.
+   ========================================================================== */
+.alg-form-tabs-wrap {
+  border-radius: 16px;
+  padding: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--m-border, #e2e8f0);
+}
+.alg-form-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  background: transparent !important;
+  border: none !important;
+  scrollbar-width: thin;
+}
+.alg-form-tabs::-webkit-scrollbar { height: 6px; }
+.alg-form-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.alg-form-tabs .nav-item { flex: 1 1 auto; }
+.alg-form-tabs .nav-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  white-space: nowrap;
+  border-radius: 12px;
+  padding: 9px 12px;
+  color: #475569 !important;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.1;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.alg-form-tabs .nav-link:hover { background: #f1f5f9; color: #0138d8 !important; }
+.alg-form-tabs .nav-link.active {
+  background: #0138d8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(1, 56, 216, 0.28);
+}
+.alg-form-tab-ico {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #0138d8;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.alg-form-tabs .nav-link.active .alg-form-tab-ico { background: rgba(255,255,255,0.2); color: #ffffff; }
+
+.dark-mode .alg-form-tabs-wrap,
+[data-bs-theme="dark"] .alg-form-tabs-wrap {
+  background: #1e1e1e !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+.dark-mode .alg-form-tabs .nav-link,
+[data-bs-theme="dark"] .alg-form-tabs .nav-link { color: #cbd5e1 !important; }
+.dark-mode .alg-form-tabs .nav-link:hover,
+[data-bs-theme="dark"] .alg-form-tabs .nav-link:hover { background: #262626 !important; }
+.dark-mode .alg-form-tabs .nav-link.active,
+[data-bs-theme="dark"] .alg-form-tabs .nav-link.active { background: #0138d8 !important; color: #fff !important; }
+.dark-mode .alg-form-tab-ico,
+[data-bs-theme="dark"] .alg-form-tab-ico { background: rgba(1, 56, 216, 0.22) !important; color: #93c5fd !important; }
+
+/* ==============================================================================
+ * 12. Responsive Card Header Toolbars
+ *     Filter / action clusters (search + selects + buttons) inside card headers
+ *     must wrap and shrink instead of spilling out of the card on narrow and
+ *     medium viewports. Targets the repeated `.d-flex .flex-nowrap .flex-shrink-0`
+ *     header pattern only, leaving intentional nowrap clusters untouched.
+ * ============================================================================== */
+.m-card .d-flex.flex-nowrap.flex-shrink-0 {
+  flex-wrap: wrap !important;
+  flex-shrink: 1 !important;
+  min-width: 0;
+}
+.m-card .d-flex.flex-nowrap.flex-shrink-0 > * {
+  max-width: 100%;
+}
+@media (max-width: 767.98px) {
+  .m-card .d-flex.flex-nowrap.flex-shrink-0 {
+    width: 100%;
+  }
+  .m-card .d-flex.flex-nowrap.flex-shrink-0 > .position-relative,
+  .m-card .d-flex.flex-nowrap.flex-shrink-0 > .form-control,
+  .m-card .d-flex.flex-nowrap.flex-shrink-0 > .form-select {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}

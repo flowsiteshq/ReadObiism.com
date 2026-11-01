@@ -1,0 +1,162 @@
+@use '../utils' as *;
+/*---------------------------------
+    1.2 Common Classes
+---------------------------------*/
+.w-img{
+	& img{
+		width: 100%;
+	}
+}
+.m-img{
+	& img{
+		max-width: 100%;
+	}
+}
+.fix {
+    overflow:hidden
+}
+.clear{
+    clear: both;
+}
+
+.z-index-1{
+	position: relative;
+	z-index: 1;
+}
+.z-index-2{
+	position: relative;
+	z-index: 2;
+}
+.z-index-3{
+	position: relative;
+	z-index: 3;
+}
+.z-index-4{
+	position: relative;
+	z-index: 4;
+}
+.z-index-5{
+	position: relative;
+	z-index: 5;
+}
+.z-index-6{
+	position: relative;
+	z-index: 6;
+}
+.z-index-7{
+	position: relative;
+	z-index: 7;
+}
+.z-index-8{
+	position: relative;
+	z-index: 8;
+}
+.z-index-9{
+	position: relative;
+	z-index: 9;
+}
+.z-index-10{
+	position: relative;
+	z-index: 10;
+}
+
+.gx-7{
+	--bs-gutter-x: 7px;
+}
+.gx-10{
+	--bs-gutter-x: 10px;
+}
+.gx-12{
+	--bs-gutter-x: 12px;
+}
+.gx-15{
+	--bs-gutter-x: 15px;
+}
+.gx-20{
+	--bs-gutter-x: 20px;
+}
+.gx-24{
+	--bs-gutter-x: 24px;
+}
+.gx-30{
+	--bs-gutter-x: 30px;
+}
+.gx-40{
+	--bs-gutter-x: 40px;
+}
+.gx-45{
+	--bs-gutter-x: 45px;
+}
+.gx-50{
+	--bs-gutter-x: 50px;
+}
+.gx-55{
+	--bs-gutter-x: 55px;
+}
+.gx-60{
+	--bs-gutter-x: 60px;
+}
+.gx-70{
+	--bs-gutter-x: 70px;
+}
+.gx-80{
+	--bs-gutter-x: 80px;
+}
+.gx-90{
+	--bs-gutter-x: 90px;
+}
+.gx-100{
+	--bs-gutter-x: 100px;
+}
+.gx-135{
+	--bs-gutter-x: 135px;
+	@media #{$md}{
+		--bs-gutter-x: 30px;
+	}
+}
+
+.overflow-y-visible{
+	overflow-x: hidden;
+	overflow-y: visible;
+}
+.text-capitalize{
+	text-transform: capitalize;
+}
+.text-uppercase{
+	text-transform: uppercase;
+}
+.p-relative{
+	position: relative;
+}
+.p-absolute{
+	position: absolute;
+}
+.include-bg{
+	@include tp-background();
+}
+
+/* dropcap */
+.tp-dropcap{
+	&::first-letter{
+		float: left;
+		width: 65px;
+		height: 85px;
+		font-size: 90px;
+		line-height: .8;
+		font-weight: 500;
+		margin-right: 5px;
+		text-align: center;
+		line-height: inherit;
+		text-transform: capitalize;
+		color: var(--tp-common-white);
+		font-family: var(--tp-ff-body);
+	}
+}
+
+.coffe-bg{
+	background-color: var(--tp-coffe-1);
+}
+
+.counter-row {
+	counter-reset: count;
+}

@@ -1,0 +1,61 @@
+@use '../utils' as *;
+/*----------------------------------------*/
+/*  2.6 Nice Select
+/*----------------------------------------*/
+
+.custom-select {
+    position: relative;
+    width: 200px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+
+    & .selected {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: #fff;
+      &.open {
+          & .arrow {
+              transform: rotate(-135deg);
+          }
+          & + .options {
+            max-height: 500px;
+            opacity: 1;
+          }
+      }
+
+      & .arrow {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border: solid #333;
+        border-width: 0 1px 1px 0;
+        transform: rotate(45deg);
+        transition: transform 0.3s ease;
+      }
+    }
+
+    & .options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: #fff;
+      border: 1px solid #ccc;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      z-index: 100;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      & li {
+          padding: 10px;
+          cursor: pointer;
+          list-style: none;
+          transition: background 0.2s ease;
+          &:hover {
+              background: #f0f0f0;
+            }
+        }
+    }
+}

@@ -1,0 +1,205 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  9.4 Cta Css
+/*----------------------------------------*/
+
+.app-cta{
+    &-wrap{
+        border-radius: 30px;
+        background: linear-gradient(265deg, #D0F2F0 16.29%, #C5E0FC 84.71%);
+    }
+    &-wrapper{
+        padding-left: 170px;
+        @media #{$xxl} {
+            padding-left: 135px;
+        }
+        @media #{$xl} {
+            padding-left: 100px;
+        }
+        @media #{$lg} {
+            padding-left: 50px;
+        }
+        @media #{$md,$xs} {
+            padding-left: 30px;
+            padding-bottom: 30px;
+        }
+        @media #{$xs} {
+            padding-top: 45px;
+            padding-right: 30px;
+        }
+    }
+    &-heading{
+        & p{
+            color: #61616A;
+            letter-spacing: -0.18px;
+            & br{
+                @media #{$lg,$md,$xs} {
+                    display: none;
+                }
+            }
+        }
+    }
+    &-store{
+        display: flex;
+        width: 184px;
+        align-items: center;
+        border-radius: 12px;
+        padding: 9px 20px;
+        transition: .4s;
+        background: var(--tp-common-white);
+        box-shadow: 0px 14px 24px 0px rgba(3, 46, 65, 0.20);
+        @media #{$xs} {
+            margin-bottom: 20px;
+        }
+        &:hover{
+            transform: scale(1.1);
+        }
+        &-icon{
+            margin-right: 10px;
+        }
+        &-content{
+            & p{
+                margin: 0;
+                font-size: 12px;
+                color: var(--tp-common-black-10);
+            }
+            & span{
+                font-size: 21px;
+                font-weight: 600;
+            }
+        }
+        &-box{
+            @media #{$xs} {
+                flex-wrap: wrap;
+            }
+        }
+    }
+    &-thumb{
+        &-2{
+            position: absolute;
+            bottom: 0;
+            right: 12%;
+        }
+    }
+}
+
+.st-cta{
+    &-ptb{
+        overflow: hidden;
+        padding-top: 180px;
+        @media #{$lg,$md,$xs} {
+            padding-top: 120px;
+            padding-bottom: 100px;
+        }
+    }
+    &-bg-circle{
+        position: absolute;
+        top: 0;
+        left: -3.5%;
+        height: 1000px;
+        width: 107%;
+        display: inline-block;
+        right: 0;
+        margin: 0 auto;
+        text-align: center;
+    }
+    &-wrapper{
+        & .tp-section-title-playfair{
+            font-size: 120px;
+            color: var(--tp-common-white);
+            @media #{$lg,$md} {
+                font-size: 100px;
+            }
+            @media #{$xs} {
+                font-size: 62px;
+            }
+            & span{
+                color: var(--tp-common-white);
+            }
+        }
+        & p{
+            margin-bottom: 45px;
+            color: var(--tp-common-white);
+            font-family: var(--tp-ff-poppins);
+            & br{
+                @media #{$md,$xs} {
+                    display: none;
+                }
+            }
+        }
+        & .tp-btn-border-2.st{
+            background-color: var(--tp-common-white);
+            &:hover{
+                background-color: transparent;
+                color: var(--tp-common-white);
+                border-color: var(--tp-common-white);
+            }
+        }
+    }
+}
+
+.cr-cta{
+    &-ptb{
+        @media #{$xs} {
+            padding-top: 100px;
+        }
+    }
+    &-bg{
+        position: absolute;
+        bottom: -30%;
+        left: 0;
+        right: 0;
+        z-index: -1;
+        margin: 0 auto;
+        text-align: center;
+    }
+    &-shape {
+        @media #{$xs} {
+          display: none;
+        }
+      
+        & span {
+          height: 5px;
+          width: 5px;
+          border-radius: 50%;
+          background: #D9D9D9;
+          display: inline-block;
+        }
+      
+        & .shape {
+          @for $i from 1 through 15 {
+            &-#{$i} {
+              position: absolute;
+              animation: bannerAnimationTwo #{7 + ($i % 5)}s infinite linear;
+            }
+          }
+      
+          &-1 { bottom: 15%; left: 35%; }
+          &-2 { bottom: 8%; right: 45%; }
+          &-3 { bottom: 20%; left: 40%; }
+          &-4 { bottom: 16%; right: 37%; }
+          &-5 { bottom: 10%; left: 40%; }
+          &-6 { bottom: 20%; left: 45%; }
+          &-7 { bottom: 9%; right: 35%; }
+          &-8 { bottom: 30%; left: 50%; }
+          &-9 { bottom: 22%; right: 31%; }
+          &-10 { bottom: 15%; left: 24%; }
+          &-11, &-12, &-13, &-14, &-15 {
+            width: 1px;
+            height: 1px;
+          }
+          &-11 { bottom: 10%; left: 35%; }
+          &-12 { bottom: 15%; right: 35%; }
+          &-13 { bottom: 20%; left: 50%; }
+          &-14 { bottom: 26%; right: 27%; }
+          &-15 { bottom: 10%; left: 30%; }
+        }
+    }
+    &-text{
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 35px;
+        color: rgba(255, 255, 255, 0.50);
+    }
+}

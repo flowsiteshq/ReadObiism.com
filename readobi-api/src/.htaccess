@@ -1,0 +1,3 @@
+# Protect internal engine classes from direct web requests
+Order deny,allow
+Deny from all

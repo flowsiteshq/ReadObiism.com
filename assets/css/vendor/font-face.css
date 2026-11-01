@@ -1,0 +1,158 @@
+/**
+ * ==============================================================================
+ * ALG Studio Typography — Mango Grotesque (Headings) + Platform (Body Text)
+ * ==============================================================================
+ * Conforms to the Anthropic Frontend Design & Algorithm Institute Design Guidelines:
+ * - Headings: MangoGrotesque (Bold, SemiBold, Medium, Regular, Light) + ClashDisplay
+ * - Body Text: Platform (Medium, Regular, Light) + Plus Jakarta Sans
+ * ==============================================================================
+ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Poppins:wght@400;500;600;700&display=swap');
+
+/* ==============================================================================
+   1. MANGO GROTESQUE (Heading / Display Font)
+   ============================================================================== */
+/* MangoGrotesque — Bold (700) */
+@font-face {
+  font-family: 'MangoGrotesque';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../fonts/MangoGrotesque/MangoGrotesque-Bold.woff2') format('woff2'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Bold.woff') format('woff'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Bold.ttf') format('truetype');
+}
+
+/* MangoGrotesque — SemiBold (600) */
+@font-face {
+  font-family: 'MangoGrotesque';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../../fonts/MangoGrotesque/MangoGrotesque-SemiBold.woff2') format('woff2'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-SemiBold.woff') format('woff'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-SemiBold.ttf') format('truetype');
+}
+
+/* MangoGrotesque — Medium (500) */
+@font-face {
+  font-family: 'MangoGrotesque';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../../fonts/MangoGrotesque/MangoGrotesque-Medium.woff2') format('woff2'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Medium.woff') format('woff'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Medium.ttf') format('truetype');
+}
+
+/* MangoGrotesque — Regular (400) */
+@font-face {
+  font-family: 'MangoGrotesque';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/MangoGrotesque/MangoGrotesque-Regular.woff2') format('woff2'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Regular.woff') format('woff'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Regular.ttf') format('truetype');
+}
+
+/* MangoGrotesque — Light (300) */
+@font-face {
+  font-family: 'MangoGrotesque';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../../fonts/MangoGrotesque/MangoGrotesque-Light.woff2') format('woff2'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Light.woff') format('woff'),
+       url('../../fonts/MangoGrotesque/MangoGrotesque-Light.ttf') format('truetype');
+}
+
+/* ==============================================================================
+   2. PLATFORM (Body / Text Font)
+   ============================================================================== */
+/* Platform — Medium (500) */
+@font-face {
+  font-family: 'Platform';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../../fonts/Platform/Platform-Medium.woff2') format('woff2'),
+       url('../../fonts/Platform/Platform-Medium.woff') format('woff'),
+       url('../../fonts/Platform/Platform-Medium.ttf') format('truetype');
+}
+
+/* Platform — Regular (400) */
+@font-face {
+  font-family: 'Platform';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/Platform/Platform-Regular.woff2') format('woff2'),
+       url('../../fonts/Platform/Platform-Regular.woff') format('woff'),
+       url('../../fonts/Platform/Platform-Regular.ttf') format('truetype');
+}
+
+/* Platform — Light (300) */
+@font-face {
+  font-family: 'Platform';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../../fonts/Platform/Platform-Light.woff2') format('woff2'),
+       url('../../fonts/Platform/Platform-Light.woff') format('woff'),
+       url('../../fonts/Platform/Platform-Light.ttf') format('truetype');
+}
+
+/* ==============================================================================
+   3. CLASH DISPLAY (Fallback Display Font)
+   ============================================================================== */
+@font-face {
+  font-family: 'ClashDisplay';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../fonts/ClashDisplay/ClashDisplay-Bold.woff2') format('woff2'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Bold.woff') format('woff'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'ClashDisplay';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../../fonts/ClashDisplay/ClashDisplay-Semibold.woff2') format('woff2'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Semibold.woff') format('woff'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Semibold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'ClashDisplay';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/ClashDisplay/ClashDisplay-Regular.woff2') format('woff2'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Regular.woff') format('woff'),
+       url('../../fonts/ClashDisplay/ClashDisplay-Regular.ttf') format('truetype');
+}
+
+/* ==============================================================================
+   4. DESIGN SYSTEM TOKENS & TYPOGRAPHY MAPPINGS
+   ============================================================================== */
+:root {
+  --font-display: 'ClashDisplay', 'MangoGrotesque', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'ClashDisplay', 'MangoGrotesque', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Platform', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-poppins: 'Platform', 'Poppins', sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6, .display-font, .logo-text, .m-card__title, .hero-heading, .tp-section-title, .font-clash, .font-mango {
+  font-family: var(--font-display) !important;
+  letter-spacing: -0.015em;
+}
+
+.font-platform {
+  font-family: var(--font-body) !important;
+}

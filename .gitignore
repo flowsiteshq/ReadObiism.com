@@ -1,71 +1,54 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Dependencies, caches and generated output
+**/node_modules/
+**/vendor/bundle/
+**/.expo/
+**/.wrangler/
+**/dist/
+**/build/
+**/coverage/
+**/.cache/
+**/.turbo/
 
-# dependencies
-node_modules/
+# Local configuration and credentials (examples are safe templates only)
+**/.env
+**/.env.*
+!**/.env.example
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*cookies*.txt
+**/credentials.json
+**/service-account*.json
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+# Local databases, logs, backups and user uploads
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite-*
+**/*.db
+**/*.db-*
+**/*.log
+**/*.bak
+**/*.dump
+**/uploads/*
+!**/uploads/.htaccess
+!**/uploads/index.html
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Private manuscript and generated extracts
+**/manuscript/
+**/manuscripts/
 
-# Metro
-.metro-health-check*
+# IDE and OS files
+**/.DS_Store
+**/Thumbs.db
+**/.idea/
+**/.vscode/
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Generated Cloudflare Pages artifact
+.pages-output/
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
-/ios
-/android
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Logs
-logs
-*.log
-
-# OS
-Thumbs.db
-
-# Build files
-*.tgz
-*.tar.gz
-.cache/
-
-# Webdev artifacts (checkpoint zips, migrations, etc.)
-.webdev/
-.project-config.json
-
-# Cloudflare local secrets and generated manuscript seeds
-.dev.vars
-.dev.vars.*
-.wrangler/
+# Private retained migration references
+.local-backup/

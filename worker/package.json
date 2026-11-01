@@ -1,0 +1,11 @@
+{
+  "name": "obiism-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8799 --ip 127.0.0.1 --persist-to .wrangler/rebuild-state",
+    "mirror": "node scripts/local-d1-mirror.mjs --with-data"
+  },
+  "dependencies": { "mysql2": "3.16.0" },
+  "devDependencies": { "wrangler": "3.114.17" }
+}

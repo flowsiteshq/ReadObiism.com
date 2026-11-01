@@ -1,0 +1,280 @@
+@use '../utils' as *;
+
+/*----------------------------------------*/
+/*  2.8 Accordion
+/*----------------------------------------*/
+
+.design-service{
+    &-accordion{
+        & .accordion-header{
+            font-size: inherit;
+        }
+        & .accordion-buttons{
+            text-align: left;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            & img{
+                transition: .3s;
+            }
+            & span{
+                font-weight: 500;
+                font-size: 14px;
+                line-height: 1;
+                color: #999da6;
+                padding-bottom: 25px;
+                display: block;
+            }
+            & i{
+                font-weight: 400;
+                font-size: 80px;
+                line-height: .87;
+                color: #E0EEEE;
+                margin-bottom: 0;
+                transition: .3s;
+                font-style: normal;
+                padding-bottom: 5px;
+                letter-spacing: -0.02em;
+                font-family: var(--tp-ff-dirtyline);
+                @media #{$xs}{
+                    font-size: 50px;
+                }
+            }
+            &:not(.collapsed){
+                & img{
+                    transform: scale(1.4) rotate(-20deg) translate(-45px, 25px);
+                }
+                & i{
+                    color: #C5FCFC;
+                }
+            }
+        }
+        & .accordion-body{
+            padding: 0;
+            padding-right: 280px;
+            @media #{$xl}{
+                padding-right: 250px;
+            }
+            @media #{$xs}{
+                padding-right: 0;
+            }
+            & p{
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 1.62;
+                color: #999da6;
+                margin-bottom: 0;
+                padding-bottom: 30px;
+                letter-spacing: -0.02em;
+                @media #{$lg,$md,$xs}{
+                    & br{
+                        display: none;
+                    }
+                }
+            }
+        }
+        & .accordion-items{
+            padding-bottom: 40px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            &:not(:last-child){
+                margin-bottom: 30px;
+            }
+        }
+    }
+    &-category{
+        & a{
+            font-weight: 500;
+            font-size: 13px;
+            line-height: 1;
+            padding: 7px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            color: #E0EEEE;
+            margin-bottom: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            &:hover{
+                background-color: #272729;
+            }
+            @media #{$xs}{
+                margin-bottom: 10px;
+            }
+            &:not(:last-child){
+                margin-right: 5px;
+            }
+        }
+    }
+    &-img{
+        position: absolute;
+        top: 0;
+        right: 0;
+        border-radius: 10px;
+        height: 110px;
+        width: 160px;
+    }
+}
+.ai-faq{
+    &-accordion-wrap{
+        & .accordion-items{
+            padding-left: 40px;
+            padding-bottom: 15px;
+            position: relative;
+            &:not(:last-child){
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        }
+        & .accordion-header{
+            margin-bottom: 0;
+            font-size: 0;
+            & .accordion-buttons{
+                padding-top: 25px;
+                padding-bottom: 13px;
+                font-weight: 600;
+                font-size: 20px;
+                line-height: 1;
+                width: 100%;
+                text-align: left;
+                letter-spacing: -0.02em;
+                color: var(--tp-common-white);
+                @media #{$xs}{
+                    font-size: 15px;
+                }
+                &:not(.collapsed) .accordion-icon::before {
+                    transform: translate(-50%, -50%) rotate(90deg);
+                }
+                & .accordion-icon{
+                    position: absolute;
+                    top: 35px;
+                    left: 7px;
+                    &::before {
+                        position: absolute;
+                        content: "";
+                        width: 2px;
+                        height: 14px;
+                        left: 50%;
+                        top: 50%;
+                        transform: translate(-50%, -50%);
+                        background-color: var(--tp-common-white);
+                        border-radius: 2px;
+                        transition: 0.4s;
+                    }
+                    &::after {
+                        position: absolute;
+                        content: "";
+                        width: 14px;
+                        height: 2px;
+                        left: 50%;
+                        top: 50%;
+                        transform: translate(-50%, -50%);
+                        background-color: var(--tp-common-white);
+                        border-radius: 2px;
+                    }
+                }
+            }
+            & span{
+                margin-right: 20px;
+            }
+        }
+        & .accordion-body{
+            padding: 0;
+            padding-right: 85px;
+            @media #{$xl,$lg,$md,$xs}{
+                padding-right: 0;
+            }
+            & p{
+                font-weight: 500;
+                font-size: 15px;
+                line-height: 1.6;
+                margin-bottom: 15px;
+                letter-spacing: -0.02em;
+                color: rgba(255, 255, 255, 0.6);
+                margin-bottom: 0;
+                padding-bottom: 15px;
+                @media #{$xs}{
+                    font-size: 14px;
+                }
+            }
+        }
+    }
+}
+.it-faq{
+    &-wrap{
+        margin-left: 85px;
+        position: relative;
+        @media #{$xl}{
+            margin-left: 100px;
+        }
+        @media #{$md} {
+            margin-left: 0;
+        }
+        @media #{$xs} {
+            margin-left: 0;
+        }
+        &::after{
+            position: absolute;
+            content: '';
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 100%;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        & .accordion-items{
+            padding-left: 115px;
+            @media #{$xl}{
+                padding-left: 60px;
+            }
+            @media #{$xs} {
+                padding-left: 50px;
+            }
+            &:not(:last-child){
+                margin-bottom: 70px;
+                @media #{$xs} {
+                    margin-bottom: 45px;
+                }
+            }
+        }
+        & .accordion-buttons{
+            text-align: left;
+            & i{
+                font-weight: 400;
+                font-size: 22px;
+                line-height: 1.18;
+                font-style: normal;
+                margin-bottom: 20px;
+                display: inline-block;
+                letter-spacing: 0.04em;
+                color: rgba(255, 255, 255, 0.6);
+                font-family: var(--tp-ff-platform);
+            }
+            & span{
+                font-weight: 500;
+                font-size: 36px;
+                line-height: .7;
+                display: block;
+                letter-spacing: 0.04em;
+                color: var(--tp-common-white);
+                font-family: var(--tp-ff-platform);
+                @media #{$xs} {
+                    font-size: 32px;
+                }
+            }
+        }
+        & .accordion-body{
+            padding: 0;
+            padding: 25px 85px 0 0;
+            @media #{$xs} {
+                padding: 25px 15px 0 0;
+            }
+            & p{
+                font-weight: 500;
+                font-size: 18px;
+                line-height: 1.5;
+                margin-bottom: 0;
+                color: rgba(255, 255, 255, 0.6);
+            }
+        }
+    }
+}

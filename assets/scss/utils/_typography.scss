@@ -1,0 +1,205 @@
+
+// font url
+$font-url: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Besley:ital,wght@0,400..900;1,400..900&family=Space+Grotesk:wght@300..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Satisfy&family=Teko:wght@300..700&family=Phudu:wght@300..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Onest:wght@100..900&display=swap';
+
+// Platform
+@font-face {
+  font-family: 'Platform';
+  src: url('../fonts/Platform/Platform-Light.eot');
+  src: local('Platform Light'), local('Platform-Light'),
+  url('../fonts/Platform/Platform-Light.eot?#iefix') format('embedded-opentype'),
+  url('../fonts/Platform/Platform-Light.woff2') format('woff2'),
+  url('../fonts/Platform/Platform-Light.woff') format('woff'),
+  url('../fonts/Platform/Platform-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Platform';
+  src: url('../fonts/Platform/Platform-Regular.eot');
+  src: local('Platform Regular'), local('Platform-Regular'),
+  url('../fonts/Platform/Platform-Regular.eot?#iefix') format('embedded-opentype'),
+  url('../fonts/Platform/Platform-Regular.woff2') format('woff2'),
+  url('../fonts/Platform/Platform-Regular.woff') format('woff'),
+  url('../fonts/Platform/Platform-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Platform';
+  src: url('../fonts/Platform/Platform-Medium.eot');
+  src: local('Platform Medium'), local('Platform-Medium'),
+  url('../fonts/Platform/Platform-Medium.eot?#iefix') format('embedded-opentype'),
+  url('../fonts/Platform/Platform-Medium.woff2') format('woff2'),
+  url('../fonts/Platform/Platform-Medium.woff') format('woff'),
+  url('../fonts/Platform/Platform-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+// MangoGrotesque
+@font-face {
+    font-family: 'MangoGrotesque';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Bold.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Bold.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Bold.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Bold.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Bold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: bold;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'MangoGrotesqueLight';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Light.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Light.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Light.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Light.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Light.ttf') format('truetype');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'MangoGrotesqueMed';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Medium.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Medium.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Medium.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Medium.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Medium.ttf') format('truetype');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'MangoGrotesqueSemBd';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-SemiBold.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-SemiBold.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-SemiBold.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-SemiBold.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-SemiBold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'MangoGrotesque';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Regular.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Regular.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Regular.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Regular.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Regular.ttf') format('truetype');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'MangoGrotesqueThin';
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Thin.eot');
+    src: url('../fonts/MangoGrotesque/MangoGrotesque-Thin.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Thin.woff') format('woff'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Thin.woff2') format('woff2'),
+    url('../fonts/MangoGrotesque/MangoGrotesque-Thin.ttf') format('truetype');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+@font-face {
+    font-family: 'dirtyline-36daysoftype-2022';
+    src: url('../fonts/dirtyline/dirtyline-36daysoftype-2022.otf');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+
+// ClashDisplay-Light
+  @font-face {
+    font-family: 'ClashDisplay-Light';
+    src: url('../fonts/ClashDisplay/ClashDisplay-Light.woff2') format('woff2'),
+    url('../fonts/ClashDisplay/ClashDisplay-Light.woff') format('woff'),
+    url('../fonts/ClashDisplay/ClashDisplay-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-display: swap;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'ClashDisplay-Regular';
+    src: url('../fonts/ClashDisplay/ClashDisplay-Regular.woff2') format('woff2'),
+    url('../fonts/ClashDisplay/ClashDisplay-Regular.woff') format('woff'),
+    url('../fonts/ClashDisplay/ClashDisplay-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'ClashDisplay-Medium';
+    src: url('../fonts/ClashDisplay/ClashDisplay-Medium.woff2') format('woff2'),
+    url('../fonts/ClashDisplay/ClashDisplay-Medium.woff') format('woff'),
+    url('../fonts/ClashDisplay/ClashDisplay-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-display: swap;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'ClashDisplay-Semibold';
+    src: url('../fonts/ClashDisplay/ClashDisplay-Semibold.woff2') format('woff2'),
+    url('../fonts/ClashDisplay/ClashDisplay-Semibold.woff') format('woff'),
+    url('../fonts/ClashDisplay/ClashDisplay-Semibold.ttf') format('truetype');
+    font-weight: 600;
+    font-display: swap;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'ClashDisplay-Bold';
+    src: url('../fonts/ClashDisplay/ClashDisplay-Bold.woff2') format('woff2'),
+    url('../fonts/ClashDisplay/ClashDisplay-Bold.woff') format('woff'),
+    url('../fonts/ClashDisplay/ClashDisplay-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-display: swap;
+    font-style: normal;
+  }
+
+
+
+// font family
+$font-family: (
+    'ff': (
+        'teko': "'Teko', serif",
+        'body': "'Inter', sans-serif",
+        'heading': "'Inter', sans-serif",
+        'inter': "'Inter', sans-serif",
+        'p': "'Inter', sans-serif",
+        'besley': "'Besley', serif",
+        'mango-thin': "'MangoGrotesqueThin', serif",
+        'mango-light': "'MangoGrotesqueLight', serif",
+        'mango': "'MangoGrotesque', serif",
+        'mango-medium': "'MangoGrotesqueMed', serif",
+        'mango-semibold': "'MangoGrotesqueSemBd', serif",
+        'mango-bold': "'MangoGrotesque', serif",
+        'clash-light': "'ClashDisplay-Light', serif",
+        'clash-regular': "'ClashDisplay-Regular', serif",
+        'clash-medium': "'ClashDisplay-Medium', serif",
+        'clash-semibold': "'ClashDisplay-Semibold', serif",
+        'clash-bold': "'ClashDisplay-Bold', serif",
+        'grotesk': "'Space Grotesk', serif",
+        'platform': "'Platform', serif",
+        'playfair': "'Playfair Display', serif",
+        'satisfy': "'Satisfy', cursive",
+        'dirtyline': "'dirtyline-36daysoftype-2022', serif",
+        'phudu': "'Phudu', serif",
+        'poppins': "'Poppins', serif",
+        'onest': "'Onest', serif",
+        'fontawesome': '"Font Awesome 6 Pro"',
+    )
+);
+
+
+// font size
+$font-size: (
+    'fz': (
+        'body': 14px,
+        'p': 16px,
+    )
+);
+
+

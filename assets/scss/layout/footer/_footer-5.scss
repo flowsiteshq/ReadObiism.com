@@ -1,0 +1,154 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.5 Footer Style 5
+/*----------------------------------------*/
+
+.design-footer{
+    &-top{
+        &-btn{
+            transform: translateY(-45px);
+            @media #{$md,$xs}{
+                transform: translateY(0);
+            }
+        }
+        &-wrap{
+            border-bottom: 1px solid rgba(224, 238, 238, 0.2);
+        }
+    }
+    &-middle{
+        border-bottom: 1px solid rgba(224, 238, 238, 0.2);
+    }
+    &-widget{
+        &-title{
+            font-weight: 500;
+            font-size: 24px;
+            line-height: 1.25;
+            color: #e0eeee;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+            &.sm{
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 1;
+                margin-bottom: 20px;
+                letter-spacing: -0.02em;
+                color: rgba(224, 238, 238, 0.5);
+            }
+        }
+        &-input{
+            & input{
+                font-weight: 500;
+                font-size: 20px;
+                line-height: 1;
+                height: 60px;
+                padding: 0px 35px;
+                border-radius: 40px;
+                padding-right: 60px;
+                background-color: transparent;
+                color: var(--tp-common-white);
+                border: 2px solid rgba(224, 238, 238, 0.1);
+                @include tp-placeholder{
+                    font-weight: 500;
+                    font-size: 20px;
+                    line-height: 1;
+                    color: rgba(224, 238, 238, 0.6);
+                }
+                &:focus{
+                    border-color: var(--tp-common-white);
+                }
+            }
+            &-icon{
+                position: absolute;
+                top: 50%;
+                right: 10px;
+                height: 40px;
+                width: 40px;
+                line-height: 38px; 
+                border-radius: 50%;
+                text-align: center;
+                display: inline-block;
+                transform: translateY(-50%);
+                background-color: var(--tp-common-white);
+            }
+        }
+        &-info{
+            & a{
+                font-weight: 500;
+                font-size: 24px;
+                line-height: 1;
+                letter-spacing: -0.02em;
+                color: var(--tp-common-white);
+            }
+        }
+    }
+    &-col{
+        &-1{
+            padding-right: 40px;
+            @media #{$lg,$md,$xs}{
+                padding-right: 0;
+            }
+        }
+        &-3{
+            padding-left: 5px;
+            @media #{$lg,$md,$xs}{
+                padding-left: 0;
+                margin-bottom: 20px;
+            }
+        }
+        &-2{
+            @media #{$lg,$md,$xs}{
+                margin-bottom: 20px;
+            } 
+        }
+        &-4{
+            padding-left: 50px;
+            @media #{$lg,$md,$xs}{
+                padding-left: 0;
+            }
+        }
+    }
+    &-right{
+        padding-left: 160px;
+        @media #{$xl,$md,$xs}{
+            padding-left: 0;
+        }
+    }
+}
+
+.design-copyright{
+    &-text{
+        & p{
+            font-weight: 500;
+            font-size: 18px;
+            line-height: 1.2;
+            margin-bottom: 0;
+            letter-spacing: -0.02em;
+            color: rgba(224, 238, 238, 0.5); 
+        }
+    }
+    &-backtoTop{
+        & a{
+            font-weight: 500;
+            font-size: 24px;
+            line-height: 1;
+            color: #e0eeee;
+            letter-spacing: -0.02em;
+            & span{
+                color: #C5FCFC;
+                margin-left: 8px;
+            }
+        }
+    }
+    &-big-text{
+        @media #{$lg}{
+            padding-top: 80px;
+        }
+        @media #{$xs} {
+            padding-top: 60px;
+        }
+        & img{
+            width: 100%;
+        }
+    }
+}

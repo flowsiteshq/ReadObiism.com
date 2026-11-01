@@ -1,0 +1,114 @@
+@use '../utils' as *;
+
+/*----------------------------------------*/
+/*  2.7 Breadcrumb
+/*----------------------------------------*/
+
+.tp-breadcrumb{
+    &-ptb{
+        padding-top: 180px;
+    }
+    &-title{
+        font-weight: 700;
+        font-size: 80px;
+        line-height: 1.5;
+        margin-bottom: 0;
+        letter-spacing: -0.03em;
+        color: var(--tp-common-white); 
+        @media #{$md}{
+            font-size: 60px;
+        }     
+        @media #{$xs}{
+            font-size: 40px;
+        }     
+    }
+    &-list{
+        display: inline-block;
+        padding: 0px 10px;
+        & span{
+            &:last-child{
+                color: var(--tp-common-white);
+            }
+        }
+        & span{
+            font-weight: 400;
+            font-size: 18px;
+            line-height: 1;
+            text-transform: capitalize;   
+            color: rgba(255, 255, 255, 0.4);   
+            @media #{$xs}{
+                font-size: 15px;
+            }   
+            &.dvdr{
+                & i{
+                    padding: 0px 14px;
+                    font-style: normal;
+                }
+            }
+        }
+    }
+}
+  
+
+.breadcrumb{
+    $self: &;
+    &__list{
+        & span{
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            color: rgba(77, 61, 48, 0.60);
+            &:not(:last-child){
+                padding-right: 12px;
+                margin-right: 5px;
+                &::after{
+                    position: absolute;
+                    content: '';
+                    right: 0;
+                    top: 50%;
+                    @extend %svg-2;
+                    width: 4px;
+                    height: 4px;
+                    background-color: #A8ACB0;
+                    border-radius: 50%;
+                }
+            }
+            &:hover{
+                color: #4D3D30;
+            }
+            & a{
+                &:hover{
+                    color: var(--tp-coffe-2);
+                }
+            }
+        }
+    }
+    &__style-2{
+        & #{$self}{
+            &__list{
+                & span{
+                    &:last-child{
+                        color: #4D3D30;
+                    }
+                    &.breadcrumb-icon{
+                        padding-right: 0;
+                        margin-right: 0;
+                        & svg{
+                            transform: translateY(-3px);
+                        }
+                    }
+                }
+
+                &.has-icon{
+                    & span{
+                        &:nth-child(1){
+                            &::after{
+                                display: none;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

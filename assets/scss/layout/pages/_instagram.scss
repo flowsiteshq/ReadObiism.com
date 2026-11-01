@@ -1,0 +1,332 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  8.9 Instagram Css
+/*----------------------------------------*/
+
+.ai-instagram{
+    &-img{
+        overflow: hidden;
+        & img{
+            width: 100%;
+            transition: .9s;
+        }
+        &:hover{
+            & img{
+                transform: scale(1.1);
+            }
+        }
+    }
+    &-shape{
+        &-1{
+            position: absolute;
+            left: -2%;
+            z-index: -1;
+            top: -125%;
+        }
+    }
+}
+
+.pp-social{
+    &-item{
+        display: block;
+        text-align: center;
+        padding: 45px 0 20px;
+        border-bottom: 1px solid  rgba(255, 255, 255, 0.08);
+        &:last-child{
+            border: none;
+        }
+        &.active{
+            & .pp-social-item{
+                &-wrap{
+                    & .pp-social-item{
+                        &-title{
+                            color: var(--tp-common-white);
+                        }
+                    }
+                    & p{
+                        color: var(--tp-common-white);
+                    }
+                }
+            }
+        }
+        &.img-pos{
+            &-1,
+            &-2,
+            &-3,
+            &-4{
+                &:hover,
+                &.active{
+                    & .pp-social-item{
+                        &-thumb{
+                            & .thumb{
+                                &-1{
+                                    opacity: 1;
+                                    transform: translateX(0);
+                                    transform: scale(1);
+                                    transition-delay: .2s;
+                                }
+                                &-2{
+                                    opacity: 1;
+                                    transform: scale(1);
+                                    transition-delay: .3s;
+                                }
+                                &-3{
+                                    opacity: 1;
+                                    transform: scale(1);
+                                    transition-delay: .2s;
+                                }
+                                &-4{
+                                    opacity: 1;
+                                    transform: scale(1);
+                                    transform: translateY(0);
+                                    transition-delay: .3s;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        &.img-pos{
+            &-1{
+                & .pp-social-item-thumb{
+                    & .thumb{
+                        &-1{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            left: 12%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-2{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            right: 20%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateX(100px);
+                        }
+                        &-3{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 20%;
+                            left: 19%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateY(100px);
+                        }
+                        &-4{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 25%;
+                            right: 15%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                    }
+                }
+            }
+            &-2{
+                & .pp-social-item-thumb{
+                    & .thumb{
+                        &-1{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            left: 17%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateX(-100px);
+                        }
+                        &-2{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            right: 16%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-3{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 20%;
+                            left: 24%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-4{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 8%;
+                            right: 18%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                        }
+                    }
+                }
+            }
+            &-3{
+                & .pp-social-item-thumb{
+                    & .thumb{
+                        &-1{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            left: 12%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-2{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            right: 20%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateX(100px);
+                        }
+                        &-3{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 20%;
+                            left: 19%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateY(100px);
+                        }
+                        &-4{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 25%;
+                            right: 15%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateY(100px);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                    }
+                }
+            }
+            &-4{
+                & .pp-social-item-thumb{
+                    & .thumb{
+                        &-1{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            left: 17%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: translateX(-100px);
+                        }
+                        &-2{
+                            position: absolute;
+                            opacity: 0;
+                            top: 0;
+                            right: 16%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-3{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 20%;
+                            left: 24%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                            @media #{$xs} {
+                                display: none;
+                            }
+                        }
+                        &-4{
+                            position: absolute;
+                            opacity: 0;
+                            bottom: 8%;
+                            right: 18%;
+                            z-index: 1;
+                            @include tp-transition();
+                            transform: scale(0.7);
+                        }
+                    }
+                }
+            }
+        }
+        &-title{
+            margin: 0;
+            font-size: 180px;
+            font-weight: 400;
+            line-height: 0.6;
+            letter-spacing: -5.4px;
+            font-family: var(--tp-ff-teko);
+            color: rgba(255, 255, 255, 0.10);
+            @include tp-transition();
+            @media #{$md} {
+                font-size: 120px;
+            }
+            @media #{$xs} {
+                font-size: 70px;
+                letter-spacing: 0;
+            }
+        }
+        &-wrap{
+            display: inline-block;
+            & p{
+                margin: 0;
+                line-height: 20px;
+            }
+            & .text{
+                &-left{
+                    top: 15%;
+                    right: 104%;
+                    position: absolute;
+                    text-align: end;
+                    white-space: nowrap;
+                    @media #{$xs} {
+                        display: none;
+                    }
+                }
+                &-right{
+                    top: 15%;
+                    left: 106%;
+                    position: absolute;
+                    text-align: start;
+                    white-space: nowrap;
+                    @media #{$xs} {
+                        display: none;
+                    }
+                }
+            }
+        }
+    }
+}

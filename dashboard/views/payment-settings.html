@@ -1,0 +1,26 @@
+<section id="payment-settings" class="section" hidden aria-labelledby="payment-heading">
+        <div class="payment-grid">
+          <article class="panel payment-panel">
+            <div class="panel-heading"><div><h2 id="payment-heading">Payment connections</h2><p id="payment-environment">Checking the connected Worker…</p></div><span class="tag">STATUS ONLY</span></div>
+            <div class="payment-status-row"><div><strong>Paystack</strong><p>Secret key for naira checkout and webhook verification</p></div><span class="status" id="paystack-status">Checking…</span></div>
+            <div class="payment-status-row"><div><strong>Stripe</strong><p>Secret key for dollar checkout</p></div><span class="status" id="stripe-status">Checking…</span></div>
+            <div class="payment-status-row"><div><strong>Stripe webhook</strong><p>Signing secret for payment confirmation</p></div><span class="status" id="stripe-webhook-status">Checking…</span></div>
+            <p class="status-note">Configured means a value is loaded in this Worker; it does not confirm the key or a payment works. Cloudflare production secrets do not automatically appear in local development.</p>
+          </article>
+          <article class="panel payment-panel">
+            <div class="panel-heading"><div><h2>Local test keys</h2><p>Update only the keys you want to change.</p></div><span class="tag">LOCAL ONLY</span></div>
+            <div id="local-payment-panel">
+              <p class="payment-note">Use test keys only. Values are stored in the local ignored Worker configuration, never displayed after saving. The Worker must be restarted to load them.</p>
+              <form id="payment-form" autocomplete="off">
+                <label for="paystack-key">Paystack test secret key</label><input id="paystack-key" type="password" autocomplete="off" placeholder="sk_test_…" spellcheck="false">
+                <label for="stripe-key">Stripe test secret key</label><input id="stripe-key" type="password" autocomplete="off" placeholder="sk_test_…" spellcheck="false">
+                <label for="stripe-webhook-key">Stripe test webhook signing secret</label><input id="stripe-webhook-key" type="password" autocomplete="off" placeholder="whsec_…" spellcheck="false">
+                <p id="payment-message" class="payment-message" role="status" aria-live="polite"></p>
+                <button class="payment-save" id="save-payment" type="submit">Save local test keys</button>
+              </form>
+            </div>
+            <p id="remote-payment-note" class="payment-note" hidden>Configure live Worker secrets in Cloudflare Workers &amp; Pages → your Worker → Settings → Variables and secrets. This dashboard does not write production secrets.</p>
+          </article>
+        </div>
+        <div class="notice payment-warning"><strong>Local Paystack test</strong><span>Paystack test checkout returns to the local preview. The Worker verifies the test payment directly with Paystack when the reader opens; local webhooks still require a public relay. Stripe local checkout is not yet connected.</span></div>
+      </section>
