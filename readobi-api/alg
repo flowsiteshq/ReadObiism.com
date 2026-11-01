@@ -1,0 +1,107 @@
+#!/usr/bin/env php
+<?php
+/**
+ * ALG Studio Engine - Backend Command Line Interface (CLI)
+ * 
+ * Usage:
+ *   php alg migrate               Runs database schema migrations
+ *   php alg g:module <Name>       Scaffolds a new business module (Controller + Migration)
+ *   php alg doctor                Runs system health diagnostics
+ */
+
+if (php_sapi_name() !== 'cli') {
+    die("This tool must be run from the command line.\n");
+}
+
+require_once __DIR__ . '/config.php';
+
+$command = $argv[1] ?? 'help';
+$arg2    = $argv[2] ?? null;
+
+echo "======================================================\n";
+echo " ALG Studio CLI Engine (PHP " . PHP_VERSION . ")\n";
+echo "======================================================\n\n";
+
+switch ($command) {
+    case 'migrate':
+        echo "[ALG Migrate] Running database migrations...\n";
+        $db = getDbConnection();
+        if (!$db) {
+            echo "❌ Error: Database connection failed. Please check your DB credentials in config.php / .env\n";
+            exit(1);
+        }
+        $migrationRunner = new \Alg\Core\Migration($db);
+        $executed = $migrationRunner->migrate();
+        if (empty($executed)) {
+            echo "✅ Nothing to migrate. Database is up to date.\n";
+        } else {
+            foreach ($executed as $file) {
+                echo "  -> Applied: {$file}\n";
+            }
+            echo "✅ Migrations completed successfully!\n";
+        }
+        break;
+
+    case 'g:module':
+    case 'generate:module':
+        if (empty($arg2)) {
+            echo "❌ Error: Please specify a module name. Example: php alg g:module Product\n";
+            exit(1);
+        }
+        $module = ucfirst($arg2);
+        echo "[ALG Generator] Scaffolding module: {$module}...\n";
+
+        // Create Controller Class in src/
+        $srcDir = __DIR__ . "/src/{$module}";
+        if (!is_dir($srcDir)) {
+            mkdir($srcDir, 0755, true);
+        }
+        $controllerFile = "{$srcDir}/{$module}Controller.php";
+        if (!file_exists($controllerFile)) {
+            $code = "<?php\nnamespace Alg\\{$module};\n\nclass {$module}Controller {\n    public function index() {\n        return ['message' => 'Fetched {$module} list'];\n    }\n}\n";
+            file_put_contents($controllerFile, $code);
+            echo "  -> Created: src/{$module}/{$module}Controller.php\n";
+        }
+
+        echo "✅ Module {$module} scaffolded successfully!\n";
+        break;
+
+    case 'doctor':
+        echo "[ALG Doctor] Running system health diagnostics...\n\n";
+        $checks = [
+            'PHP Version (>= 8.0)' => PHP_VERSION_ID >= 80000,
+            'PDO MySQL Extension'  => extension_loaded('pdo_mysql'),
+            'cURL Extension'       => extension_loaded('curl'),
+            'JSON Extension'       => extension_loaded('json'),
+            'OpenSSL Extension'    => extension_loaded('openssl'),
+            'Uploads Directory Writable' => is_writable(__DIR__ . '/uploads')
+        ];
+
+        $passed = true;
+        foreach ($checks as $name => $status) {
+            if ($status) {
+                echo "  ✅ {$name}\n";
+            } else {
+                echo "  ❌ {$name} - FAILED\n";
+                $passed = false;
+            }
+        }
+
+        $db = getDbConnection();
+        if ($db) {
+            echo "  ✅ MySQL Database Connection (PDO)\n";
+        } else {
+            echo "  ⚠️ MySQL Database Connection (DB is offline or invalid credentials)\n";
+        }
+
+        echo "\n" . ($passed ? "🎉 All system diagnostics passed!" : "⚠️ Some diagnostic checks failed.") . "\n";
+        break;
+
+    default:
+        echo "Available Commands:\n";
+        echo "  php alg migrate               Runs database schema migrations\n";
+        echo "  php alg g:module <Name>       Scaffolds a new business module\n";
+        echo "  php alg doctor                Runs system health diagnostics\n";
+        break;
+}
+echo "\n";

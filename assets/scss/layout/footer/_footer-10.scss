@@ -1,0 +1,159 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.10 Footer Style 10
+/*----------------------------------------*/
+
+.app{
+    &-footer{
+        &-widget{
+            & .dgm-footer-widget{
+                &-title{
+                    font-weight: 600;
+                    font-size: 20px;
+                    letter-spacing: -0.2px;
+                    font-family: var(--tp-ff-phudu);
+                    color: var(--tp-common-black-10);
+                }
+                &-menu{
+                    & ul{
+                        & li{
+                            position: relative;
+                            padding-left: 10px;
+                            &::before{
+                                position: absolute;
+                                content: '';
+                                left: 0px;
+                                top: 50%;
+                                width: 3px;
+                                height: 3px;
+                                border-radius: 50%;
+                                transform: translateY(-50%);
+                                background-color: #61616A;
+                            }
+                            & a{
+                                color: #61616A;
+                                letter-spacing: -0.16px;
+                                &:hover{
+                                    color: var(--tp-common-black-10);
+                                }
+                            }
+                        }
+                    }
+                }
+                &-paragraph{
+                    &.color-style{
+                        & p{
+                            font-size: 15px;
+                            font-weight: 400;
+                            color: #61616A;
+                            margin: 0;
+                            letter-spacing: -0.15px;
+                        }
+                    }
+                }
+                &-input{
+                    & input{
+                        border-radius: 12px;
+                        padding-left: 20px;
+                        padding-right: 125px;
+                        color: var(--tp-common-black-10);
+                        background: var(--tp-common-white);
+                        border: 1px solid rgba(33, 33, 45, 0.08);
+                        &:focus{
+                            border-color: var(--tp-common-black-10);
+                        }
+                    }
+                    & .input-button{
+                        right: 8px;
+                        font-size: 14px;
+                        border-radius: 8px;
+                        line-height: 1;
+                        & span{
+                            & svg{
+                                margin-left: 4px;
+                                color: var(--tp-common-white);
+                            }
+                        }
+                    }
+                }
+            }
+            &-info{
+                & a{
+                    font-size: 16px;
+                    font-weight: 600;
+                    letter-spacing: -0.32px;
+                    color: var(--tp-common-black-10);
+                }
+                &-title{
+                    color: #61616A;
+                    font-size: 14px;
+                    font-weight: 400;
+                    letter-spacing: -0.14px;
+                }
+            }
+        }
+        &-rating{
+            padding: 15px;
+            width: 270px;
+            border-radius: 12px;
+            background: var(--tp-common-white);
+            border: 1px solid rgba(33, 33, 45, 0.08);
+            & .app-hero-bottom-rating{
+                &-point {
+                    & span{
+                        font-size: 44px;
+                        letter-spacing: -0.44px;
+                        color: var(--tp-common-black-10);
+                    }
+                }
+                &-star{
+                    & a{
+                        color: var(--tp-common-black-10);
+                    }
+                }
+            }
+        }
+        &-col{
+            &-1{
+                & .dgm-footer-widget-paragraph {
+                    & p{
+                        color: #61616A;
+                    }
+                }
+            }
+            &-2{
+                
+            }
+            &-3{
+                padding-left: 25px;
+                @media #{$lg,$md,$xs} {
+                    padding-left: 0;
+                }
+            }
+            &-4{
+                padding-left: 70px;
+                @media #{$lg}{
+                    padding-left: 25px;
+                }
+                @media #{$md,$xs}{
+                    padding-left: 0px;
+                }
+            }
+        }
+    }
+    &-copyright-text{
+        & p{
+            margin: 0;
+            color: #61616A;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: -0.14px;
+            & a{
+                &:hover{
+                    border-bottom: 1px solid black;
+                }
+            }
+        }
+    }
+}

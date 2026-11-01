@@ -1,0 +1,166 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.12 Footer Style 12
+/*----------------------------------------*/
+
+.st-footer{
+    &-widget{
+        &-content{
+            & p{
+                color: #494949;
+                margin-bottom: 35px;
+            }
+        }
+        &-title{
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            margin-right: 40px;
+            letter-spacing: -0.36px;
+            color: var(--tp-common-brown);
+            @media #{$md,$xs} {
+                margin-right: 0;
+                margin-bottom: 30px;
+            }
+        }
+        &-menu{
+            & ul{
+                & li{
+                    list-style-type: none;
+                    &:not(:last-child){
+                        margin-bottom: 10px;
+                    }
+                    & a{
+                        font-size: 18px;
+                        font-weight: 500;
+                        line-height: 1;
+                        color: #494949;
+                        letter-spacing: -0.36px;
+                    }
+                }
+            }
+        }
+        &-info{
+            &-title{
+                margin-bottom: 10px;
+                & a{
+                    font-size: 18px;
+                    font-weight: 500;
+                    color: #494949;
+                    letter-spacing: -0.36px;
+                    &:hover{
+                        color: var(--tp-common-brown);
+                    }
+                }
+            }
+        }
+        &-social{
+            &-title{
+                font-size: 18px;
+                font-weight: 500;
+                margin-bottom: 35px;
+                display: inline-block;
+                color: var(--tp-common-brown);
+            }
+            & .tp-footer-widget-social{
+                & a{
+                    color: var(--tp-common-brown);
+                    background-color: var(--tp-common-white);
+                    &:hover{
+                        color: var(--tp-common-white);
+                        background-color: var(--tp-common-brown);
+                    }
+                }
+            }
+        }
+    }
+    &-top{
+        &-border{
+            border-bottom: 1px solid rgba(69, 48, 48, 0.15);
+        }
+        &-icon{
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            & span{
+                width: 170px;
+                display: inline-block;
+                border-bottom: 7px solid var(--tp-common-brown);
+                & svg{
+                    transform: translateY(4px);
+                }
+            }
+        }
+    }
+
+    &-col{
+        &-1{}
+        &-2{}
+        &-3{
+            @media #{$xs} {
+                margin-bottom: 120px;
+            }
+        }
+    }
+}
+
+.st-copyright{
+    &-ptb{
+        padding-top: 40px;
+        padding-bottom: 60px;
+    }
+    &-sub{
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1;
+        color: #494949;
+        margin-bottom: 20px;
+        display: inline-block;
+        text-transform: uppercase;
+    }
+    &-title{
+        margin: 0;
+        font-size: 140px;
+        font-weight: 700;
+        line-height: .7;
+        position: relative;
+        letter-spacing: -5.6px;
+        color: var(--tp-common-brown);
+        font-family: var(--tp-ff-poppins);
+        @media #{$lg} {
+            font-size: 100px;
+        }
+        @media #{$md} {
+            font-size: 64px;
+            letter-spacing: 0;
+        }
+        @media #{$xs} {
+            font-size: 60px;
+        }
+        & a{
+            display: inline-block;
+            line-height: 1;
+            &:hover{
+                & span{
+                    transform: translateX(12);
+                }
+            }
+        }
+        & span{
+            position: absolute;
+            top: -20px;
+            right: 5%;
+            display: grid;
+            height: 60px;
+            width: 60px;
+            border-radius: 50%;
+            place-content: center;
+            @include tp-transition();
+            color: var(--tp-common-white);
+            background-color: var(--tp-common-brown);
+        }
+    }
+}

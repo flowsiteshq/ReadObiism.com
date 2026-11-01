@@ -1,0 +1,224 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.9 Footer Style 9
+/*----------------------------------------*/
+.crp-footer{
+    &-bg{
+        background-color: #335341;
+    }
+    &-logo{
+        margin-bottom: 20px;
+    }
+    &-widget{
+        & p{
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 35px; 
+            color: var(--tp-common-cream-3);
+        }
+        &-title{
+            font-weight: 600;
+            font-size: 30px;
+            line-height: 1;
+            margin-bottom: 15px;
+            letter-spacing: .5px;
+            font-family: var(--tp-ff-teko);
+            color: var(--tp-common-cream-3); 
+        }
+        &-menu{
+            & ul{
+                & li{
+                    list-style-type: none;
+                    &:not(:last-child){
+                        margin-bottom: 10px;
+                    }
+                    & a{
+                        font-weight: 500;
+                        font-size: 16px;
+                        line-height: 1;
+                        color: var(--tp-common-cream-3); 
+                    }
+                }
+            }
+        }
+        &-info{
+            & a{
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 1.6;
+                color: var(--tp-common-cream-3);
+                &.tel{
+                    font-weight: 600;
+                    font-size: 22px;
+                    display: block;
+                    letter-spacing: -0.02em;
+                }
+            }
+        }
+    }
+    &-social{
+        & a{
+            height: 42px;
+            width: 42px;
+            line-height: 39px;
+            border-radius: 50%;
+            text-align: center;
+            display: inline-block;
+            color: var(--tp-common-cream-3);
+            background-color: rgba(255, 255, 230, 0.1);
+            &:not(:last-child){
+                margin-right: 5px;
+            }
+            &:hover{
+                color: #325341;
+                background-color: var(--tp-common-yellow-green);
+            }
+        }
+    }
+    &-big-text{
+        padding: 21px 40px;
+        padding-top: 40px;
+        border-radius: 20px;
+        background-color: #2a4c3a;
+        font-weight: 600;
+        font-size: 150px;
+        line-height: .6;
+        width: 100%;
+        display: inline-block;
+        letter-spacing: -0.02em;
+        text-transform: uppercase;
+        font-family: var(--tp-ff-teko);
+        color: var(--tp-common-yellow-green); 
+        @media #{$lg}{
+            font-size: 140px;
+        }
+        @media #{$md}{
+            font-size: 95px;
+            padding-top: 20px;
+        }
+        @media #{$xs}{
+            font-size: 50px;
+        }
+        & span{
+			position: relative;
+			z-index: 1;
+			overflow: hidden;
+			display: inline-block;
+			& span{
+                padding-top: 17px;
+				&.text-1{
+					position: relative;
+					display: block;
+					transition: 0.4s ease-in-out;
+				}
+				&.text-2{
+					position: absolute;
+					bottom: 100%;
+					display: block;
+					transition: 0.4s ease-in-out;
+				}
+			}
+		}
+		& i{
+            position: relative;
+            overflow: hidden;
+            width: 85px;
+            height: 85px;
+            margin-left: 40px;
+            display: inline-flex;
+            transform: translateY(-11px);
+            @media #{$md}{
+                transform: translateY(11px);
+            }
+            @media #{$xs}{
+                width: 30px;
+                height: 30px;
+                margin-left: 0;
+                transform: translateY(0);
+            }
+			& svg{
+				transform: translateY(-2px);
+				position: absolute;
+				bottom: -1px;
+				left: 1px;
+				transition: all 0.3s ease-out;
+				&:last-child{
+                    left: -80px;
+                    bottom: -80px;
+					transform: translate(0, 0);
+					opacity: 0;
+				}
+                @media #{$md}{
+                    width: 60px;
+                    transform: translateY(-7px);
+                }
+                @media #{$xs}{
+                    width: 20px;
+                    height: 20px;
+                    margin-top: 10px;
+                    transform: translateY(0px);
+                }
+			}
+		}
+        &:hover{
+            color: var(--tp-common-yellow-green);
+            & span{
+				& span{
+					&.text-1{
+						-webkit-transform: translateY(150%);
+						transform: translateY(150%);
+					}
+					&.text-2{
+						bottom: 50%;
+						-webkit-transform: translateY(50%);
+						transform: translateY(50%);
+					}
+				}
+			}
+			& i{
+				& svg:first-child{
+                    transform: translate(85px, -85px);
+				}
+				& svg:last-child{
+					opacity: 1;
+					visibility: visible;
+                    transform: translate(80px, -80px);
+				}
+			}
+        }
+        &:focus{
+            color: var(--tp-common-yellow-green);
+        }
+    }
+    &-shape{
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: -1;
+    }
+
+    &-col{
+        &-3{
+            padding-left: 50px;
+            @media #{$xl,$lg,$md,$xs} {
+                padding-left: 0;
+            }
+        }
+    }
+}
+.crp-copyright{
+    &-text{
+        & p{
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 0;
+            color: var(--tp-common-cream-3);
+            & span{
+                color: var(--tp-common-yellow-green);
+            }
+        }
+    }
+}

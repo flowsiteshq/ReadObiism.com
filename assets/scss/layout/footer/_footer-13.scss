@@ -1,0 +1,134 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.13 Footer Style 13
+/*----------------------------------------*/
+
+.cr-footer{
+    &-bg{
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        & img{
+            height: 100%;
+        }
+    }
+    &-widget{
+        &-social{
+            & .tp-footer-widget-social {
+                & a{
+                    color: var(--tp-common-white);
+                    background: rgba(255, 255, 255, 0.10);
+                    &:hover{
+                        color: #325341;
+                        background-color: var(--tp-common-white);
+                    }
+                }
+            }
+        }
+    }
+    &-border-wrap{
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+        @media #{$xs} {
+            border: none;
+            padding-top: 100px;
+        }
+    }
+    &-col{
+        &-1{
+            & .dgm-footer-widget-paragraph {
+                & p{
+                    font-weight: 400;
+                    font-size: 18px;
+                    line-height: 1.5;
+                    letter-spacing: -0.18px;
+                    font-family: var(--tp-ff-onest);
+                    color: rgba(255, 255, 255, 0.60);
+                }
+            }
+            & .app-footer-rating{
+                background: #131416;
+                box-shadow: 0px 0px 4px 0px rgba(255, 255, 255, 0.12) inset, 0px 0px 2px 2px rgba(0, 0, 0, 0.40);
+                & .app-hero-bottom-rating{
+                    &-point {
+                        & span{
+                            color: var(--tp-common-white);
+                        }
+                    }
+                    &-star {
+                        & a{
+                            border: none;
+                            color: var(--tp-common-white);
+                        }
+                    }
+                }
+            }
+        }
+        &-2,
+        &-3,
+        &-4{
+            & .dgm-footer-widget-title{
+                font-size: 20px;
+                font-weight: 600;
+                letter-spacing: -0.2px;
+                color: var(--tp-common-white);
+                font-family: var(--tp-ff-onest);
+            }
+            & .dgm-footer-widget-menu {
+                & ul {
+                    & li {
+                        & a{
+                            color: rgba(255, 255, 255, 0.60);
+                            &:hover{
+                                color: var(--tp-common-white);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        &-2{
+            padding-left: 78px;
+            @media #{$lg} {
+                padding-left: 30px;
+            }
+            @media #{$md,$xs} {
+                padding-left: 0;
+            }
+        }
+        &-3{
+            padding-left: 30px;
+            @media #{$lg,$md,$xs} {
+                padding-left: 0;
+            }
+        }
+        &-4{
+            & .app-footer-widget-info{
+                &-title{
+                    font-weight: 500;
+                    letter-spacing: 0;
+                    color: rgba(255, 255, 255, 0.60);
+                }
+                & a{
+                    color: var(--tp-common-white);
+                }
+            }
+        }
+    }
+}
+
+.cr-copyright{
+    &-border{
+        position: relative;
+        padding-top: 34px;
+        border-color: rgba(255, 255, 255, 0.06);
+        & .app-copyright-text {
+            & p{
+                color: rgba(255, 255, 255, 0.60);
+            }
+        }
+    }
+}

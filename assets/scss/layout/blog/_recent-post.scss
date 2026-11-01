@@ -1,0 +1,81 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  5.2 Recent Post css
+/*----------------------------------------*/
+
+.rc-post{
+    &-thumb{
+        flex: 0 0 auto;
+        overflow: hidden;
+        margin-right: 30px;
+        border-radius: 14px;
+        & img{
+            transition: .9s;
+            border-radius: 14px;
+            @media #{$lg,$md,$xs}{
+                height: 100px;
+                width: 100px;
+            }
+        }
+    }
+    &:hover{
+        & .rc-post-thumb{
+            & img{
+                transform: scale(1.1);
+            }
+        }
+    }
+    &-category{
+        margin-bottom: 10px;
+        & a{
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1;
+            color: #f9e4b4;
+            padding: 7px 12px;
+            border-radius: 15px;
+            display: inline-block;
+            background: rgba(249, 228, 180, 0.08);
+        }
+    }
+    &-title{
+        font-weight: 600;
+        font-size: 20px;
+        line-height: 1.4;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+        color: var(--tp-common-white);
+        @media #{$xl,$lg,$md,$xs}{
+            font-size: 18px;
+        }
+        @media #{$lg}{
+            font-size: 16px;
+        }
+        @media #{$md,$xs}{
+            font-size: 18px;
+        }
+        & a{
+         &:hover{
+                color: var(--tp-common-green-light);
+            }
+        }
+    }
+    &-meta{
+        & span{
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.6);
+        }
+    }
+    &-wrap{
+        & .rc-post{
+            &:not(:last-child){
+                padding-bottom: 25px;
+                margin-bottom: 25px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            }
+        }
+    }
+}

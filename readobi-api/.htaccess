@@ -1,0 +1,48 @@
+# ==============================================================================
+# ALG Company Backend - Enterprise Security Shield (.htaccess)
+# ==============================================================================
+
+# 1. Disable Directory Listing
+Options -Indexes -MultiViews
+
+# 2. Pass Authorization Header to PHP (Crucial for Bearer JWT Tokens)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# 3. Block Access to Sensitive Files (.env, database schemas, git, logs, composer)
+<FilesMatch "^(\.env|\.git|\.htaccess|\.htpasswd|composer\.(json|lock)|package(-lock)?\.json|README\.md)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(sql|log|ini|sh|bak|swp|yml|yaml|dist)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. Block Direct Web Browsing to Internal Directories
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_URI} ^/(src|database|logs)/ [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# 5. Global Security Headers Fallback
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>

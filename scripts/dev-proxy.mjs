@@ -18,6 +18,23 @@ const PORT = Number(process.env.PORT ?? 5514);
 const API_ORIGIN = (process.env.API_ORIGIN ?? "http://127.0.0.1:8799").replace(/\/+$/, "");
 const apiUrl = new URL(API_ORIGIN);
 const localApi = ["127.0.0.1", "localhost", "[::1]"].includes(apiUrl.hostname);
+// Five Server is a separate origin. Permit only the explicitly configured
+// loopback origin; do not turn arbitrary websites into trusted local clients.
+const fiveOrigin = process.env.OBI_FIVE_SERVER_ORIGIN || "";
+const allowLoopbackOrigins = localApi && process.env.OBI_ALLOW_LOOPBACK_ORIGINS === "1";
+function allowedFiveOrigin(origin) {
+  if (!origin) return false;
+  if (fiveOrigin && origin === fiveOrigin) return true;
+  if (!allowLoopbackOrigins) return false;
+  try {
+    const u = new URL(origin);
+    return u.protocol === 'http:' && u.hostname === '127.0.0.1' && !!u.port && u.origin === origin;
+  } catch { return false; }
+}
+if (fiveOrigin) {
+  const u = new URL(fiveOrigin);
+  if (!localApi || u.protocol !== 'http:' || u.hostname !== '127.0.0.1' || !u.port || u.origin !== fiveOrigin) throw new Error('Five Server origin must be an explicitly configured 127.0.0.1 HTTP origin.');
+}
 if (!["127.0.0.1", "localhost", "[::1]"].includes(apiUrl.hostname) && process.env.OBI_ALLOW_REMOTE_API !== "1") {
   throw new Error("Remote API is disabled for this local preview. Set OBI_ALLOW_REMOTE_API=1 only when intentionally testing a remote environment.");
 }
@@ -38,9 +55,9 @@ const MIME = {
 
 let paymentUpdateRunning = false;
 async function localPaymentSettings(req, res, body) {
-  const respond = (status, data) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
+  const respond = (status, data) => { const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }; if (fiveOrigin && req.headers.origin === fiveOrigin) { headers['access-control-allow-origin'] = fiveOrigin; headers['access-control-allow-credentials'] = 'true'; headers.vary = 'Origin'; } res.writeHead(status, headers); res.end(JSON.stringify(data)); };
   const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
-  if (!localApi || !allowedHosts.has(req.headers.host) || req.headers.origin !== `http://${req.headers.host}`
+  if (!localApi || !allowedHosts.has(req.headers.host) || (req.headers.origin !== `http://${req.headers.host}` && (!fiveOrigin || req.headers.origin !== fiveOrigin))
       || req.method !== "POST" || !(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
     return respond(403, { error: "Local same-origin request required." });
   }
@@ -59,7 +76,7 @@ async function localPaymentSettings(req, res, body) {
   if (paymentUpdateRunning) return respond(409, { error: "Another update is in progress. Try again." });
   paymentUpdateRunning = true;
   try {
-    await updateLocalPaymentSecrets(resolve(".dev.vars"), values);
+    await updateLocalPaymentSecrets(resolve("worker/.dev.vars"), values);
     return respond(200, { saved: true, message: "Saved locally. Restart the local Worker to load the new keys." });
   } catch (error) {
     const message = error?.code === "ENOENT" ? "The local .dev.vars file is missing." : error.message;
@@ -78,7 +95,7 @@ async function proxy(req, res, body) {
   delete headers.expect;
   // Translate only this proxy's own origin. Preserve foreign origins so the
   // Worker can reject cross-site requests instead of laundering them.
-  if (headers.origin === `http://${req.headers.host}`) headers.origin = API_ORIGIN;
+  if (headers.origin === `http://${req.headers.host}` || allowedFiveOrigin(headers.origin)) headers.origin = API_ORIGIN;
 
   let upstream;
   try {
@@ -100,6 +117,11 @@ async function proxy(req, res, body) {
     if (key === "content-encoding" || key === "content-length" || key === "transfer-encoding") return;
     outHeaders[key] = value;
   });
+  if (allowedFiveOrigin(req.headers.origin)) {
+    outHeaders['access-control-allow-origin'] = req.headers.origin;
+    outHeaders['access-control-allow-credentials'] = 'true';
+    outHeaders.vary = 'Origin';
+  }
 
   // Local http origin: drop Secure so the browser keeps the session cookie.
   const cookies = upstream.headers.getSetCookie?.() ?? [];
@@ -127,6 +149,18 @@ const server = createServer((req, res) => {
     const body = Buffer.concat(chunks);
     const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
 
+    if (req.method === 'OPTIONS' && pathname.startsWith('/api/') && allowedFiveOrigin(req.headers.origin) && pathname !== '/api/admin/local-payment-settings') {
+      res.writeHead(204, {
+        'access-control-allow-origin': req.headers.origin,
+        'access-control-allow-credentials': 'true',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+        'access-control-allow-headers': 'content-type, authorization, x-obi-device-token',
+        'vary': 'Origin',
+      });
+      res.end();
+      return;
+    }
+
     // A directory URL needs its trailing slash for relative CSS and JS URLs.
     if (/\/admin$/i.test(pathname)) {
       res.writeHead(308, { location: `${pathname}/${new URL(req.url, "http://localhost").search}` });
@@ -146,6 +180,10 @@ const server = createServer((req, res) => {
     // Accept /login.html and /readobiism-site/login.html (Five Server's
     // parent-folder layout) so existing bookmarks keep working.
     let relative = pathname.replace(/^\/+/, "").replace(/^readobiism-site\//i, "");
+    if (/^(?:readobi-api|readobi-mobile|worker|scripts|node_modules)(?:\/|$)/i.test(relative) || relative.split('/').some(part => part.startsWith('.'))) {
+      res.writeHead(404).end('Not found');
+      return;
+    }
     // Support bookmarked extensionless login URLs as well as the actual file.
     if (/^login\/?$/i.test(relative)) relative = "login.html";
     let filePath = resolve(join(ROOT, normalize(relative)));

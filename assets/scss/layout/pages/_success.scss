@@ -1,0 +1,249 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  8.8 Success Css
+/*----------------------------------------*/
+
+.crp-success{
+    &-area{
+        @media #{$md,$xs} {
+            margin-bottom: 0;
+        }
+    }
+    &-big-img{
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: calc(100% - 10px);
+        width: calc(50% + 8.1%);
+        @media #{$xl}{
+            width: 49.5%;
+        }
+        @media #{$lg,$md,$xs}{
+            position: static;
+            height: 400px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        & img{
+            height: 100%;
+            object-fit: cover;
+        }
+        & .anim-zoomin-wrap{
+            height: 100%;
+        }
+    }
+    &-item{
+        height: 100%;
+        overflow: hidden;
+        &-shape{
+            &-1{
+                position: absolute;
+                top: -25px;
+                right: 0;
+                transform-origin: top right;
+                @media #{$x3l}{
+                    transform: scale(.5);
+                }
+                @media #{$xxl}{
+                    transform: scale(.3);
+                }
+            }
+            &-2{
+                position: absolute;
+                bottom: -1px;
+                right: 0;
+                transform-origin: right bottom;
+                @media #{$x3l}{
+                    transform: scale(.6);
+                }
+                @media #{$xxl}{
+                    transform: scale(.4);
+                }
+            }
+        }
+        &.about-us{
+            background-size: cover;
+            background-position: 0px 30px;
+            & .crp-about-us{
+                &-item{
+                    &-wrap{
+                        padding-top: 160px;
+                        text-align: center;
+                        @media #{$xl} {
+                            padding-top: 30px;
+                        }
+                        @media #{$lg} {
+                            padding-top: 185px;
+                        }
+                        @media #{$md} {
+                            padding-top: 110px;
+                        }
+                        @media #{$xs} {
+                            padding-top: 100px;
+                            padding-bottom: 45px;
+                        }
+                    }
+                    &-title{
+                        font-size: 46px;
+                        font-weight: 500;
+                        line-height: 46px;
+                        color: #F9F4E8;
+                        font-family: var(--tp-ff-mango-light);
+                    }
+                    &-icon{
+                        display: inline-block;
+                        margin-bottom: 14px;
+                        & span{
+                            height: 40px;
+                            width: 40px;
+                            border-radius: 50%;
+                            display: grid;
+                            place-content: center;
+                            background-color: #323234;
+                        }
+                    }
+                    &-btn{
+                        &-box{
+                            display: flex;
+                            padding: 80px 30px 0;
+                            justify-content: space-between;
+                            @media #{$xl,$lg,$md,$xs} {
+                                padding: 25px 10px 0;
+                            }
+                            & span{
+                                color: #F9F4E8;
+                                font-size: 14px;
+                                font-weight: 400;
+                                padding: 7px 26px;
+                                border-radius: 70px;
+                                display: inline-block;
+                                text-shadow: 0px 14px 14px rgba(8, 29, 49, 0.03);
+                                background: rgba(255, 255, 255, 0.10);
+                                @include tp-transition();
+                                & svg{
+                                    margin-left: 4px;
+                                }
+                            }
+                            & a{
+                                &:hover{
+                                    & span{
+                                        color: var(--tp-common-black);
+                                        background-color: var(--tp-common-white);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            &-img{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                & .crp-about-us-item-img{
+                    @media #{$xs} {
+                        padding: 50px 0;
+                    }
+                }
+            }
+            & .crp-success-video{
+                line-height: 1;
+                & video{
+                    width: 475px;
+                    height: 475px;
+                    object-fit: cover;
+                    @media #{$xl} {
+                        height: 302px;
+                    }
+                    @media #{$lg,$md,$xs} {
+                        width: 100%;
+                    }
+                }
+            }
+        }
+    }
+    &-content{
+        height: 100%;
+        &-wrap{
+            height: 100%;
+            padding: 50px;
+            @media #{$xxl,$xl}{
+                padding: 30px;
+            }
+            @media #{$xxl,$xl,$xs}{
+                padding: 30px;
+            }
+        }
+        & p{
+            font-weight: 500;
+            font-size: 34px;
+            line-height: 1;
+            margin-bottom: 40px;
+            letter-spacing: .05px;
+            display: inline-block;
+            font-family: var(--tp-ff-teko);
+            color: var(--tp-common-cream-3);
+        }
+        & > span{
+            font-weight: 500;
+            font-size: 120px;
+            line-height: .7;
+            display: inline-block;
+            font-family: var(--tp-ff-teko);
+            color: var(--tp-common-cream-3);
+            @media #{$xl}{
+                font-size: 100px;
+            }
+            & i{
+                font-style: normal;
+            }
+        }
+    }
+    &-yellow-box{
+        & .crp-success-content p {
+            font-weight: 600;
+            font-size: 54px;
+            line-height: 1;
+            color: #2a4c3a;
+            @media #{$x3l}{
+                font-size: 45px;
+            }
+            @media #{$xxl,$xl}{
+                font-size: 40px;
+            }
+        }
+    }
+    &-img{
+        height: 100%;
+        & .anim-zoomin-wrap{
+            height: 100%;
+        }
+        & img{
+            height: 100%;
+        }
+    }
+}
+
+.crp-success-about-us{
+    &-big-img{
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 49.7%;
+        height: calc(100% - 10px);
+        @media #{$lg,$md,$xs}{
+            position: static;
+            height: 400px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        & .anim-zoomin-wrap{
+            height: 100%;
+        }
+        & img{
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+}

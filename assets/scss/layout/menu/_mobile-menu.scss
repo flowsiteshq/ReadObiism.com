@@ -1,0 +1,86 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  4.2 Mobile Menu
+/*----------------------------------------*/
+.tp-offcanvas-menu {
+    margin-bottom: 80px;
+    & ul{
+        list-style: none;
+        & li {
+            position: relative;
+            & > a{
+                padding: 10px 0;
+                display: block;
+                font-size: 20px;
+                font-weight: 500;
+            }
+            &.active{
+                & > a{
+                    color: var(--tp-common-red-3);
+                    
+                }
+                & > .tp-menu-close{
+                    & i{
+                        top: 10px;
+                        @include tp-transform(rotate(135deg));
+                    }
+                }
+            }
+            & .submenu {
+                display: none;
+                & .submenu{
+                    margin-left: 30px;
+                }
+            }
+        }
+    }
+    & .tp-megamenu-wrapper{
+        &.megamenu-white-bg {
+            backdrop-filter: none;
+            background: transparent;
+            box-shadow: none;
+        }
+    }
+    & .mega-menu {
+        width: auto;
+        opacity: 1;
+        visibility: visible;
+        transition: none;
+        position: static;
+        display: none;
+        @include tp-transform(perspective(0) rotateX(0));
+    }
+    & .tp-megamenu-list ul li {
+        padding: 0;
+        & a{
+            padding:8px 20px;
+            font-size: 17px;
+        }
+    }
+    & .tp-submenu li a{
+        padding:8px 20px;
+        border-radius: 10px;
+        font-size: 17px;
+        &:hover{
+            background-color: #f8f8fb;
+            color: var(--tp-common-black);
+        }
+    }
+}
+.tp-menu-close {
+    position: absolute;
+    right: 7px;
+    top: 12px;
+    & i{
+        transition: all 0.3s;
+        font-size: 18px;
+        font-weight: 500;
+    }
+}
+.menu-item-has-children{
+    & .tp-menu-close {
+        right: 14px;
+        top: 9px;
+    }
+}

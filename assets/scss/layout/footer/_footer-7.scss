@@ -1,0 +1,184 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  6.7 Footer Style 7
+/*----------------------------------------*/
+
+.ai-footer{
+    &-area{
+        @media #{$xs}{
+            padding-top: 80px;
+            padding-bottom: 80px;
+        }
+    }
+    &-widget{
+        &-title{
+            font-weight: 600;
+            font-size: 48px;
+            line-height: 1.1;
+            margin-bottom: 50px;
+            letter-spacing: -0.04em;
+            color: var(--tp-common-white);
+            @media #{$xl}{
+                font-size: 40px;
+            }
+            @media #{$lg}{
+                font-size: 45px;
+            }
+        }
+        &-shape{
+            position: absolute;
+            bottom: -7%;
+            right: 20%;
+            z-index: -1;
+        }
+        &-title-sm{
+            font-weight: 700;
+            font-size: 20px;
+            line-height: 1;
+            margin-bottom: 25px;
+            letter-spacing: -0.02em;
+            color: var(--tp-common-white);
+        }
+    }
+    &-input{
+        & input{
+            padding: 0 35px;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 1;
+            border: none;
+            border-radius: 0;
+            letter-spacing: -0.02em;
+            background-color: transparent;
+            color: var(--tp-common-white);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            @include tp-placeholder{
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 1;
+                letter-spacing: -0.02em;
+                color: rgba(255, 255, 255, 0.4);
+            }
+            &:focus{
+                border-color: var(--tp-common-white);
+            }
+        }
+    }
+    &-newsletter{
+        & label{
+            font-weight: 700;
+            font-size: 20px;
+            line-height: 1;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+            color: var(--tp-common-white);
+        }
+    }
+    &-icon{
+        &-1{
+            position: absolute;
+            top: 14px;
+            left: 0;
+        }
+        &-2{
+            position: absolute;
+            top: 15px;
+            right: 0;
+        }
+    }
+    &-menu{
+        & ul{
+            & li{
+                list-style-type: none;
+                &:not(:last-child){
+                    margin-bottom: 10px;
+                }
+                & a{
+                    font-weight: 500;
+                    font-size: 16px;
+                    line-height: 1;
+                    letter-spacing: -0.02em;
+                    color: rgba(255, 255, 255, 0.6);
+                    &:hover{
+                        color: var(--tp-common-white);
+                    }
+                }
+            }
+        }
+    }
+    &-contact{
+        &-item{
+            & a{
+                display: block;
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 1.6;
+                margin-bottom: 8px;
+                letter-spacing: -0.02em;
+                color: rgba(255, 255, 255, 0.6);
+                &:hover{
+                    color: var(--tp-common-white);
+                }
+            }
+        }
+    }
+    &-col{
+        &-2{
+            margin-left: 78px;
+            @media #{$md,$xs}{
+                margin-left: 0;
+                margin-top: 40px;
+            }
+        }
+        &-3{
+            margin-left: 80px;
+            @media #{$lg}{
+                margin-left: 50px;
+            }
+            @media #{$md,$xs}{
+                margin-left: 0;
+                margin-top: 40px;
+            }
+        }
+        &-4{
+            margin-left: 80px;
+            @media #{$lg}{
+                margin-left: 0;
+            }
+            @media #{$md,$xs}{
+                margin-left: 0;
+                margin-top: 40px;
+            }
+        }
+    }
+}
+.ai-copyright{
+    &-content{
+        & p{
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            color: var(--tp-common-white);
+        }
+    }
+    &-ptb{
+        padding: 25px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    &-logo{
+        @media #{$xs}{
+            margin-bottom: 20px;
+        }
+    }
+    &-shape{
+        &-1{
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            z-index: -1;
+        }
+    }
+}

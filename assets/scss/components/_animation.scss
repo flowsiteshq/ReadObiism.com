@@ -1,0 +1,314 @@
+@use '../utils' as *;
+/*----------------------------------------*/
+/*  2.3 Animations
+/*----------------------------------------*/
+
+@keyframes rotate2 {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes animationglob {
+    0% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+    100% {
+        -webkit-transform: rotate(-360deg);
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes lqdItiImgOut {
+    0% {
+        transform: translateY(0) scale(1)
+    }
+    to {
+        transform: translateY(100%) scale(1.15)
+    }
+}
+
+@keyframes hero-circle-2 {
+    0% {
+        @include tp-transform(translateX(1000px));
+    }
+    100% {
+        @include tp-transform(translateX(0px));
+    }
+}
+
+@keyframes hero-circle-3 {
+    0% {
+        @include tp-transform(translateX(500px));
+    }
+    100% {
+        @include tp-transform(translateX(0px));
+    }
+}
+
+@keyframes move1 {
+    0% {
+        bottom: -300px;
+        left: -300px;
+    }
+    30% {
+        bottom: 100px;
+        left: 300px;
+    }
+    60% {
+        bottom: 200px;
+        left: 600px;
+    }
+    100% {
+        bottom: -300px;
+        left: 1200px;
+    }
+}
+
+@keyframes move1-reverse {
+    0% {
+        bottom: -150px;
+        left: 1400px;
+    }
+    40% {
+        bottom: 50px;
+        left: 600px;
+    }
+    70% {
+        bottom: 200px;
+        left: 300px;
+    }
+    100% {
+        bottom: -150px;
+        left: -150px;
+    }
+}
+
+@keyframes animate-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.2), 0 0 0 0 rgba(255, 255, 255, 0.2);
+    }
+    40% {
+        box-shadow: 0 0 0 50px rgba(255, 109, 74, 0.0), 0 0 0 0 rgba(255, 255, 255, 0.2);
+    }
+    80% {
+        box-shadow: 0 0 0 50px rgba(255, 109, 74, 0.0), 0 0 0 30px rgba(255, 109, 74, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 109, 74, 0.0), 0 0 0 30px rgba(255, 109, 74, 0);
+    }
+}
+
+@keyframes animate-pulse-2{
+    0%{
+        box-shadow: 0 0 0 0 rgba(255, 246, 105, 0.10),  0 0 0 0 rgba(255, 246, 105, 0.10);
+    }
+    40%{
+        box-shadow: 0 0 0 50px rgba(255,109,74,0.0),  0 0 0 0 rgba(255, 246, 105, 0.10);
+    }
+    80%{
+        box-shadow: 0 0 0 50px rgba(255,109,74,0.0),  0 0 0 30px rgba(255,109,74,0);
+    }
+    100%{
+        box-shadow: 0 0 0 0 rgba(255,109,74,0.0),  0 0 0 30px rgba(255,109,74,0);
+    }
+}
+
+@keyframes rotate {
+    100% {
+        transform: translate(-50%, -50%) rotate(1turn);
+    }
+}
+
+@keyframes marquee-horizontal {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+@include keyframes(video-border) {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    60% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+    }
+}
+
+@keyframes scroll-up-down {
+    0% {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+}
+
+@keyframes scroll1 {
+    0% {
+        top: 0px;
+    }
+    100% {
+        top: 100%;
+    }
+}
+
+@keyframes scroll2 {
+    0% {
+        top: 0px;
+    }
+
+    100% {
+        top: 100%;
+    }
+}
+
+@keyframes transform {
+    0% {
+        transform: scale(.5);
+        opacity: .8;
+    }
+
+    50% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(.5);
+        opacity: .8;
+    }
+}
+
+@keyframes dash {
+    0% {
+        stroke-dashoffset: 1000;
+    }
+
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+// zoom in out animcation
+.tp-zoom-in-out{
+	@include animation((tp_zoom_in_out 7s infinite linear));
+}
+
+
+@include keyframes(tp_zoom_in_out){
+	0%{
+		@include tp-transform(scale(.8));
+	}
+	50%{
+		@include tp-transform(scale(1));
+	}
+	100%{
+		@include tp-transform(scale(.8));
+	}
+}
+
+@keyframes scroll_anim {
+	0% {
+	  transform: translateY(0);
+	}
+  
+	50% {
+	  transform: translateY(10px);
+	}
+  
+	100% {
+	  transform: translateY(0);
+	}
+  }
+
+  
+@keyframes loadingAnimation {
+    to {
+      transform: rotate(-360deg);
+    }
+  }
+
+@keyframes roteted {
+    0% {
+        transform: rotate(0);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes headerSlideDown {
+    0% {
+     margin-top:-150px
+    }
+    100% {
+     margin-top:0
+    }
+}
+
+@keyframes bar_anim {
+	0%, 100% {
+	  -webkit-clip-path: inset(-2px 0);
+	  clip-path: inset(-2px 0);
+	}
+	42% {
+	  -webkit-clip-path: inset(-2px 0 -2px 100%);
+	  clip-path: inset(-2px 0 -2px 100%);
+	}
+	43% {
+	  -webkit-clip-path: inset(-2px 100% -2px 0);
+	  clip-path: inset(-2px 100% -2px 0);
+	}
+}
+
+@keyframes scrollText {
+	from   { transform: translateX(0%); }
+	to { transform: translateX(-50%); }
+}
+
+@keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      -webkit-transform: translateY(20px);
+      -ms-transform: translateY(20px);
+      transform: translateY(20px);
+    }
+  
+    100% {
+      opacity: 1;
+      -webkit-transform: translateY(0);
+      -ms-transform: translateY(0);
+      transform: translateY(0);
+    }
+  }
+  
+  .fadeInUp {
+    -webkit-animation-name: fadeInUp;
+    animation-name: fadeInUp;
+  }
+
+
+  @include keyframes(tpshake){
+    10% {
+        transform: translateY(-10px);
+    }
+    50% {
+        transform: skew(15deg);
+    }
+    80% {
+        transform: rotate(10deg);
+    }
+    100% {
+        transform: translate(0);
+    }
+}

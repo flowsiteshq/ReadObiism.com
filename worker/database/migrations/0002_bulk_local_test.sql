@@ -1,0 +1,5 @@
+-- Local test prototype only. Do not apply to production.
+CREATE TABLE IF NOT EXISTS bulk_local_orders (id TEXT PRIMARY KEY, code_hash TEXT UNIQUE NOT NULL, code_last4 TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 1000), status TEXT NOT NULL CHECK(status='local_test'), created_by TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS bulk_local_redemptions (order_id TEXT NOT NULL, account_id TEXT NOT NULL, checkout_session_id TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(order_id, account_id));
+CREATE INDEX IF NOT EXISTS bulk_local_redemptions_order_idx ON bulk_local_redemptions(order_id);
+CREATE TABLE IF NOT EXISTS bulk_local_payments (id TEXT PRIMARY KEY, provider_reference TEXT UNIQUE NOT NULL, buyer_email TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 1000), amount_kobo INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','paid','initialization_failed')), created_by TEXT NOT NULL, created_at TEXT NOT NULL);

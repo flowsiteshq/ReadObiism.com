@@ -1,0 +1,102 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  9.1 Review Css
+/*----------------------------------------*/
+
+.app-review{
+    &-ptb{
+        @media #{$lg,$md} {
+            padding-bottom: 120px;
+        }
+    }
+    &-bg{
+        padding: 40px;
+        border-radius: 30px;
+        background: linear-gradient(265deg, rgba(208, 242, 240, 0.80) 16.29%, rgba(197, 224, 252, 0.80) 84.71%);
+    }
+    &-img{
+        position: absolute;
+        bottom: 0;
+        left: 20%;
+        @media #{$lg} {
+            bottom: -54px;
+            left: 22%;
+            transform: scale(0.6);
+        }
+        @media #{$xs} {
+            display: none;
+        }
+        @media #{$md,$sm} {
+            bottom: -26px;
+            left: auto;
+            transform: scale(0.8);
+            right: 0;
+            display: block;
+        }
+    }
+    &-title{
+        font-size: 30px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-family: var(--tp-ff-phudu);
+        line-height: 1;
+        margin-bottom: 10px;
+        background: linear-gradient(293deg, #3188FF -3.2%, #D34BE9 48.62%, #FF994B 102.56%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    &-heading{
+        @media #{$md} {
+            margin-bottom: 50px;
+        }
+        @media #{$xs} {
+            margin-bottom: 30px;
+        }
+        & p{
+            color: #61616A;
+            font-size: 14px;
+            & span{
+                font-weight: 700;
+            }
+        }
+    }
+    &-item{
+        @media #{$md} {
+            margin-bottom: 50px;
+        }
+        @media #{$xs} {
+            margin-bottom: 30px;
+        }
+        &.ml{
+            margin-left: -5px;
+            @media #{$xl,$md,$xs} {
+                margin-left: 0;
+            }
+        }
+        &.mr{
+            margin-left: 10px;
+            margin-right: -12px;
+        }
+        &-icon{
+            margin-bottom: 18px;
+        }
+        &-content{
+            & p{
+                color: #61616A;
+                font-size: 14px;
+                margin: 0;
+            }
+        }
+        &-title{
+            font-size: 44px;
+            font-weight: 500;
+            line-height: 1;
+            margin-bottom: 10px;
+            letter-spacing: -0.44px;
+            font-family: var(--tp-ff-phudu);
+            color: var(--tp-common-black-10);
+        }
+    }
+}

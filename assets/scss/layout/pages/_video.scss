@@ -1,0 +1,188 @@
+@use '../../utils' as *;
+
+/*----------------------------------------*/
+/*  8.1 Video Css
+/*----------------------------------------*/
+
+.tp-video{
+    &-area{
+        &.video-inner-style{
+            @media #{$md,$xs} {
+                margin-bottom: 80px;
+            }
+        }
+    }
+    &-thumb{
+        width: 32.5%;
+        @media #{$lg,$md,$xs}{
+            width: 100%;
+            margin-bottom: 0;
+        }
+        &-wrap{
+            transform-origin: top center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between; 
+        }
+        & video{
+            height: 100%;
+            width: 100%;
+            background-position: center center;
+            background-size: cover;
+            object-fit: cover;
+        }
+        & img{
+            width: 100%;
+        }
+    }
+}
+
+.design-video{
+    &-thumb{
+        height: 850px;
+        overflow: hidden;
+        @media #{$xs} {
+            height: 450px;
+        }
+        & img{
+            margin-top: -150px;
+            @media #{$xs} {
+                margin-top: 100px;
+            }
+        }
+    }
+}
+
+.st-video{
+    &-item{
+        & .creative-choose{
+            &-text{
+                top: 50px;
+                left: 12%;
+                @media #{$xxl,$xl} {
+                    top: 10px;
+                    left: 0%;
+                }
+                @media #{$lg,$md,$xs} {
+                    display: none;
+                }
+                & p {
+                    color: var(--tp-common-brown);
+                    & span{
+                        background-color: #F7F1EC;
+                    }
+                }
+                &-bottom{
+                    &::after {
+                        box-shadow: 0px -18px 0 0 #F7F1EC;
+                    }
+                }
+            }
+            &-avater{
+                &-box{
+                    background-color: #F7F1EC;
+                    &::after {
+                        bottom: 34px;
+                        box-shadow: 0px -18px 0 0 #F7F1EC;
+                    }
+                }
+                &-info{
+                    & h4{
+                        color: var(--tp-common-brown);
+                    }
+                    & span{
+                        color: var(--tp-common-brown);
+                    }
+                }
+            }
+        }
+    }
+    &-img{
+        height: 900px;
+        overflow: hidden;
+        @media #{$xxl} {
+            height: 750px;
+        }
+        @media #{$xl} {
+            height: 600px;
+        }
+        @media #{$lg} {
+            height: 470px;
+        }
+        @media #{$md,$sm} {
+            height: 400px;
+        }
+        @media #{$xs} {
+            height: 240px;
+        }
+        & .dgm-testimonial-playbtn{
+            width: 80px;
+            height: 80px;
+            line-height: 80px;
+            animation: none;
+            &::after {
+                position: absolute;
+                content: "";
+                left: 50%;
+                top: 50%;
+                width: 90%;
+                height: 90%;
+                z-index: -1;
+                border-radius: 50%;
+                transform: scale(1);
+                border: 1px solid var(--tp-common-white);
+                animation: video-border 1.5s linear infinite;
+            }
+        }
+    }
+    &-text{
+        &-slider{
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            @media #{$md,$xs} {
+                bottom: 0;
+            }
+        }
+        &-wrapper{
+            & .slide-transtion{
+                -webkit-transition-timing-function: linear;
+                transition-timing-function: linear;
+            }
+        }
+        &-title{
+            font-size: 120px;
+            font-weight: 700;
+            line-height: 1;
+            display: inline-block;
+            letter-spacing: -3.6px;
+            color: var(--tp-common-white);
+            font-family: var(--tp-ff-poppins);
+            @media #{$lg} {
+                font-size: 85px;
+            }
+            @media #{$md} {
+                font-size: 80px;
+            }
+            @media #{$xs} {
+                font-size: 35px;
+            }
+            & i{
+                font-style: normal;
+                color: rgba(255, 255, 255, 0.40);
+            }
+        }
+    }
+}
+
+.tp-video-15{
+    &-wrap{
+        line-height: 0;
+        & video{
+            height: 800px;
+            width: 100%;
+            object-fit: cover;
+        }
+    }
+}

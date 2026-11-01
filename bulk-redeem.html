@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><title>Activate a bulk test edition | OBI-ISM</title>
+  <link rel="stylesheet" href="assets/css/custom/bulk-redeem.css">
+  <script src="assets/js/custom/obi-api.js" defer></script><script src="assets/js/custom/bulk-redeem.js" defer></script>
+</head><body>
+  <main class="card">
+    <a class="brand" href="index.html">OBI<span>–ISM</span></a><p class="eyebrow">LOCAL BULK TEST</p>
+    <h1>Open your edition.</h1><p class="intro">Sign in with your reader account, then enter the shared local test code.</p>
+    <p class="note">This is a local test. No payment has been made for these test editions.</p>
+    <div id="auth-state" role="status" aria-live="polite">Checking your reader account…</div>
+    <div id="sign-in" hidden><a class="button secondary" href="login.html?next=bulk-redeem">SIGN IN OR CREATE AN ACCOUNT →</a></div>
+    <form id="bulk-form" hidden autocomplete="off">
+      <label for="code">SHARED BULK TEST CODE</label>
+      <input id="code" name="code" autocomplete="off" spellcheck="false" placeholder="OBI-BULK-…" maxlength="41" required>
+      <button class="button primary" id="submit" type="submit">ACTIVATE TEST EDITION →</button>
+      <p id="message" role="status" aria-live="polite"></p>
+    </form>
+    <p class="fine">One activation per reader account. Each edition is bound to the browser that activates it.</p>
+    <a class="back" href="index.html">← Return to OBI-ISM</a>
+  </main>
+</body></html>
