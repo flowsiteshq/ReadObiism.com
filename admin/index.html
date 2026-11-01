@@ -26,19 +26,19 @@
       <a class="nav-link" href="#transfers" data-section="transfers"><span class="nav-icon" aria-hidden="true">◷</span> Device transfers</a>
       <a class="nav-link" href="#payments" data-section="payments"><span class="nav-icon" aria-hidden="true">⚙</span> Payment settings</a>
     </nav>
-    <div class="sidebar-note"><strong>Local workspace</strong><p>Read-only test data from local D1.</p></div>
+    <div class="sidebar-note"><strong>Workspace</strong><p>Live production data.</p></div>
     <a class="site-link" href="../index.html">← Back to website</a>
   </aside>
   <div class="main-area">
     <header class="topbar">
       <button class="menu-button" type="button" aria-controls="navigation" aria-expanded="true" aria-label="Toggle sidebar" title="Toggle sidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button>
       <span class="breadcrumb">OBI-ISM <span>/</span> <strong id="breadcrumb">Overview</strong></span>
-      <span class="preview-pill"><span class="dot"></span> Local data</span>
+      <span class="preview-pill"><span class="dot"></span> Live data</span>
       <button id="sign-out" class="outline-button" type="button">Sign out</button>
     </header>
     <main id="main" tabindex="-1">
       <div class="page-heading"><div><p class="eyebrow">OBI-ISM ADMINISTRATION</p><h1 id="page-title">Overview</h1><p id="page-description">A clear view of your publication and reader support.</p></div><button class="outline-button" id="refresh" type="button">↻ Refresh data</button></div>
-      <div class="notice" role="status"><strong>Local preview</strong><span>Figures come from the local test database. Live customer data is not connected.</span></div>
+      <div class="notice" role="status"><strong>Production</strong><span>Connected to the live OBI-ISM database.</span></div>
       <section id="overview" class="section" aria-labelledby="overview-heading">
         <div class="section-heading"><div><h2 id="overview-heading">At a glance</h2><p>Current records in your connected database.</p></div><span id="updated" class="label">LOADING</span></div>
         <div class="stats-grid">
@@ -103,7 +103,7 @@
             <p id="remote-payment-note" class="payment-note" hidden>Configure live Worker secrets in Cloudflare Workers &amp; Pages → your Worker → Settings → Variables and secrets. This dashboard does not write production secrets.</p>
           </article>
         </div>
-        <div class="notice payment-warning"><strong>Local Paystack test</strong><span>Paystack test checkout returns to the local preview. The Worker verifies the test payment directly with Paystack when the reader opens; local webhooks still require a public relay. Stripe local checkout is not yet connected.</span></div>
+        <div class="notice payment-warning"><strong>Payments</strong><span>Paystack and Stripe are configured via Worker secrets.</span></div>
       </section>
       <section id="feature" class="section" hidden aria-labelledby="feature-heading"><article class="panel feature-panel"><div class="feature-icon" aria-hidden="true">✦</div><span class="tag">IN DEVELOPMENT</span><h2 id="feature-heading"></h2><p id="feature-description"></p><p class="feature-note">A bulk order will have one shareable code and a fixed number of activations. For example, a 20-copy purchase will allow 20 people to claim an edition before the code is exhausted. Checkout and redemption are not available yet.</p><a href="#gifts">View existing gifts →</a></article></section>
     </main>
