@@ -60,9 +60,21 @@ export async function handleAdminAuth(request, env) {
     });
   }
   if (!['/api/admin/login', '/api/admin/session', '/api/admin/logout'].includes(path)) {
-    if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
+    if (request.method !== 'GET' && request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
     await env.OBI_DB.exec(schema);
-    if (!await session(request, env)) return json({ error: 'Administrator sign-in required.' }, 401);
+    const sess = await session(request, env);
+    if (!sess) return json({ error: 'Administrator sign-in required.' }, 401);
+    // Basic audit log
+    try {
+      await env.OBI_DB.prepare('CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_email TEXT NOT NULL, action TEXT NOT NULL, path TEXT NOT NULL, ip TEXT, created_at TEXT NOT NULL)').run();
+      await env.OBI_DB.prepare('INSERT INTO admin_audit_log (id,admin_email,action,path,ip,created_at) VALUES (?,?,?,?,?,?)').bind('aa_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b=>b.toString(16).padStart(2,'0')).join(''), sess.admin_email, request.method, path, request.headers.get('cf-connecting-ip') || 'unknown', new Date().toISOString()).run();
+    } catch {}
+    if (path === '/api/admin/audit' && request.method === 'GET') {
+      try {
+        const rows = await env.OBI_DB.prepare('SELECT * FROM admin_audit_log ORDER BY created_at DESC LIMIT 200').all();
+        return json({ items: rows.results || [] });
+      } catch { return json({ items: [] }); }
+    }
     return adminData(request, env);
   }
   if ((path === '/api/admin/login' || path === '/api/admin/logout') && (request.method !== 'POST' || !sameOrigin(request))) return json({ error: 'Request not allowed.' }, 403);

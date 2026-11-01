@@ -56,6 +56,9 @@ export async function adminData(request, env) {
   } else if (url.pathname === '/api/admin/transfers') {
     query = "SELECT t.checkout_session_id,t.created_at,a.email FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\' ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\'";
+  } else if (url.pathname === '/api/admin/bulk-orders') {
+    query = "SELECT id,buyer_email,quantity,currency,total_minor,provider,status,discount_percentage,created_at,paid_at FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    count = "SELECT COUNT(*) AS total FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\'";
   } else return json({ error: 'Not found' }, 404);
   const filters = url.pathname === '/api/admin/gifts' ? [pattern, pattern, pattern] : [pattern, pattern];
   const [items, total] = await Promise.all([rows(db, query, ...filters, size, offset), db.prepare(count).bind(...filters).first()]);
