@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import worker from '../dashboard-worker.js';
+import { verificationEmail } from '../api/src/email-templates.js';
 
 function database() {
   const raw = new DatabaseSync(':memory:');
@@ -63,8 +64,14 @@ test('registration sends a verification email when Resend is configured', async 
     assert.equal(sent.url, 'https://api.resend.com/emails');
     assert.deepEqual(sent.body.to, ['new-reader@example.test']);
     assert.equal(sent.body.from, 'OBI-ISM <no-reply@example.test>');
+    assert.equal(sent.body.reply_to, 'sensei30002003@gmail.com');
+    assert.equal(sent.body.subject, 'Your OBI-ISM verification code');
     assert.match(sent.body.text, /\d{8}/);
     assert.match(sent.body.text, /\/verify-email\.html/);
+    assert.match(sent.body.html, /\d{8}/);
+    assert.match(sent.body.html, /\/verify-email\.html/);
+    assert.match(sent.body.html, /OBI–/);
+    assert.deepEqual(sent.body.tags, [{ name: 'type', value: 'account-verification' }]);
     assert.equal(db.raw.prepare('SELECT count(*) n FROM account_verification_challenges').get().n, 1);
   } finally {
     globalThis.fetch = original;
