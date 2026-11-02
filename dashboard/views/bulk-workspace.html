@@ -1,4 +1,12 @@
 <section id="bulk-workspace" class="section" hidden aria-labelledby="bulk-heading">
+        <article class="panel bulk-orders-panel" aria-labelledby="bulk-production-title">
+          <div class="panel-heading"><div><h2 id="bulk-production-title">Group orders</h2><p>Review the buyer and reader experience and prepare an approved discount.</p></div><span class="tag">COMING SOON</span></div>
+          <p class="support-copy">Production payments and discount approvals are being completed. These controls will be enabled when they are connected and tested.</p>
+          <div class="bulk-layout">
+            <div><h3>Buyer and reader pages</h3><p class="muted">See how an organisation orders editions and how readers enter their shared code.</p><a href="../bulk.html" class="text-link">Open group purchase page ?</a><br><a href="../bulk-redeem.html" class="text-link">Open activation page ?</a></div>
+            <form class="bulk-form" aria-label="Approved discount preview"><fieldset disabled><label for="approval-email">Buyer email</label><input id="approval-email" type="email" placeholder="buyer@example.com"><label for="approval-quantity">Number of editions</label><input id="approval-quantity" type="number" min="1" max="10000" placeholder="20"><label for="approval-provider">Gateway and currency</label><select id="approval-provider"><option>Paystack ? NGN</option><option>Stripe ? USD</option></select><label for="approval-percent">Approved discount (%)</label><input id="approval-percent" type="number" min="1" max="99" placeholder="10"><label for="approval-reason">Approval note</label><input id="approval-reason" type="text" placeholder="Agreement or approval reference"><button class="payment-save" type="button">Approve discount</button></fieldset></form>
+          </div>
+        </article>
         <div class="notice"><strong>Local test only</strong><span>Use a simulated order or choose a payment gateway in test mode. No live payments are accepted here.</span></div>
         <div class="bulk-layout">
           <article class="panel">
