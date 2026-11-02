@@ -95,6 +95,43 @@
     if (hero) hero.textContent = `${pricing.USD.label} USD`;
     setCurrency(currency);
   };
+  const applyAccount = (data) => {
+    const accountLink = document.getElementById("account-link");
+    const editionLink = document.getElementById("edition-link");
+    const heroBookLink = document.getElementById("hero-book-link");
+    const note = document.getElementById("signed-in-note");
+    if (!accountLink || !editionLink) return;
+    const emailAddress = data.email || "your account";
+    if (data.access) {
+      accountLink.textContent = "MY BOOK";
+      accountLink.href = "reader.html";
+      accountLink.title = `Signed in as ${emailAddress}`;
+      editionLink.textContent = "BACK TO BOOK →";
+      editionLink.href = "reader.html";
+      if (heroBookLink) {
+        heroBookLink.href = "reader.html";
+        heroBookLink.innerHTML = 'CONTINUE READING <span class="arrow">→</span>';
+      }
+      if (note) {
+        note.hidden = false;
+        note.replaceChildren();
+        const signedIn = document.createElement("span");
+        signedIn.textContent = `Signed in as ${emailAddress}. Your edition is ready. `;
+        const link = document.createElement("a");
+        link.href = "reader.html";
+        link.textContent = "BACK TO BOOK →";
+        note.append(signedIn, link);
+      }
+    } else {
+      accountLink.textContent = "MY ACCOUNT";
+      accountLink.href = "verify-email.html";
+      accountLink.title = `Signed in as ${emailAddress}`;
+      if (note) {
+        note.hidden = false;
+        note.textContent = `Signed in as ${emailAddress}. No active edition is linked yet — choose a price below.`;
+      }
+    }
+  };
   document.getElementById("currency-ngn").addEventListener("click", () => setCurrency("NGN"));
   document.getElementById("currency-usd").addEventListener("click", () => setCurrency("USD"));
   modeSelf.addEventListener("click", () => setMode("self"));
@@ -122,6 +159,10 @@
   apiFetch("/api/pricing", { cache: "no-store" })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => { if (data) applyPricing(data); })
+    .catch(() => {});
+  apiFetch("/api/account/access", { cache: "no-store" })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => { if (data?.authenticated) applyAccount(data); })
     .catch(() => {});
   if (params.get("purchase") === "cancelled") {
     updateStatus(params.get("gift") === "1" ? "Gift checkout was cancelled. No payment was made." : "Checkout was cancelled. No payment was made.");
