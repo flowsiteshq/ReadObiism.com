@@ -5,6 +5,7 @@ import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
 import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder } from "./api/src/bulk-orders.js";
 import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./api/src/pricing.js";
 import { getPricing } from "./api/src/pricing-store.js";
+import { verificationEmail } from "./api/src/email-templates.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
@@ -345,6 +346,11 @@ async function sendAccountVerification(env, account, { localTest = false } = {})
   const now = new Date();
   await env.OBI_DB.prepare("INSERT INTO account_verification_challenges (id,account_id,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)").bind(id, account.id, await hashDeviceToken(`${id}:${code}`), now.toISOString(), new Date(now.getTime() + 600000).toISOString()).run();
   if (!emailConfigured) return { status: 200, body: { message: "Local test code", testCode: code }, localTest: true };
+  const message = verificationEmail({
+    code,
+    link: `${publicOrigin(env)}/verify-email.html`,
+    email: account.email,
+  });
   try {
     const sent = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -352,8 +358,11 @@ async function sendAccountVerification(env, account, { localTest = false } = {})
       body: JSON.stringify({
         from,
         to: [account.email],
-        subject: "Verify your OBI-ISM email",
-        text: `Your verification code is ${code}. It expires in 10 minutes.\n\nEnter it at ${publicOrigin(env)}/verify-email.html\n\nIf you did not create an OBI-ISM account, you can ignore this email.`,
+        reply_to: env.OBI_SUPPORT_EMAIL || "sensei30002003@gmail.com",
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        tags: [{ name: "type", value: "account-verification" }],
       }),
     });
     if (!sent.ok) throw new Error("Email provider rejected request");
