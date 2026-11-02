@@ -265,9 +265,13 @@ function base64ToBytes(value) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
+// Cloudflare Workers rejects PBKDF2 iteration counts above 100000:
+// "NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported".
+const PBKDF2_ITERATIONS = 100000;
+
 async function passwordDigest(password, salt) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: base64ToBytes(salt), iterations: 120000, hash: "SHA-256" }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: base64ToBytes(salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256);
   return bytesToBase64(new Uint8Array(bits));
 }
 
