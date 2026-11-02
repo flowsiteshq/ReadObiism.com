@@ -1,53 +1,46 @@
 # Production Roadmap
 
-This document tracks remaining work before production launch. Based on review of existing docs and current repo state.
+Last reviewed: 2 November 2026. `[x]` means the whole item is complete; `[ ]` means work or verification remains. "Local" means changes exist in the workspace, not necessarily on the deployed site.
 
-## 1) Bulk Orders (BULK-ORDERS.md)
-- [ ] **Production bulk checkout** - Add production bulk checkout for Stripe (USD) and Paystack (NGN). Worker must validate quantity, unit price, currency, amount, order reference, and product server-side.
-- [ ] **Verified payment only** - Create order and high-entropy code only after correct verified payment or signed, idempotently processed webhook. No redirect/unverified callback can issue a code.
-- [ ] **Secure code handling** - Store secure code hash for lookup. Provide appropriately protected delivery/recovery. Never put codes in URLs, logs, or public analytics.
-- [ ] **Auth before claiming** - Require recipient authentication before claiming. Add verified ownership of identity before relying on it for recovery.
-- [ ] **Atomic capacity checks** - Use D1 atomic transaction or equivalent DB-enforced mechanism to check capacity, insert unique claim, and grant entitlement in one batch. Prevent overselling on concurrent claims of last copy. Failed grants must not consume copies. Device transfer must not consume a second copy.
-- [ ] **Order lifecycle** - Define and handle expired, refunded, cancelled, disputed, and partially refunded orders. Reconcile previously activated copies and unused capacity.
-- [ ] **Audit trail & RBAC** - Record admin actions and payment events. Enforce server-side roles.
-- [ ] **UI** - Add buyer confirmation and code-sharing path, recipient activation screen, and read-only dashboard (purchaser, quantity, claimed/remaining, status, payment ref). Mask codes in routine lists.
-- [ ] **Testing** - Test zero/full capacity, 20 unique claims, repeated recipient retries, simultaneous final claims, partial failure/rollback, forged/duplicate payment events, refunds, account/device recovery, and both providers in isolated test environments.
+**Current launch gate:** Production bulk checkout, verification and claims are disabled in the local Worker code until payment, recovery, lifecycle and deployment checks are complete. The current workspace is missing `worker/.dev.vars`, so the full local stack cannot start until local configuration is restored. Do not push or deploy until the Worker and Pages settings have been reviewed.
 
-## 2) Accounts, Devices & Gifts
-- [ ] **Account email ownership** - Complete verified email ownership for accounts (verification flow, recovery).
-- [ ] **Mobile device-transfer UI** - Implement/complete mobile device-transfer UI and flows.
-- [ ] **Gift-recipient recovery** - Add gift-recipient recovery flows.
-- [ ] **Secure admin roles & audit** - Harden admin auth/roles and add audit workflows.
-- [ ] **Email sender config** - Configure email sending (RESEND_API_KEY and `ACCOUNT_FROM_EMAIL`/`GIFT_FROM_EMAIL`) for verification/recovery flows.
+## 1) Bulk orders
 
-## 3) Local Bridge / Production Sync
-- [ ] **Decide architecture** - Decide whether to keep the PHP bridge or move away from it.
-- [ ] **If keeping bridge** - Implement authenticated sync, durable retries, conflict resolution, and verified payment handling. Define ownership model clearly.
-- [ ] **Prod safety** - Ensure local/test records are never auto-copied to production. Define clear separation between local MySQL/D1 and production.
+- [ ] **Production checkout:** Complete and enable Stripe (USD) and Paystack (NGN) checkout with server-side validation of quantity, price, currency, amount, reference and product. Implement an administrator-approved discount workflow; buyers must not approve their own discounts. Local provider code exists, but the production routes remain disabled.
+- [ ] **Verified payment only:** Complete signed, idempotent webhook and provider verification for both gateways; ensure redirects cannot issue a code. Paystack and Stripe verification code exists locally, but the complete production flow has not been verified.
+- [ ] **Secure code handling:** Complete protected code delivery and buyer recovery, audit URLs/logs/analytics, and configure the encryption key securely. Code hashing and encrypted recovery exist locally; key management and end-to-end recovery remain open. See `docs/BULK-CODE-RECOVERY.md`.
+- [ ] **Authentication before claiming:** Require recipient sign-in and verify account email ownership before relying on it for recovery. Claim authentication exists, but verified ownership and the full recovery flow remain incomplete.
+- [ ] **Atomic capacity checks:** Verify D1's claim, entitlement and device operations under real concurrent requests. Local SQLite tests cover 20 claims, retries and a simulated rollback, but do not prove Cloudflare D1 concurrency or device-transfer behavior.
+- [ ] **Order lifecycle:** Handle expiry, cancellation, refunds, partial refunds and disputes, and reconcile active editions and unused capacity.
+- [ ] **Audit trail and roles:** Complete server-side administrator roles and record payment and management actions. A basic admin audit log exists.
+- [ ] **UI:** Connect and test the buyer, confirmation, recipient activation, code-sharing and read-only admin views. The buyer and recipient pages exist; the discount-approval controls are a disabled preview and the production routes remain disabled.
+- [ ] **Testing:** Test both providers in isolated environments, forged and duplicate events, zero/full capacity, concurrent final claims, rollback, refunds, and account/device recovery. Local tests use simulated gateways and SQLite; they are not production gateway or D1 tests.
 
-## 4) Cleanup & Housekeeping
-- [ ] **Publishing alignment** - Reconcile publishing strategy. README says Cloudflare Pages via `scripts/build-pages.mjs` â†’ `.pages-output`. PUBLISHING.md describes GitHub Pages workflow mirroring `web/` to `gh-pages`. Current repo has site files at root (no `web/` dir), no root `.github/workflows`. Pick one approach and update docs/config accordingly.
-- [ ] **Worker deployment config** - Review Cloudflare Worker build settings and routes now that Worker is in `worker/` and root `wrangler.toml` points to `worker/dashboard-worker.js`. Test before pushing to production.
-- [ ] **gh-pages cleanup** - `gh-pages` branch contains old full repo content (including manuscript historically). Clean on first publish/deploy per publishing strategy.
-- [ ] **Git history/security** - Make repo private if not already. Audit history/branches/published artifacts. Rotate any exposed credentials (manuscript was tracked historically).
-- [ ] **Tests** - Run tests (worker has tests; root package.json is a template). Fix any failing tests.
-- [ ] **Docs updates** - Update PUBLISHING.md to match current structure (root-based site, build-pages.mjs, Cloudflare Pages) or implement as described.
+## 2) Accounts, devices and gifts
+
+- [ ] **Email ownership:** Complete the verified-email user journey and account recovery. Verification endpoints and limited delivery/error handling exist locally; the full flow is not verified.
+- [ ] **Mobile device transfer:** Implement and test the mobile UI and transfer flow.
+- [ ] **Gift-recipient recovery:** Complete and test recipient recovery.
+- [ ] **Administrator roles and audit:** Harden admin authentication, implement roles and complete audit workflows.
+- [ ] **Email sender:** Configure and test `RESEND_API_KEY` and `ACCOUNT_FROM_EMAIL` / `GIFT_FROM_EMAIL` in the intended environment.
+
+## 3) Local bridge and production data
+
+- [x] **Architecture decision:** Keep the PHP/MySQL bridge for local testing; use the Cloudflare Worker and D1 for live data. This decision does not imply that every feature has a MySQL-first implementation.
+- [ ] **Local bridge completeness:** Complete and test the local ownership model, authenticated synchronization, durable retries, conflict handling and verified payment behavior as needed. Reader accounts have a MySQL-first local path; other features still use the local Worker/D1.
+- [ ] **Production separation:** Verify the deployed configuration cannot copy local test accounts, purchases or database records to production. Local and production databases are intended to be separate; deployment verification remains open.
+
+## 4) Deployment and housekeeping
+
+- [ ] **Publishing alignment:** Verify Cloudflare Pages builds the root website using `node scripts/build-pages.mjs` and publishes only `.pages-output`; review the deployed artifact and domain routing. The documentation describes this approach, but the live setup has not been confirmed.
+- [ ] **Worker deployment:** Review Cloudflare build root, `wrangler.toml`, D1 binding, secrets and `/api/*` route; test a compatible deployment before changing production.
+- [ ] **`gh-pages` cleanup:** Review and clean or retire the old branch and any published artifacts as part of the chosen publishing strategy.
+- [ ] **Git history and security:** Make the repository private, audit history, branches and published artifacts, and rotate exposed credentials. The manuscript was tracked historically; ignoring a file does not erase history.
+- [ ] **Tests:** Restore and run the full test suite, including provider, browser, device and D1 checks. Targeted Worker and UI tests exist, but they do not cover all launch requirements. Run `npm test` in `worker/` and `node --test tests/bulk-ui.test.mjs` at the workspace root.
+- [x] **Publishing documentation:** `docs/PUBLISHING.md` describes the root website, `scripts/build-pages.mjs` and Cloudflare Pages output. The deployment itself remains a separate open item above.
 
 ## Notes
-- Full manuscript is not tracked in git HEAD (only exists locally in `worker/manuscript/` and is gitignored).
-- Recent commit: `520dda9 chore: update admin UI to show production status`
-- Worker in `worker/`, site files at root, admin/dashboard/assets present.
 
-## Progress update — 2 November 2026
-
-- Production bulk creation, verification, claims and Paystack bulk fulfillment are temporarily fail-closed while payment ownership, approved discounts, secure code delivery, concurrency and lifecycle work remain incomplete. Local bulk testing remains separate. This is a local code change and has not been deployed.
-- Added defense-in-depth checks for provider selection, buyer-controlled discounts and order ownership; these checks do not make bulk orders production-ready.
-- Account verification requests now limit request frequency and report provider delivery failures instead of claiming a failed message was sent. A complete verified-email UI and recovery flow remain open.
-- `worker/npm test` runs targeted Node tests for these safeguards. Full payment, browser, device, production and race-condition testing remains open. Run `npm test` from `worker/`.
-- `docs/PUBLISHING.md` now documents the Cloudflare Pages output; live build settings, API routing, private repository status, history cleanup and deployment remain to be verified.
-
-- Bulk code recovery now uses authenticated encryption and idempotent issuance in local code. SQLite-based simulated provider and capacity tests pass; deployed D1 concurrency, recovery UI, migrations and provider end-to-end verification remain open. See docs/BULK-CODE-RECOVERY.md. Production bulk routes remain disabled.
-
-
-- Bulk UI: buyer, confirmation and recipient screens plus an admin discount-approval preview are implemented locally. Production endpoints and approval controls remain disabled; payment/refund workflows, real-provider testing and the D1 migration remain open.
-
+- The manuscript is not tracked in the current Git HEAD, but it remains in repository history and must not be published.
+- The landing page includes a bulk-orders link marked coming soon. The bulk buyer page has a local design-preview mode; this does not enable payments.
+- Production bulk functionality must stay disabled until the remaining payment, security, migration and testing gates are cleared.
