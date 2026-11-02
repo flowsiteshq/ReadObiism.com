@@ -4,6 +4,18 @@ Last reviewed: 2 November 2026. `[x]` means the whole item is complete; `[ ]` me
 
 **Current launch gate:** Production bulk checkout, verification and claims are disabled in the local Worker code until payment, recovery, lifecycle and deployment checks are complete. The current workspace is missing `worker/.dev.vars`, so the full local stack cannot start until local configuration is restored. Do not push or deploy until the Worker and Pages settings have been reviewed.
 
+## Completed work in the local workspace
+
+These checks mark individual pieces already implemented; the broader launch requirements below stay open until the whole flow is finished and verified.
+
+- [x] Chose PHP/MySQL for local testing and Cloudflare Worker/D1 for live data.
+- [x] Updated `docs/PUBLISHING.md` with the Cloudflare Pages build and output directory.
+- [x] Added the bulk-order link to the landing page and marked it coming soon.
+- [x] Built the bulk buyer, confirmation and recipient activation screens; added an admin discount-approval preview. Production checkout and approval controls are not yet enabled.
+- [x] Added local code for encrypted bulk-code recovery and reader-compatible bulk claim references.
+- [x] Added local protections that disable unfinished production bulk routes and reject buyer-supplied discounts.
+- [x] Improved account verification request limits and email-delivery error handling locally.
+- [x] Added targeted Worker and UI tests using simulated gateways and SQLite. Real provider, browser/device and Cloudflare D1 testing remain open.
 ## 1) Bulk orders
 
 - [ ] **Production checkout:** Complete and enable Stripe (USD) and Paystack (NGN) checkout with server-side validation of quantity, price, currency, amount, reference and product. Implement an administrator-approved discount workflow; buyers must not approve their own discounts. Local provider code exists, but the production routes remain disabled.
