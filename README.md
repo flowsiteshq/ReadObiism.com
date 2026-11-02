@@ -12,8 +12,11 @@ Worker dependencies are installed with `npm install` inside `worker/`. To refres
 
 ## Deployment
 
-Do not publish the repository root directly. Cloudflare Pages must serve only the verified website output: run `node scripts/build-pages.mjs` and inspect `.pages-output`. For Pages, use that build command and `.pages-output` as the output directory. The script excludes backend, mobile, dotfiles and common server/credential files, but does not replace a security or content audit.
+Production has two independent targets:
 
-The live Worker remains separate. Its source and `wrangler.toml` are now in `worker/`, so any future Worker build must use that folder as its root. The existing production build still expects files at the old repository root. **Do not push this rearrangement to production main** until Worker build settings and routes are reviewed and the new deployment is tested. Keep `readobiism.com/api/*` connected to the correct Worker.
+- **API Worker:** `steep-leaf-f57d`, source `worker/dashboard-worker.js`, D1 `obi-ism-payments`, bound to `readobiism.com/api/*`. Every push to `main` is deployed automatically by Cloudflare Workers Builds.
+- **Static site:** GitHub Pages from the `gh-pages` branch, custom domain `readobiism.com`. Build the publishable output with `node scripts/build-pages.mjs` (output: `.pages-output/`).
+
+There is no Cloudflare Pages project. Do not publish the repository root. See **`docs/DEPLOYMENT.md`** for account IDs, Wrangler and GitHub setup, deploy/publish commands, the Workers Builds token repair, secrets, D1 operations, verification, and troubleshooting. `docs/PUBLISHING.md` covers the site publish order.
 
 Make the GitHub repository private. Its existing history contains a manuscript; `.gitignore` cannot erase tracked files or history or undo previous exposure. Audit history, branches and published artifacts, and rotate any exposed credentials before release.

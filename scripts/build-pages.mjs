@@ -24,6 +24,10 @@ if (existsSync(join(root, '_headers'))) {
 if (existsSync(join(root, '_redirects'))) {
   cpSync(join(root, '_redirects'), join(output, '_redirects'));
 }
+// Preserve GitHub Pages metadata (custom domain and no-Jekyll marker).
+for (const name of ['CNAME', '.nojekyll']) {
+  if (existsSync(join(root, name))) cpSync(join(root, name), join(output, name));
+}
 for (const dir of directories) {
   const source = join(root, dir);
   if (!existsSync(source)) continue;
