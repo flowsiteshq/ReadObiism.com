@@ -81,6 +81,16 @@
       </section>
       <section id="payment-settings" class="section" hidden aria-labelledby="payment-heading">
         <div class="payment-grid">
+          <article class="panel payment-panel pricing-panel">
+            <div class="panel-heading"><div><h2>Edition prices</h2><p>Shown on the landing page and used for new checkouts.</p></div><span class="tag">LIVE</span></div>
+            <form id="pricing-form" autocomplete="off">
+              <label for="price-ngn">Naira price (₦)</label><input id="price-ngn" type="number" min="1" max="1000000" step="1" inputmode="numeric" required>
+              <label for="price-usd">Dollar price ($)</label><input id="price-usd" type="number" min="0.01" max="10000" step="0.01" inputmode="decimal" required>
+              <p id="pricing-message" class="payment-message" role="status" aria-live="polite"></p>
+              <button class="payment-save" id="save-pricing" type="submit">Save edition prices</button>
+            </form>
+            <p class="payment-note">Changes apply to the landing page and new checkout sessions. A checkout that already started keeps the amount quoted when it began.</p>
+          </article>
           <article class="panel payment-panel">
             <div class="panel-heading"><div><h2 id="payment-heading">Payment connections</h2><p id="payment-environment">Checking the connected Worker…</p></div><span class="tag">STATUS ONLY</span></div>
             <div class="payment-status-row"><div><strong>Paystack</strong><p>Secret key for naira checkout and webhook verification</p></div><span class="status" id="paystack-status">Checking…</span></div>

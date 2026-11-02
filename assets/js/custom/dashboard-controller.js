@@ -135,6 +135,24 @@
       return false;
     }
   }
+  async function loadPricing() {
+    $('pricing-message').textContent = 'Loading prices…';
+    try {
+      const data = await api('pricing');
+      const pricing = data.pricing || data;
+      const ngn = pricing.NGN || {}, usd = pricing.USD || {};
+      $('price-ngn').value = ngn.amount ?? '';
+      $('price-usd').value = usd.amount ?? '';
+      $('pricing-message').textContent = ngn.formatted && usd.formatted
+        ? `Live: ${ngn.formatted} NGN · ${usd.formatted} USD`
+        : 'Prices loaded.';
+      return true;
+    } catch (error) {
+      $('pricing-message').textContent = error.message;
+      toast(error.message, true);
+      return false;
+    }
+  }
   async function loadBulkOrders() {
     $('bulk-list-message').textContent = 'Loading…';
     $('bulk-orders-body').replaceChildren();
@@ -235,7 +253,7 @@
     $('payment-settings').hidden = section !== 'payments';
     $('bulk-workspace').hidden = section !== 'bulk';
     $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || !!views[section];
-    if (section !== 'payments') { $('payment-form').reset(); $('payment-message').textContent = ''; }
+    if (section !== 'payments') { $('payment-form').reset(); $('pricing-form').reset(); $('payment-message').textContent = ''; $('pricing-message').textContent = ''; }
     $('feature-heading').textContent = title;
     $('feature-description').textContent = description;
     document.querySelectorAll('[data-section]').forEach((link) => {
@@ -251,7 +269,7 @@
       loadTable();
     }
     if (section === 'overview') loadOverview();
-    if (section === 'payments') loadPaymentStatus();
+    if (section === 'payments') { loadPaymentStatus(); loadPricing(); }
     if (section === 'bulk') {
       loadBulkOrders();
       if (pendingBulkVerification) {
@@ -264,7 +282,7 @@
   $('previous').addEventListener('click', () => { if (page > 1) { page--; loadTable(); } });
   $('next').addEventListener('click', () => { if (page * 10 < total) { page++; loadTable(); } });
   $('refresh').addEventListener('click', async () => {
-    const loaded = section === 'overview' ? await loadOverview() : section === 'payments' ? await loadPaymentStatus() : section === 'bulk' ? await loadBulkOrders() : views[section] ? await loadTable() : false;
+    const loaded = section === 'overview' ? await loadOverview() : section === 'payments' ? (await Promise.all([loadPaymentStatus(), loadPricing()])).every(Boolean) : section === 'bulk' ? await loadBulkOrders() : views[section] ? await loadTable() : false;
     if (loaded) toast('Data refreshed.');
   });
   async function checkHealth() {
@@ -360,6 +378,30 @@
       if (checkout.protocol !== 'https:' || checkout.hostname !== expectedHost) throw new Error('Unexpected checkout address.');
       location.assign(checkout.href);
     } catch (error) { $('bulk-payment-message').textContent = error.message; toast('Could not start test checkout.', true); updateBulkTotal(); }
+  });
+  $('pricing-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const ngn = Number($('price-ngn').value);
+    const usd = Number($('price-usd').value);
+    const usdMinor = Math.round(usd * 100);
+    if (!Number.isInteger(ngn) || ngn < 1 || ngn > 1000000) { $('pricing-message').textContent = 'Enter a whole Naira price from ₦1 to ₦1,000,000.'; return; }
+    if (!Number.isFinite(usd) || usd < 0.01 || usd > 10000 || Math.abs(usd * 100 - usdMinor) > 1e-6) { $('pricing-message').textContent = 'Enter a Dollar price from $0.01 to $10,000 with at most two decimals.'; return; }
+    $('save-pricing').disabled = true;
+    $('pricing-message').textContent = 'Saving…';
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/pricing', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ngn, usd }) });
+      if (response.status === 401) { location.replace('./login.html'); return; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not save prices.');
+      const pricing = data.pricing || {};
+      $('price-ngn').value = pricing.NGN?.amount ?? ngn;
+      $('price-usd').value = pricing.USD?.amount ?? usd;
+      $('pricing-message').textContent = `Saved. Live: ${pricing.NGN.formatted} NGN · ${pricing.USD.formatted} USD`;
+      toast('Edition prices updated.');
+    } catch (error) {
+      $('pricing-message').textContent = error.message || 'Could not save prices.';
+      toast('Could not save prices.', true);
+    } finally { $('save-pricing').disabled = false; }
   });
   $('payment-form').addEventListener('submit', async (event) => {
     event.preventDefault();
