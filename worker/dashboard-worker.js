@@ -333,6 +333,37 @@ async function accountPurchase(env, email) {
   return row && validSessionId(row.checkout_session_id) ? row : null;
 }
 
+async function sendAccountVerification(env, account, { localTest = false } = {}) {
+  const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
+  const emailConfigured = env.RESEND_API_KEY?.startsWith("re_") && Boolean(from);
+  if (!emailConfigured && !localTest) return { status: 503, body: { error: "Email verification is not configured." } };
+  const recent = await env.OBI_DB.prepare("SELECT count(*) AS count FROM account_verification_challenges WHERE account_id=? AND created_at>?").bind(account.id, new Date(Date.now() - 3600000).toISOString()).first();
+  if (Number(recent?.count || 0) >= 5) return { status: 429, body: { error: "Too many verification requests. Please try again later." } };
+  const id = `verify_${await randomToken(24)}`;
+  const bytes = crypto.getRandomValues(new Uint32Array(1));
+  const code = String(bytes[0] % 100000000).padStart(8, "0");
+  const now = new Date();
+  await env.OBI_DB.prepare("INSERT INTO account_verification_challenges (id,account_id,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)").bind(id, account.id, await hashDeviceToken(`${id}:${code}`), now.toISOString(), new Date(now.getTime() + 600000).toISOString()).run();
+  if (!emailConfigured) return { status: 200, body: { message: "Local test code", testCode: code }, localTest: true };
+  try {
+    const sent = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: [account.email],
+        subject: "Verify your OBI-ISM email",
+        text: `Your verification code is ${code}. It expires in 10 minutes.\n\nEnter it at ${publicOrigin(env)}/verify-email.html\n\nIf you did not create an OBI-ISM account, you can ignore this email.`,
+      }),
+    });
+    if (!sent.ok) throw new Error("Email provider rejected request");
+  } catch {
+    await env.OBI_DB.prepare("UPDATE account_verification_challenges SET consumed_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
+    return { status: 503, body: { error: "Could not send the verification code. Please try again." } };
+  }
+  return { status: 200, body: { message: "Verification code sent." }, sent: true };
+}
+
 async function registerAccount(request, env) {
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -354,7 +385,9 @@ async function registerAccount(request, env) {
     env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)").bind(await hashDeviceToken(token), id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
   ]);
   const purchase = await accountPurchase(env, email);
-  return reply({ account: { email, email_verified: false }, access: Boolean(purchase), sessionId: purchase?.checkout_session_id ?? null, ...(usesBearerAuth(request) ? { token } : {}) }, request, { headers: { "set-cookie": authCookie(token) } });
+  let verification = { sent: false };
+  try { verification = await sendAccountVerification(env, { id, email }); } catch (error) { console.error("Registration verification email failed", error); }
+  return reply({ account: { email, email_verified: false }, access: Boolean(purchase), sessionId: purchase?.checkout_session_id ?? null, verification_sent: Boolean(verification.sent), ...(usesBearerAuth(request) ? { token } : {}) }, request, { headers: { "set-cookie": authCookie(token) } });
 }
 
 async function loginAccount(request, env) {
@@ -1085,29 +1118,10 @@ async function handleRequest(request, env) {
       const account = await accountFromRequest(request, env);
       if (!account) return reply({ error: "Sign in required" }, request, { status: 401 });
       await ensure(env);
-      const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
-      const emailConfigured = env.RESEND_API_KEY?.startsWith("re_") && Boolean(from);
       const url = new URL(request.url);
       const localTest = env.OBI_LOCAL_TRANSFER_TEST === '1' && url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
-      if (!emailConfigured && !localTest) return reply({ error: "Email verification is not configured." }, request, { status: 503 });
-      const recent = await env.OBI_DB.prepare("SELECT count(*) AS count FROM account_verification_challenges WHERE account_id=? AND created_at>?").bind(account.id, new Date(Date.now() - 3600000).toISOString()).first();
-      if (Number(recent?.count || 0) >= 5) return reply({ error: "Too many verification requests. Please try again later." }, request, { status: 429 });
-      const id = `verify_${await randomToken(24)}`;
-      const bytes = crypto.getRandomValues(new Uint32Array(1));
-      const code = String(bytes[0] % 100000000).padStart(8, "0");
-      const now = new Date();
-      await env.OBI_DB.prepare("INSERT INTO account_verification_challenges (id,account_id,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)").bind(id, account.id, await hashDeviceToken(`${id}:${code}`), now.toISOString(), new Date(now.getTime() + 600000).toISOString()).run();
-      if (emailConfigured) {
-        try {
-          const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [account.email], subject: "Verify your OBI-ISM email", text: `Your verification code is ${code}. It expires in 10 minutes.` }) });
-          if (!sent.ok) throw new Error("Email provider rejected request");
-        } catch {
-          await env.OBI_DB.prepare("UPDATE account_verification_challenges SET consumed_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
-          return reply({ error: "Could not send the verification code. Please try again." }, request, { status: 503 });
-        }
-        return reply({ message: "Verification code sent." }, request);
-      }
-      return reply({ message: "Local test code", testCode: code }, request);
+      const result = await sendAccountVerification(env, account, { localTest });
+      return reply(result.body, request, { status: result.status });
     }
     if (path === "/api/account/verify/confirm" && request.method === "POST") {
       const account = await accountFromRequest(request, env);

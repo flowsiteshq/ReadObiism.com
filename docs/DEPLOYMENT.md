@@ -324,7 +324,7 @@ To enable:
    - Optional DMARC TXT record (`_dmarc`)
    Do **not** replace the existing MX records used for receiving mail.
 4. Wait until Resend shows the domain as **Verified**.
-5. Create an API key (`re_...`).
+5. Create an API key (`re_...`) with **Sending access**. In the **Domain** field, choose `readobiism.com` (or **All domains** only if you intentionally need several verified domains). Do not use a full-access key for the Worker.
 6. Set the Worker secrets:
 
    ```powershell
@@ -346,12 +346,14 @@ To enable:
 
 7. Test:
    - Gift: complete a gift checkout and confirm the recipient receives the code.
-   - Verification: sign in, then `POST /api/account/verify/request` with the session cookie and check the inbox for the 8-digit code.
+   - Verification: register a reader account; the Worker sends the 8-digit code automatically. Sign in, open `https://readobiism.com/verify-email.html`, and enter the code (or use the link in the email).
    - Watch logs during the test: `npx wrangler tail steep-leaf-f57d --format json`.
 
-**Current status (2026-11-02):** `RESEND_API_KEY`, `GIFT_FROM_EMAIL`, and `ACCOUNT_FROM_EMAIL` are **not configured** in production, so email delivery is disabled.
+**Current status (2026-11-02):** `RESEND_API_KEY`, `GIFT_FROM_EMAIL`, and `ACCOUNT_FROM_EMAIL` are configured in production. The Resend domain `readobiism.com` is verified, and a direct test email was accepted. The API key has sending access for this domain.
 
-**UI limitation:** the account verification UI currently lives on `bulk.html`, and bulk checkout is disabled (`503`). If email verification should be usable before bulk is enabled, add a verification panel to the account/dashboard flow; the Worker endpoints already exist.
+**UI:** registration now requests the verification code automatically, and `verify-email.html` provides a resend/confirm screen. `bulk.html` keeps its own verification panel for bulk buyers.
+
+**Do not enable Receiving on the root domain** unless you intend to replace the existing MX records. Resend recommends a subdomain for inbound mail; the Worker only needs sending.
 
 **Alternatives:** Postmark, Mailgun, SendGrid, Brevo, MailerSend, or Amazon SES. All are HTTPS APIs; the Worker would need a small adapter because the code currently calls `api.resend.com` directly. cPanel SMTP is not a good fit for Workers. If it must be retained, the Worker would have to call a secret-protected HTTPS relay on the cPanel host, adding a moving part and a security surface.
 
@@ -360,6 +362,8 @@ To enable:
 - Verify SPF, DKIM, and DMARC to avoid spam filtering. Use a sending subdomain if the root domain already has mailboxes.
 - Do not commit the API key.
 - Password reset is **not implemented**; only gift delivery and email verification use email today.
+- The free tier allows **100 emails/day**. A newsletter to more than 100 readers needs Pro or must be split across days; transactional emails share the same quota.
+- There is **no bulk-newsletter endpoint** in the Worker. The old `readobi-api/api/email/bulk-send.php` is PHP and is not deployed. Use Resend Broadcasts for marketing, or add a Worker campaign endpoint first.
 
 Rules:
 
