@@ -7,6 +7,12 @@
   const message = document.getElementById("message");
   let account = null;
   const setMessage = (text) => { message.textContent = text; };
+  const notify = (text, type = "success") => { window.OBI_TOAST?.show(text, type); };
+  const registrationNotice = sessionStorage.getItem("obi-ism.verification-email-sent");
+  if (registrationNotice === "1") {
+    sessionStorage.removeItem("obi-ism.verification-email-sent");
+    notify("Account created. Verification code sent — check your inbox.", "success");
+  }
 
   async function load() {
     try {
@@ -49,10 +55,12 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not send the code.");
       setMessage(data.testCode ? `Local test code: ${data.testCode}` : "Code sent. Check your inbox and spam folder.");
+      notify(data.testCode ? "Local test code generated." : "Verification code sent. Check your inbox.", "success");
       form.hidden = false;
       code.focus();
     } catch (error) {
       setMessage(error.message || "Could not send the code.");
+      notify(error.message || "Could not send the verification code.", "error");
     } finally {
       send.disabled = false;
     }
@@ -73,8 +81,10 @@
       form.hidden = true;
       send.disabled = true;
       setMessage("Email verified. You can close this page or continue to your edition.");
+      notify("Email verified successfully.", "success");
     } catch (error) {
       setMessage(error.message || "Could not verify the code.");
+      notify(error.message || "Could not verify the code.", "error");
     }
   });
 
