@@ -1,0 +1,7 @@
+# Bulk code recovery: development status
+
+Production bulk endpoints remain disabled. The local implementation verifies provider results before marking an order paid, stores the code encrypted with AES-256-GCM and its hash, binds ciphertext to the order ID, and returns the stored code after repeated verifications. It rejects checkout without a 32-byte hexadecimal `BULK_CODE_ENCRYPTION_KEY`. This secret must only be configured as a Worker secret, never committed or sent to the browser. Key rotation needs a separately designed re-encryption process; replacing or losing the key makes prior codes unrecoverable.
+
+The bulk schema now contains `code_encrypted`. Before enabling on an existing D1 database, inspect its schema and migration history, back it up, and use a reviewed migration only where that column is absent. Do not blindly apply ALTER TABLE to databases where it already exists. Existing paid orders without recoverable encrypted codes require a separate support/reconciliation process.
+
+`npm test` in `worker/` includes simulated Stripe and Paystack verification, repeated verification, a 20-copy limit, retries, rollback and reference compatibility using a local in-memory SQLite adapter. These are not Cloudflare D1 concurrency tests or real gateway end-to-end tests. Authentication, verified buyer ownership, admin-approved discounts, email delivery/recovery, webhook handling, buyer/recipient UI, refunds and disputes still require completion and review before enabling the production routes.

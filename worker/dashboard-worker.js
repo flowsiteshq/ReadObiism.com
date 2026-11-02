@@ -568,12 +568,8 @@ async function paystackWebhook(request, env) {
 
   const reference = String(event.data?.reference || "");
   if (reference.startsWith("bpo_")) {
-    await ensure(env);
-    const order = await env.OBI_DB.prepare("SELECT id FROM bulk_orders WHERE provider_reference=?").bind(reference).first();
-    if (order) {
-      await verifyBulkOrderPayment(env, order.id);
-      return reply({ received: true }, request);
-    }
+    // Keep provider retries available until bulk fulfillment and recovery are safe.
+    return reply({ error: "Bulk payment fulfillment is temporarily unavailable." }, request, { status: 503 });
   }
   if (!validSessionId(reference)) return reply({ error: "Invalid reference" }, request, { status: 400 });
 
@@ -725,14 +721,24 @@ async function createBulkOrder(request, env) {
   const email = account.email;
   const quantity = Number(body.quantity);
   const provider = String(body.provider || '').toLowerCase();
-  const discount = body.discount || null;
-  const result = await createBulkOrderCheckout(env, email, quantity, provider === 'paystack' ? 'paystack' : 'stripe', discount, account.email);
+  if (!['paystack', 'stripe'].includes(provider)) return reply({ error: "Choose a supported payment gateway." }, request, { status: 400 });
+  // Buyer-controlled discounts are never approvals. An authenticated admin
+  // approval workflow must be implemented before discounts are accepted.
+  if (body.discount != null) return reply({ error: "Bulk discounts require administrator approval." }, request, { status: 403 });
+  const result = await createBulkOrderCheckout(env, email, quantity, provider, null, account.email);
   return reply(result.body, request, { status: result.status });
 }
 
 async function verifyBulkOrder(request, env) {
+  const account = await accountFromRequest(request, env);
+  if (!account) return reply({ error: "Sign in to your account first." }, request, { status: 401 });
   const body = await request.json().catch(() => ({}));
   const id = body.order_id || body.id;
+  if (!/^bprod_[a-f0-9]{32}$/.test(id || '')) return reply({ error: "Invalid order." }, request, { status: 400 });
+  const order = await env.OBI_DB.prepare('SELECT buyer_email FROM bulk_orders WHERE id=?').bind(id).first();
+  if (!order || order.buyer_email !== account.email) return reply({ error: "Order not found." }, request, { status: 404 });
+  const verified = await env.OBI_DB.prepare('SELECT email_verified FROM obi_accounts WHERE id=?').bind(account.id).first();
+  if (verified?.email_verified !== 1) return reply({ error: "Verify your account email first." }, request, { status: 403 });
   const result = await verifyBulkOrderPayment(env, id);
   return reply(result.body, request, { status: result.status });
 }
@@ -1021,6 +1027,11 @@ async function handleRequest(request, env) {
       },
     });
     if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
+    // Production bulk payments remain unavailable pending security and payment review.
+    // Local-only test endpoints remain separate.
+    if (request.method === "POST" && ["/api/bulk", "/api/bulk/verify", "/api/bulk/claim"].includes(path)) {
+      return reply({ error: "Bulk orders are not available yet." }, request, { status: 503 });
+    }
     if (path === "/api/account/register" && request.method === "POST") return registerAccount(request, env);
     if (path === "/api/account/login" && request.method === "POST") return loginAccount(request, env);
     if (path === "/api/account/access" && request.method === "GET") return accountAccess(request, env);
@@ -1030,6 +1041,11 @@ async function handleRequest(request, env) {
       await ensure(env);
       const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
       const emailConfigured = env.RESEND_API_KEY?.startsWith("re_") && Boolean(from);
+      const url = new URL(request.url);
+      const localTest = env.OBI_LOCAL_TRANSFER_TEST === '1' && url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
+      if (!emailConfigured && !localTest) return reply({ error: "Email verification is not configured." }, request, { status: 503 });
+      const recent = await env.OBI_DB.prepare("SELECT count(*) AS count FROM account_verification_challenges WHERE account_id=? AND created_at>?").bind(account.id, new Date(Date.now() - 3600000).toISOString()).first();
+      if (Number(recent?.count || 0) >= 5) return reply({ error: "Too many verification requests. Please try again later." }, request, { status: 429 });
       const id = `verify_${await randomToken(24)}`;
       const bytes = crypto.getRandomValues(new Uint32Array(1));
       const code = String(bytes[0] % 100000000).padStart(8, "0");
@@ -1037,12 +1053,15 @@ async function handleRequest(request, env) {
       await env.OBI_DB.prepare("INSERT INTO account_verification_challenges (id,account_id,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)").bind(id, account.id, await hashDeviceToken(`${id}:${code}`), now.toISOString(), new Date(now.getTime() + 600000).toISOString()).run();
       if (emailConfigured) {
         try {
-          await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [account.email], subject: "Verify your OBI-ISM email", text: `Your verification code is ${code}. It expires in 10 minutes.` }) });
-        } catch {}
+          const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [account.email], subject: "Verify your OBI-ISM email", text: `Your verification code is ${code}. It expires in 10 minutes.` }) });
+          if (!sent.ok) throw new Error("Email provider rejected request");
+        } catch {
+          await env.OBI_DB.prepare("UPDATE account_verification_challenges SET consumed_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
+          return reply({ error: "Could not send the verification code. Please try again." }, request, { status: 503 });
+        }
+        return reply({ message: "Verification code sent." }, request);
       }
-      const url = new URL(request.url);
-      const localTest = env.OBI_LOCAL_TRANSFER_TEST === '1' && url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
-      return reply(emailConfigured ? { message: "Verification code sent." } : localTest ? { message: "Local test code", testCode: code } : { error: "Email not configured" }, request, emailConfigured ? { status: 200 } : localTest ? { status: 200 } : { status: 503 });
+      return reply({ message: "Local test code", testCode: code }, request);
     }
     if (path === "/api/account/verify/confirm" && request.method === "POST") {
       const account = await accountFromRequest(request, env);

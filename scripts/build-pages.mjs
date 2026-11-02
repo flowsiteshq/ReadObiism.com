@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const output = join(root, '.pages-output');
 const directories = ['assets', 'admin', 'auth', 'dashboard'];
-const rootExtensions = new Set(['.html', '.ico', '.png', '.svg', '.webp', '.jpg', '.jpeg', '.json', '.webmanifest']);
+const rootExtensions = new Set(['.html', '.ico', '.png', '.svg', '.webp', '.jpg', '.jpeg', '.json', '.webmanifest', '.txt']);
 const forbidden = /(?:^\.|\.map$|\.(?:php|sql|sqlite|db|pem|key|p12|pfx|log|bak)$)/i;
 
 if (!existsSync(join(root, 'index.html'))) throw new Error('Website index.html is missing.');
@@ -15,6 +15,14 @@ for (const entry of readdirSync(root, { withFileTypes: true })) {
   if (entry.isFile() && entry.name !== 'package.json' && rootExtensions.has(extname(entry.name).toLowerCase()) && !forbidden.test(entry.name)) {
     cpSync(join(root, entry.name), join(output, entry.name));
   }
+}
+// Copy _headers if present for Cloudflare Pages
+if (existsSync(join(root, '_headers'))) {
+  cpSync(join(root, '_headers'), join(output, '_headers'));
+}
+// Copy _redirects if present
+if (existsSync(join(root, '_redirects'))) {
+  cpSync(join(root, '_redirects'), join(output, '_redirects'));
 }
 for (const dir of directories) {
   const source = join(root, dir);

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS bulk_orders (
   provider TEXT NOT NULL CHECK(provider IN ('stripe','paystack')),
   provider_reference TEXT UNIQUE,
   stripe_session_id TEXT UNIQUE,
+  code_encrypted TEXT,
   status TEXT NOT NULL CHECK(status IN ('pending','paid','expired','cancelled','refunded','disputed','partially_refunded')),
   discount_percentage INTEGER,
   discount_note TEXT,
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS bulk_order_events (
 
 export async function ensureBulkOrders(env) {
   await env.OBI_DB.exec(bulkOrdersSchema);
+  const columns = await env.OBI_DB.prepare('PRAGMA table_info(bulk_orders)').bind().all();
+  if (!(columns.results || []).some((column) => column.name === 'code_encrypted')) throw new Error('Bulk order schema requires the code_encrypted migration');
 }
 
 function randomHex(bytes) {
@@ -84,6 +87,7 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
   if (!validQuantity(quantity)) return { status: 400, body: { error: 'Enter a quantity between 1 and 10000.' } };
   if (provider !== 'stripe' && provider !== 'paystack') return { status: 400, body: { error: 'Choose Stripe (USD) or Paystack (NGN).' } };
 
+  if (!/^[a-f0-9]{64}$/i.test(env.BULK_CODE_ENCRYPTION_KEY || '')) return { status: 503, body: { error: 'Bulk code recovery is not configured.' } };
   await ensureBulkOrders(env);
 
   if (provider === 'paystack') {
@@ -165,15 +169,40 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
   }
 }
 
+const hexBytes = (bytes) => [...new Uint8Array(bytes)].map((v) => v.toString(16).padStart(2, '0')).join('');
+function fromHex(value) {
+  if (typeof value !== 'string' || value.length % 2 || !/^[a-f0-9]+$/i.test(value)) throw new Error('Invalid encryption data');
+  return Uint8Array.from(value.match(/../g), (byte) => parseInt(byte, 16));
+}
+async function bulkKey(env, usage) {
+  if (!/^[a-f0-9]{64}$/i.test(env.BULK_CODE_ENCRYPTION_KEY || '')) throw new Error('Bulk code encryption is not configured');
+  return crypto.subtle.importKey('raw', fromHex(env.BULK_CODE_ENCRYPTION_KEY), 'AES-GCM', false, [usage]);
+}
+async function encryptCode(env, orderId, code) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(orderId) }, await bulkKey(env, 'encrypt'), new TextEncoder().encode(code));
+  return 'v1.' + hexBytes(iv) + '.' + hexBytes(ciphertext);
+}
+async function decryptCode(env, orderId, stored) {
+  const parts = String(stored || '').split('.');
+  if (parts.length !== 3 || parts[0] !== 'v1' || !/^[a-f0-9]{24}$/i.test(parts[1])) throw new Error('Code unavailable');
+  const text = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromHex(parts[1]), additionalData: new TextEncoder().encode(orderId) }, await bulkKey(env, 'decrypt'), fromHex(parts[2]));
+  return new TextDecoder().decode(text);
+}
 async function issueCode(env, order) {
   const code = generateCode();
   const hash = await hashCode(code);
+  const encrypted = await encryptCode(env, order.id, code);
   const now = new Date().toISOString();
   await env.OBI_DB.batch([
-    env.OBI_DB.prepare("UPDATE bulk_orders SET code_hash=?, code_last4=?, status='paid', paid_at=?, updated_at=? WHERE id=? AND status IN ('pending')").bind(hash, code.slice(-4), now, now, order.id),
-    env.OBI_DB.prepare('INSERT INTO bulk_order_events (id,order_id,event_type,details,created_at) VALUES (?,?,?,?,?)').bind('boe_' + randomHex(12), order.id, 'paid', JSON.stringify({ code_last4: code.slice(-4) }), now),
+    env.OBI_DB.prepare("UPDATE bulk_orders SET code_hash=?, code_last4=?, code_encrypted=?, status='paid', paid_at=?, updated_at=? WHERE id=? AND status='pending'").bind(hash, code.slice(-4), encrypted, now, now, order.id),
+    env.OBI_DB.prepare("INSERT INTO bulk_order_events (id,order_id,event_type,details,created_at) SELECT ?,?,'paid',?,? WHERE EXISTS (SELECT 1 FROM bulk_orders WHERE id=? AND code_hash=? AND status='paid')").bind('boe_' + randomHex(12), order.id, JSON.stringify({ code_last4: code.slice(-4) }), now, order.id, hash),
   ]);
-  return code;
+  // Another verifier may have won the conditional update. Always return the
+  // persisted code, never the locally generated losing candidate.
+  const saved = await env.OBI_DB.prepare('SELECT status,code_encrypted FROM bulk_orders WHERE id=?').bind(order.id).first();
+  if (saved?.status !== 'paid') throw new Error('Order is not payable');
+  return decryptCode(env, order.id, saved.code_encrypted);
 }
 
 export async function verifyBulkOrderPayment(env, orderId) {
@@ -182,23 +211,12 @@ export async function verifyBulkOrderPayment(env, orderId) {
   const order = await env.OBI_DB.prepare('SELECT * FROM bulk_orders WHERE id=?').bind(orderId).first();
   if (!order) return { status: 404, body: { error: 'Order not found.' } };
   if (order.status === 'paid') {
-    // Return code only if we can recover it? We store hash; for security we don't store plaintext
-    // But we need to return it once - in practice better to store encrypted or just return on first issue
-    // For now, require re-issuance via secure channel; but per requirements we need to provide it
-    // We'll store encrypted code if secret exists? Or just generate again - but hash changes. Better approach: store code_encrypted
-    // Check if we have encrypted code
-    const row = await env.OBI_DB.prepare('SELECT code_encrypted FROM bulk_orders WHERE id=?').bind(orderId).first().catch(() => null);
-    if (row?.code_encrypted && env.BULK_CODE_ENCRYPTION_KEY) {
-      try {
-        const key = await crypto.subtle.importKey('raw', Buffer.from(env.BULK_CODE_ENCRYPTION_KEY, 'hex'), { name: 'AES-GCM' }, false, ['decrypt']);
-        const iv = Buffer.from(row.code_encrypted.slice(0, 32), 'hex');
-        const data = Buffer.from(row.code_encrypted.slice(32), 'hex');
-        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-        const code = new TextDecoder().decode(dec);
-        return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
-      } catch {}
+    try {
+      const code = await decryptCode(env, order.id, order.code_encrypted);
+      return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
+    } catch {
+      return { status: 503, body: { error: 'Code recovery is unavailable. Contact support.' } };
     }
-    return { status: 200, body: { order_id: order.id, status: 'paid', quantity: order.quantity, message: 'Order is paid. Contact support for code recovery if needed.' } };
   }
   if (order.status === 'pending') {
     if (order.provider === 'paystack') {
@@ -210,24 +228,13 @@ export async function verifyBulkOrderPayment(env, orderId) {
         const tx = result?.data;
         if (!resp.ok || !result.status || !tx) return { status: 502, body: { error: 'Could not verify payment.' } };
         if (tx.status !== 'success') return { status: 200, body: { order_id: order.id, status: 'pending' } };
-        if (tx.reference !== order.provider_reference || String(tx.currency).toUpperCase() !== order.currency || Number(tx.amount) !== order.total_minor || String(tx.customer?.email||'').toLowerCase() !== order.buyer_email) {
+        if (tx.domain !== (env.PAYSTACK_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test') || tx.reference !== order.provider_reference || String(tx.currency).toUpperCase() !== order.currency || Number(tx.amount) !== order.total_minor || String(tx.customer?.email||'').toLowerCase() !== order.buyer_email) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
-        if (tx.metadata?.bulk_order_id !== order.id || Number(tx.metadata?.quantity) !== order.quantity) {
+        if (tx.metadata?.bulk_order_id !== order.id || Number(tx.metadata?.quantity) !== order.quantity || tx.metadata?.product_sku !== EDITION_SKU) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         const code = await issueCode(env, order);
-        // Try to store encrypted if possible
-        if (env.BULK_CODE_ENCRYPTION_KEY) {
-          try {
-            const key = await crypto.subtle.importKey('raw', Buffer.from(env.BULK_CODE_ENCRYPTION_KEY, 'hex'), { name: 'AES-GCM' }, false, ['encrypt']);
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(code));
-            const stored = Buffer.from(iv).toString('hex') + Buffer.from(enc).toString('hex');
-            await env.OBI_DB.prepare('ALTER TABLE bulk_orders ADD COLUMN code_encrypted TEXT').catch(() => {});
-            await env.OBI_DB.prepare('UPDATE bulk_orders SET code_encrypted=? WHERE id=?').bind(stored, order.id).run();
-          } catch {}
-        }
         return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
       } catch (e) {
         return { status: 502, body: { error: 'Could not verify payment.' } };
@@ -241,23 +248,13 @@ export async function verifyBulkOrderPayment(env, orderId) {
         const session = await resp.json();
         if (!resp.ok || !session?.id) return { status: 502, body: { error: 'Could not verify payment.' } };
         if (session.status !== 'complete' || session.payment_status !== 'paid') return { status: 200, body: { order_id: order.id, status: 'pending' } };
-        if (session.id !== sid || session.livemode !== (env.OBI_STRIPE_LIVE_MODE === '1') && session.livemode === true && env.OBI_STRIPE_LIVE_MODE !== '1' && false) { /* allow test */ }
+        if (session.id !== sid || session.livemode !== env.OBI_STRIPE_SECRET_KEY.startsWith('sk_live_')) return { status: 400, body: { error: 'Payment does not match order.' } };
         if (session.livemode === true && env.OBI_STRIPE_LIVE_MODE !== '1') return { status: 400, body: { error: 'Live payment not allowed in this environment.' } };
         if (session.livemode !== true && env.OBI_STRIPE_REQUIRE_LIVE === '1') return { status: 400, body: { error: 'Live payment required.' } };
-        if (String(session.currency||'').toUpperCase() !== order.currency || Number(session.amount_total) !== order.total_minor || String(session.customer_email||'').toLowerCase() !== order.buyer_email || session.client_reference_id !== order.id || session.metadata?.bulk_order_id !== order.id || Number(session.metadata?.quantity) !== order.quantity) {
+        if (String(session.currency||'').toUpperCase() !== order.currency || Number(session.amount_total) !== order.total_minor || String(session.customer_email||'').toLowerCase() !== order.buyer_email || session.client_reference_id !== order.id || session.metadata?.bulk_order_id !== order.id || Number(session.metadata?.quantity) !== order.quantity || session.metadata?.product_sku !== EDITION_SKU) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         const code = await issueCode(env, order);
-        if (env.BULK_CODE_ENCRYPTION_KEY) {
-          try {
-            const key = await crypto.subtle.importKey('raw', Buffer.from(env.BULK_CODE_ENCRYPTION_KEY, 'hex'), { name: 'AES-GCM' }, false, ['encrypt']);
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(code));
-            const stored = Buffer.from(iv).toString('hex') + Buffer.from(enc).toString('hex');
-            await env.OBI_DB.prepare('ALTER TABLE bulk_orders ADD COLUMN code_encrypted TEXT').catch(() => {});
-            await env.OBI_DB.prepare('UPDATE bulk_orders SET code_encrypted=? WHERE id=?').bind(stored, order.id).run();
-          } catch {}
-        }
         return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
       } catch {
         return { status: 502, body: { error: 'Could not verify payment.' } };
@@ -269,17 +266,14 @@ export async function verifyBulkOrderPayment(env, orderId) {
 
 export async function claimBulkOrder(env, account, codeInput, deviceHash) {
   const code = typeof codeInput === 'string' ? codeInput.trim().toUpperCase() : '';
-  if (!/^OBI-BULK-[A-F0-9]{48}$/.test(code) && !/^OBI-BULK-[A-F0-9]{32}$/.test(code)) {
-    // be flexible
-  }
-  if (!/^OBI-BULK-[A-F0-9]+$/.test(code)) return { status: 400, body: { error: 'Enter a valid bulk code.' } };
+  if (!/^OBI-BULK-[A-F0-9]{48}$/.test(code)) return { status: 400, body: { error: 'Enter a valid bulk code.' } };
   await ensureBulkOrders(env);
-  const order = await env.OBI_DB.prepare('SELECT id,quantity,status FROM bulk_orders WHERE code_hash=?').bind(await hashCode(code)).first();
+  const order = await env.OBI_DB.prepare('SELECT id,quantity,status,currency FROM bulk_orders WHERE code_hash=?').bind(await hashCode(code)).first();
   if (!order) return { status: 404, body: { error: 'That bulk code was not found.' } };
   if (order.status !== 'paid') return { status: 409, body: { error: 'This bulk order is not active yet.' } };
   const existing = await env.OBI_DB.prepare('SELECT checkout_session_id FROM bulk_order_claims WHERE order_id=? AND account_id=?').bind(order.id, account.id).first();
   if (existing) return { status: 200, body: { session_id: existing.checkout_session_id, alreadyClaimed: true } };
-  const reference = 'bcl_' + randomHex(16);
+  const reference = 'obi_' + randomHex(16);
   const now = new Date().toISOString();
   const results = await env.OBI_DB.batch([
     env.OBI_DB.prepare(`INSERT OR IGNORE INTO bulk_order_claims (order_id,account_id,checkout_session_id,claimed_at)

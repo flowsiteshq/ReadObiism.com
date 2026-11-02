@@ -37,3 +37,17 @@ This document tracks remaining work before production launch. Based on review of
 - Full manuscript is not tracked in git HEAD (only exists locally in `worker/manuscript/` and is gitignored).
 - Recent commit: `520dda9 chore: update admin UI to show production status`
 - Worker in `worker/`, site files at root, admin/dashboard/assets present.
+
+## Progress update — 2 November 2026
+
+- Production bulk creation, verification, claims and Paystack bulk fulfillment are temporarily fail-closed while payment ownership, approved discounts, secure code delivery, concurrency and lifecycle work remain incomplete. Local bulk testing remains separate. This is a local code change and has not been deployed.
+- Added defense-in-depth checks for provider selection, buyer-controlled discounts and order ownership; these checks do not make bulk orders production-ready.
+- Account verification requests now limit request frequency and report provider delivery failures instead of claiming a failed message was sent. A complete verified-email UI and recovery flow remain open.
+- `worker/npm test` runs targeted Node tests for these safeguards. Full payment, browser, device, production and race-condition testing remains open. Run `npm test` from `worker/`.
+- `docs/PUBLISHING.md` now documents the Cloudflare Pages output; live build settings, API routing, private repository status, history cleanup and deployment remain to be verified.
+
+- Bulk code recovery now uses authenticated encryption and idempotent issuance in local code. SQLite-based simulated provider and capacity tests pass; deployed D1 concurrency, recovery UI, migrations and provider end-to-end verification remain open. See docs/BULK-CODE-RECOVERY.md. Production bulk routes remain disabled.
+
+
+- Bulk UI: buyer, confirmation and recipient screens plus an admin discount-approval preview are implemented locally. Production endpoints and approval controls remain disabled; payment/refund workflows, real-provider testing and the D1 migration remain open.
+
