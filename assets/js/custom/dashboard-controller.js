@@ -135,6 +135,23 @@
       return false;
     }
   }
+  const formatPricingAmount = (amount, code) => {
+    try {
+      return new Intl.NumberFormat(code === 'NGN' ? 'en-NG' : 'en-US', {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: code === 'USD' ? 2 : 0,
+        maximumFractionDigits: code === 'USD' ? 2 : 0,
+      }).format(amount);
+    } catch { return `${code === 'NGN' ? '₦' : '$'}${amount}`; }
+  };
+  const updatePricingPreview = () => {
+    const ngn = Number($('price-ngn').value);
+    const usd = Number($('price-usd').value);
+    const ngnText = Number.isFinite(ngn) && ngn > 0 ? formatPricingAmount(ngn, 'NGN') : '—';
+    const usdText = Number.isFinite(usd) && usd > 0 ? formatPricingAmount(usd, 'USD') : '—';
+    $('pricing-preview').textContent = `Landing page: ${ngnText} NGN · ${usdText} USD`;
+  };
   async function loadPricing() {
     $('pricing-message').textContent = 'Loading prices…';
     try {
@@ -143,9 +160,8 @@
       const ngn = pricing.NGN || {}, usd = pricing.USD || {};
       $('price-ngn').value = ngn.amount ?? '';
       $('price-usd').value = usd.amount ?? '';
-      $('pricing-message').textContent = ngn.formatted && usd.formatted
-        ? `Live: ${ngn.formatted} NGN · ${usd.formatted} USD`
-        : 'Prices loaded.';
+      updatePricingPreview();
+      $('pricing-message').textContent = '';
       return true;
     } catch (error) {
       $('pricing-message').textContent = error.message;
@@ -379,6 +395,8 @@
       location.assign(checkout.href);
     } catch (error) { $('bulk-payment-message').textContent = error.message; toast('Could not start test checkout.', true); updateBulkTotal(); }
   });
+  $('price-ngn').addEventListener('input', updatePricingPreview);
+  $('price-usd').addEventListener('input', updatePricingPreview);
   $('pricing-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const ngn = Number($('price-ngn').value);
@@ -396,7 +414,8 @@
       const pricing = data.pricing || {};
       $('price-ngn').value = pricing.NGN?.amount ?? ngn;
       $('price-usd').value = pricing.USD?.amount ?? usd;
-      $('pricing-message').textContent = `Saved. Live: ${pricing.NGN.formatted} NGN · ${pricing.USD.formatted} USD`;
+      updatePricingPreview();
+      $('pricing-message').textContent = 'Saved. The landing page will show these prices.';
       toast('Edition prices updated.');
     } catch (error) {
       $('pricing-message').textContent = error.message || 'Could not save prices.';
