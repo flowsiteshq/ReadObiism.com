@@ -217,6 +217,27 @@ async function paystackSignature(body, secret) {
 async function ensure(env) {
   if (!env.OBI_DB) throw new Error("OBI_DB binding unavailable");
   await env.OBI_DB.exec(schema);
+  await ensureAccountSchema(env);
+}
+
+// Databases created before email verification shipped have an obi_accounts
+// table without email_verified. CREATE TABLE IF NOT EXISTS never adds columns,
+// so registration, verification and bulk claims would fail with
+// "no such column: email_verified". Repair the column once per isolate. Two
+// cold isolates can race here, so a duplicate-column result is treated as done.
+const repairedAccountSchemas = new WeakSet();
+async function ensureAccountSchema(env) {
+  if (repairedAccountSchemas.has(env.OBI_DB)) return;
+  const columns = await env.OBI_DB.prepare("PRAGMA table_info(obi_accounts)").bind().all();
+  const names = new Set((columns.results || []).map((column) => column.name));
+  if (!names.has("email_verified")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE obi_accounts ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  repairedAccountSchemas.add(env.OBI_DB);
 }
 
 function expected(session) {
