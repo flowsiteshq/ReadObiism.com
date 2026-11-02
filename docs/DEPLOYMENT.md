@@ -303,6 +303,64 @@ Set a secret:
 npx wrangler secret put BULK_CODE_ENCRYPTION_KEY
 ```
 
+### 8.1 Email delivery (Resend, not cPanel SMTP)
+
+Production does **not** send mail through cPanel SMTP. The old PHP backend used `mail()` / SMTP settings, but production API traffic runs on the Cloudflare Worker, where the supported pattern is an HTTPS email API rather than cPanel SMTP. The Worker already uses **Resend's HTTPS API** in `worker/dashboard-worker.js` for:
+
+- Gift-code delivery (`sendGiftCodeEmail`)
+- Account email verification (`POST /api/account/verify/request`)
+- Device-transfer verification (`POST /api/reader/transfer/start`)
+
+Without the secrets, these paths return `503` ("Email verification is not configured" or "Could not send...").
+
+To enable:
+
+1. Create a Resend account at <https://resend.com>. The free tier is sufficient for low-volume transactional mail; check the current limit before relying on it.
+2. Add the domain `readobiism.com` (or a sending subdomain such as `send.readobiism.com`).
+3. Add the DNS records Resend shows to the `readobiism.com` zone in Cloudflare:
+   - DKIM TXT record (`resend._domainkey...`)
+   - SPF TXT record for the sending subdomain
+   - MX record for bounces on the sending subdomain
+   - Optional DMARC TXT record (`_dmarc`)
+   Do **not** replace the existing MX records used for receiving mail.
+4. Wait until Resend shows the domain as **Verified**.
+5. Create an API key (`re_...`).
+6. Set the Worker secrets:
+
+   ```powershell
+   cd worker
+   $env:CLOUDFLARE_ACCOUNT_ID = 'ade40257c2476d8dab6d1c5ebf5e176a'
+   npx wrangler secret put RESEND_API_KEY
+   npx wrangler secret put GIFT_FROM_EMAIL
+   npx wrangler secret put ACCOUNT_FROM_EMAIL
+   ```
+
+   Use verified sender addresses, for example:
+
+   ```text
+   GIFT_FROM_EMAIL=OBI-ISM <gifts@readobiism.com>
+   ACCOUNT_FROM_EMAIL=OBI-ISM <no-reply@readobiism.com>
+   ```
+
+   `ACCOUNT_FROM_EMAIL` is optional; it falls back to `GIFT_FROM_EMAIL`.
+
+7. Test:
+   - Gift: complete a gift checkout and confirm the recipient receives the code.
+   - Verification: sign in, then `POST /api/account/verify/request` with the session cookie and check the inbox for the 8-digit code.
+   - Watch logs during the test: `npx wrangler tail steep-leaf-f57d --format json`.
+
+**Current status (2026-11-02):** `RESEND_API_KEY`, `GIFT_FROM_EMAIL`, and `ACCOUNT_FROM_EMAIL` are **not configured** in production, so email delivery is disabled.
+
+**UI limitation:** the account verification UI currently lives on `bulk.html`, and bulk checkout is disabled (`503`). If email verification should be usable before bulk is enabled, add a verification panel to the account/dashboard flow; the Worker endpoints already exist.
+
+**Alternatives:** Postmark, Mailgun, SendGrid, Brevo, MailerSend, or Amazon SES. All are HTTPS APIs; the Worker would need a small adapter because the code currently calls `api.resend.com` directly. cPanel SMTP is not a good fit for Workers. If it must be retained, the Worker would have to call a secret-protected HTTPS relay on the cPanel host, adding a moving part and a security surface.
+
+**Notes:**
+
+- Verify SPF, DKIM, and DMARC to avoid spam filtering. Use a sending subdomain if the root domain already has mailboxes.
+- Do not commit the API key.
+- Password reset is **not implemented**; only gift delivery and email verification use email today.
+
 Rules:
 
 - Never commit `.dev.vars`, `.env`, API keys, database files, or private keys.
