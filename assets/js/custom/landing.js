@@ -33,7 +33,23 @@
   const params = new URLSearchParams(location.search);
   let currency = "NGN";
   let purchaseMode = params.get("gift") === "1" ? "gift" : "self";
-  const priceLabel = () => (currency === "NGN" ? "₦6,995 NGN" : "$9.95 USD");
+  const pricing = {
+    NGN: { amount: 6995, label: "₦6,995" },
+    USD: { amount: 9.95, label: "$9.95" },
+  };
+  const formatPrice = (amount, code) => {
+    try {
+      return new Intl.NumberFormat(code === "NGN" ? "en-NG" : "en-US", {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: code === "USD" ? 2 : 0,
+        maximumFractionDigits: code === "USD" ? 2 : 0,
+      }).format(amount);
+    } catch {
+      return `${code === "NGN" ? "₦" : "$"}${amount}`;
+    }
+  };
+  const priceLabel = () => `${pricing[currency].label} ${currency}`;
   const setButtonLabel = (text) => { button.innerHTML = `${text} <span class="arrow">→</span>`; };
   const updateStatus = (override) => {
     if (override) { status.textContent = override; return; }
@@ -55,11 +71,29 @@
   const setCurrency = (next) => {
     currency = next;
     const naira = next === "NGN";
-    document.getElementById("purchase-price").textContent = naira ? "₦6,995" : "$9.95";
+    document.getElementById("purchase-price").textContent = pricing[naira ? "NGN" : "USD"].label;
     document.getElementById("purchase-currency").textContent = naira ? "NGN" : "USD";
     document.getElementById("currency-ngn").setAttribute("aria-pressed", String(naira));
     document.getElementById("currency-usd").setAttribute("aria-pressed", String(!naira));
     updateStatus();
+  };
+  const applyPricing = (data) => {
+    for (const code of ["NGN", "USD"]) {
+      const amount = Number(data?.[code]?.amount);
+      if (Number.isFinite(amount) && amount > 0) {
+        pricing[code] = {
+          amount,
+          label: typeof data[code].formatted === "string" && data[code].formatted ? data[code].formatted : formatPrice(amount, code),
+        };
+      }
+    }
+    document.getElementById("currency-ngn").textContent = `${pricing.NGN.label} NGN`;
+    document.getElementById("currency-usd").textContent = `${pricing.USD.label} USD`;
+    document.getElementById("edition-ngn-price").textContent = `${pricing.NGN.label} NGN`;
+    document.getElementById("edition-usd-price").textContent = `${pricing.USD.label} USD`;
+    const hero = document.getElementById("hero-price");
+    if (hero) hero.textContent = `${pricing.USD.label} USD`;
+    setCurrency(currency);
   };
   document.getElementById("currency-ngn").addEventListener("click", () => setCurrency("NGN"));
   document.getElementById("currency-usd").addEventListener("click", () => setCurrency("USD"));
@@ -85,6 +119,10 @@
     return `OBI-${segment(0)}-${segment(4)}-${segment(8)}`;
   };
   setMode(purchaseMode);
+  apiFetch("/api/pricing", { cache: "no-store" })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => { if (data) applyPricing(data); })
+    .catch(() => {});
   if (params.get("purchase") === "cancelled") {
     updateStatus(params.get("gift") === "1" ? "Gift checkout was cancelled. No payment was made." : "Checkout was cancelled. No payment was made.");
   }

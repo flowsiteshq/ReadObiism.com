@@ -409,6 +409,42 @@ npx wrangler d1 execute obi-ism-payments --remote --command "DELETE FROM obi_acc
 
 Never delete the real account `chrismpamugo99@gmail.com` without owner approval.
 
+### 9.3 Change the edition prices (Naira and Dollar)
+
+Use the admin UI:
+
+1. Open `https://readobiism.com/admin/` (or `/dashboard/`) and sign in.
+2. Go to **Payment settings → Edition prices**.
+3. Enter the whole Naira price (for example `6995`) and the Dollar price (for example `9.95`), then select **Save edition prices**.
+4. Reload `https://readobiism.com/` to confirm the hero price, edition paragraph and currency buttons update.
+
+How it works:
+
+- `POST /api/admin/pricing` stores `price_ngn_minor` and `price_usd_minor` in the D1 `site_settings` table. The admin session, same-origin check and JSON content type are required.
+- `GET /api/pricing` is public and returns the current prices. The landing page (`assets/js/custom/landing.js`), the bulk estimate (`assets/js/custom/bulk-buy.js`) and new checkouts use that value.
+- `worker/api/src/pricing.js` holds only the fallback defaults (`6995` NGN and `9.95` USD). You do **not** need to edit HTML or JavaScript to change a live price.
+- New checkout sessions store `price_minor` in provider metadata, so the webhook verifies the amount quoted when checkout started even if the admin changes the price later. Existing checkouts keep their quoted amount.
+- The values in `index.html` are fallbacks shown before the API responds; the page updates automatically.
+
+If the admin UI is unavailable, update D1 directly (amounts are in minor units: kobo for NGN, cents for USD):
+
+```powershell
+# Read current values
+npx wrangler d1 execute obi-ism-payments --remote --command "SELECT key,value,updated_at,updated_by FROM site_settings WHERE key LIKE 'price_%'"
+
+# Set values
+npx wrangler d1 execute obi-ism-payments --remote --command "INSERT INTO site_settings (key,value,updated_at,updated_by) VALUES ('price_ngn_minor','699500',datetime('now'),'manual') ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at,updated_by=excluded.updated_by"
+npx wrangler d1 execute obi-ism-payments --remote --command "INSERT INTO site_settings (key,value,updated_at,updated_by) VALUES ('price_usd_minor','995',datetime('now'),'manual') ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at,updated_by=excluded.updated_by"
+```
+
+Restore the compiled defaults by deleting the rows:
+
+```powershell
+npx wrangler d1 execute obi-ism-payments --remote --command "DELETE FROM site_settings WHERE key IN ('price_ngn_minor','price_usd_minor')"
+```
+
+Do not change prices without checking the payment-provider minimums and the landing-page copy.
+
 ---
 
 ## 10. Website: GitHub Pages publishing

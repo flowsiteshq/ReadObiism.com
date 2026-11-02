@@ -4,6 +4,7 @@ import { handleAdminAuth } from "./api/src/admin-auth.js";
 import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
 import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder } from "./api/src/bulk-orders.js";
 import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./api/src/pricing.js";
+import { getPricing } from "./api/src/pricing-store.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
@@ -64,7 +65,8 @@ CREATE TABLE IF NOT EXISTS account_verification_challenges (id TEXT PRIMARY KEY,
 CREATE INDEX IF NOT EXISTS account_verification_challenges_account_idx ON account_verification_challenges(account_id, created_at);
 CREATE TABLE IF NOT EXISTS request_limits (bucket TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS abuse_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, limit_name TEXT NOT NULL, identity_hash TEXT NOT NULL, retry_after INTEGER NOT NULL, created_at TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS abuse_events_created_idx ON abuse_events(created_at);`;
+CREATE INDEX IF NOT EXISTS abuse_events_created_idx ON abuse_events(created_at);
+CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT);`;
 
 const encoder = new TextEncoder();
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
@@ -241,10 +243,14 @@ async function ensureAccountSchema(env) {
 }
 
 function expected(session) {
+  const metadataMinor = Number(session?.metadata?.price_minor);
+  const amountMatches = Number.isSafeInteger(metadataMinor) && metadataMinor > 0
+    ? session.amount_total === metadataMinor
+    : session.amount_total === PRICE;
   return session?.id?.startsWith("cs_")
     && session.payment_status === "paid"
     && session.currency?.toLowerCase() === "usd"
-    && session.amount_total === PRICE
+    && amountMatches
     && session.metadata?.product_sku === SKU
     && /^[a-f0-9]{64}$/.test(session.metadata?.device_hash || "");
 }
@@ -395,6 +401,8 @@ async function checkout(request, env) {
   await ensure(env);
   const rateLimited = await enforceLimit(request, env, "checkout", "checkout-ip", clientIp(request));
   if (rateLimited) return rateLimited;
+  const pricing = await getPricing(env);
+  const usdMinor = pricing.USD.minor;
 
   if (gift) {
     if (!validGiftCode(gift.code)) return reply({ error: "A valid gift code is required." }, request, { status: 400 });
@@ -406,7 +414,7 @@ async function checkout(request, env) {
   }
 
   if (String(currency).toUpperCase() === "NGN") {
-    return paystackCheckout(request, env, checkoutEmail.trim().toLowerCase(), deviceToken, gift);
+    return paystackCheckout(request, env, checkoutEmail.trim().toLowerCase(), deviceToken, gift, pricing);
   }
 
   if (!env.OBI_STRIPE_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Checkout is not configured" }, request, { status: 503 });
@@ -421,10 +429,12 @@ async function checkout(request, env) {
     "metadata[product_sku]": SKU,
     "metadata[purchaser_email]": checkoutEmail.trim().toLowerCase(),
     "metadata[device_hash]": deviceHash,
+    "metadata[price_minor]": String(usdMinor),
     "payment_intent_data[metadata][product_sku]": SKU,
+    "payment_intent_data[metadata][price_minor]": String(usdMinor),
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
-    "line_items[0][price_data][unit_amount]": String(PRICE),
+    "line_items[0][price_data][unit_amount]": String(usdMinor),
     "line_items[0][price_data][product_data][name]": "OBI-ISM: Building a Just Society Through Character",
     "line_items[0][price_data][product_data][tax_code]": "txcd_10302000",
   });
@@ -448,7 +458,7 @@ async function checkout(request, env) {
   });
   const result = await response.json();
   return response.ok && result.url && validSessionId(result.id)
-    ? reply({ url: result.url, sessionId: result.id, provider: "stripe", currency: "USD", amount: PRICE }, request)
+    ? reply({ url: result.url, sessionId: result.id, provider: "stripe", currency: "USD", amount: usdMinor / 100 }, request)
     : reply({ error: "Unable to start secure checkout" }, request, { status: 502 });
 }
 
@@ -456,8 +466,9 @@ async function checkout(request, env) {
  * Naira checkout via Paystack. We mint our own reader reference (`obi_…`) and
  * use it as the reader session key, so the reader/claim flow is provider-neutral.
  */
-async function paystackCheckout(request, env, email, deviceToken, gift = null) {
+async function paystackCheckout(request, env, email, deviceToken, gift = null, pricing = null) {
   if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Naira checkout is not configured" }, request, { status: 503 });
+  const ngnMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
 
   const reference = paystackReference();
   const deviceHash = await hashDeviceToken(deviceToken);
@@ -474,7 +485,7 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null) {
     },
     body: JSON.stringify({
       email,
-      amount: NAIRA_PRICE * 100,
+      amount: ngnMinor,
       currency: "NGN",
       reference,
       callback_url: callback,
@@ -483,6 +494,7 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null) {
         purchaser_email: email,
         device_hash: deviceHash,
         provider: "paystack",
+        price_minor: String(ngnMinor),
         ...(gift ? {
           gift: "1",
           gift_code: gift.code,
@@ -505,7 +517,7 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null) {
       sessionId: reference,
       provider: "paystack",
       currency: "NGN",
-      amount: NAIRA_PRICE,
+      amount: ngnMinor / 100,
     },
     request,
   );
@@ -618,17 +630,22 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
   if (!verifyResponse.ok || !verified.status || tx?.status !== "success" || tx?.reference !== reference) {
     return reply({ error: "Payment could not be verified" }, request, { status: 400 });
   }
-  if (String(tx.currency || "").toUpperCase() !== "NGN" || Number(tx.amount) !== NAIRA_PRICE * 100) {
+
+  let metadata = tx.metadata ?? null;
+  if (typeof metadata === "string") {
+    try { metadata = JSON.parse(metadata); } catch { metadata = null; }
+  }
+  const metadataMinor = Number(metadata?.price_minor);
+  const amountMatches = Number.isSafeInteger(metadataMinor) && metadataMinor > 0
+    ? Number(tx.amount) === metadataMinor
+    : Number(tx.amount) === NAIRA_PRICE * 100;
+  if (String(tx.currency || "").toUpperCase() !== "NGN" || !amountMatches) {
     return reply({ error: "Payment amount does not match the edition price" }, request, { status: 400 });
   }
 
   const email = String(tx.customer?.email || fallbackEmail || "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) return reply({ error: "Missing purchaser email" }, request, { status: 400 });
 
-  let metadata = tx.metadata ?? null;
-  if (typeof metadata === "string") {
-    try { metadata = JSON.parse(metadata); } catch { metadata = null; }
-  }
   const gift = giftDetails(metadata);
   if (metadata?.product_sku !== SKU || !/^[a-f0-9]{64}$/.test(metadata?.device_hash || "")) {
     return reply({ error: "Payment metadata does not match the edition." }, request, { status: 400 });
@@ -654,12 +671,15 @@ async function recordCheckoutCompletion(event, env) {
   const email = String(session.customer_details?.email || session.customer_email || session.metadata?.purchaser_email || "").toLowerCase() || null;
   const deviceHash = session.metadata.device_hash;
   const gift = giftDetails(session.metadata);
+  const amountCents = Number.isSafeInteger(Number(session?.metadata?.price_minor)) && Number(session?.metadata?.price_minor) > 0
+    ? Number(session?.metadata?.price_minor)
+    : PRICE;
   // A gift belongs to the recipient, not the buyer's browser. Leave the
   // device slot unbound until the recipient redeems the code.
   const deviceValue = gift ? "UNBOUND" : deviceHash;
   const result = await env.OBI_DB.batch([
     env.OBI_DB.prepare("INSERT OR IGNORE INTO webhook_events (event_id,event_type,status,received_at) VALUES (?,?,?,?)").bind(event.id, EVENT, "processed", now),
-    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?)").bind(session.id, typeof session.payment_intent === "string" ? session.payment_intent : null, email, PRICE, "usd", SKU, "active", now),
+    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?)").bind(session.id, typeof session.payment_intent === "string" ? session.payment_intent : null, email, amountCents, "usd", SKU, "active", now),
     env.OBI_DB.prepare("INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)").bind(session.id, deviceValue, now),
   ]);
   if (gift) {
@@ -1052,6 +1072,7 @@ async function handleRequest(request, env) {
       },
     });
     if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
+    if (path === "/api/pricing" && request.method === "GET") return reply(await getPricing(env), request);
     // Production bulk payments remain unavailable pending security and payment review.
     // Local-only test endpoints remain separate.
     if (request.method === "POST" && ["/api/bulk", "/api/bulk/verify", "/api/bulk/claim"].includes(path)) {
