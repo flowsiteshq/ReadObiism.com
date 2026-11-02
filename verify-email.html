@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>OBI-ISM — Verify email</title>
+  <link rel="stylesheet" href="assets/css/custom/login-1.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="intro">
+      <h1>OBI–<span>ISM</span></h1>
+      <p>Verify the email address on your reader account.</p>
+    </section>
+    <section class="panel">
+      <h2>Verify your email.</h2>
+      <p class="sub" id="verify-state">Checking your account…</p>
+      <button class="submit" id="send-code" type="button" disabled>SEND VERIFICATION CODE →</button>
+      <form id="verify-form" hidden>
+        <label class="field">8-DIGIT CODE<input id="verify-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" required></label>
+        <button class="submit" type="submit">VERIFY EMAIL →</button>
+      </form>
+      <p class="message" id="message" aria-live="polite"></p>
+      <a class="back" href="login.html">← BACK TO SIGN IN</a>
+    </section>
+  </main>
+  <script src="assets/js/custom/obi-api.js"></script>
+  <script src="assets/js/custom/verify-email.js"></script>
+</body>
+</html>
