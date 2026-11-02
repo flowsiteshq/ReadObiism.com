@@ -315,7 +315,7 @@ Without the secrets, these paths return `503` ("Email verification is not config
 
 To enable:
 
-1. Create a Resend account at <https://resend.com>. The free tier is sufficient for low-volume transactional mail; check the current limit before relying on it.
+1. Create a Resend account at <https://resend.com>. The free tier includes 3,000 emails/month and **100 emails/day**; paid plans such as Pro ($20/month, 50,000 emails/month) have no daily cap. Check the pricing page before relying on a limit.
 2. Add the domain `readobiism.com` (or a sending subdomain such as `send.readobiism.com`).
 3. Add the DNS records Resend shows to the `readobiism.com` zone in Cloudflare:
    - DKIM TXT record (`resend._domainkey...`)
