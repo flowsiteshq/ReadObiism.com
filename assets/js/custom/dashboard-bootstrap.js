@@ -30,7 +30,7 @@
       script.src = src; script.onload = resolve; script.onerror = reject;
       document.body.append(script);
     });
-    await loadScript('../assets/js/custom/dashboard-controller.js');
+    await loadScript('../assets/js/custom/dashboard-controller.js?v=20261102-pricing-ui');
     await loadScript('../assets/js/alg/obi-router.js');
   } catch {
     document.body.classList.remove('auth-pending');
