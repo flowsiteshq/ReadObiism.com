@@ -319,7 +319,7 @@ async function registerAccount(request, env) {
   const now = new Date();
   const token = await randomToken();
   await env.OBI_DB.batch([
-    env.OBI_DB.prepare("INSERT INTO obi_accounts (id,email,password_hash,password_salt,email_verified,created_at,last_signed_in) VALUES (?,?,?,?,?,?,?)").bind(id, email, digest, salt, 0, now.toISOString(), now.toISOString()),
+    env.OBI_DB.prepare("INSERT INTO obi_accounts (id,email,password_hash,password_salt,created_at,last_signed_in) VALUES (?,?,?,?,?,?)").bind(id, email, digest, salt, now.toISOString(), now.toISOString()),
     env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)").bind(await hashDeviceToken(token), id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
   ]);
   const purchase = await accountPurchase(env, email);
