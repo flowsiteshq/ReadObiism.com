@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import worker from '../dashboard-worker.js';
 function fixture(count=0) {
   const calls=[];
-  const db={ exec:async()=>{}, prepare(sql){return { bind(...args){return { first:async()=>sql.includes('JOIN obi_account_sessions')?{id:'account-test',email:'reader@example.test'}:sql.includes('count(*)')?{count}:null,run:async()=>{calls.push({sql,args});return {meta:{changes:1}};} };} };} };
+  const db={ exec:async()=>{}, prepare(sql){return { bind(...args){return { first:async()=>sql.includes('JOIN obi_account_sessions')?{id:'account-test',email:'reader@example.test'}:sql.includes('count(*)')?{count}:null,all:async()=>({results:sql.includes('PRAGMA table_info')?[{name:'email_verified'}]:[]}),run:async()=>{calls.push({sql,args});return {meta:{changes:1}};} };} };} };
   return { db,calls };
 }
 const req=(url='https://readobiism.com/api/account/verify/request') => new Request(url,{method:'POST',headers:{authorization:'Bearer local-fixture'}});
