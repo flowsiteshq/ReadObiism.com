@@ -105,12 +105,12 @@
     const emailAddress = data.phone || data.email || "your account";
     if (data.access) {
       accountLink.textContent = "MY BOOK";
-      accountLink.href = "reader.html";
+      accountLink.href = "/reader";
       accountLink.title = `Signed in as ${emailAddress}`;
       editionLink.textContent = "BACK TO BOOK →";
-      editionLink.href = "reader.html";
+      editionLink.href = "/reader";
       if (heroBookLink) {
-        heroBookLink.href = "reader.html";
+        heroBookLink.href = "/reader";
         heroBookLink.innerHTML = 'CONTINUE READING <span class="arrow">→</span>';
       }
       if (note) {
@@ -119,13 +119,13 @@
         const signedIn = document.createElement("span");
         signedIn.textContent = `Signed in as ${emailAddress}. Your edition is ready. `;
         const link = document.createElement("a");
-        link.href = "reader.html";
+        link.href = "/reader";
         link.textContent = "BACK TO BOOK →";
         note.append(signedIn, link);
       }
     } else {
       accountLink.textContent = "MY ACCOUNT";
-      accountLink.href = "verify-email.html";
+      accountLink.href = "/verify-email";
       accountLink.title = `Signed in as ${emailAddress}`;
       if (note) {
         note.hidden = false;

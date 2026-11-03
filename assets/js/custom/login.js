@@ -12,9 +12,9 @@
   const password = document.getElementById("password");
   const params = new URLSearchParams(location.search);
   const destinations = {
-    "bulk-redeem": "bulk-redeem.html",
-    bulk: "bulk.html",
-    "bulk-confirmation": "bulk-confirmation.html",
+    "bulk-redeem": "bulk-/redeem",
+    bulk: "/bulk",
+    "bulk-confirmation": "/bulk-confirmation",
   };
 
   const setMode = (next) => {
@@ -71,7 +71,7 @@
         ? localStorage.getItem("obi-ism.local-pending-paystack")
         : "";
       if (next === "bulk-redeem") {
-        location.assign("bulk-redeem.html" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
+        location.assign("bulk-/redeem" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
         return;
       }
       if (Object.prototype.hasOwnProperty.call(destinations, next)) {
@@ -79,15 +79,15 @@
         return;
       }
       if (body.access && body.sessionId) {
-        location.assign(`reader.html?session_id=${encodeURIComponent(body.sessionId)}`);
+        location.assign(`/reader?session_id=${encodeURIComponent(body.sessionId)}`);
         return;
       }
       if (body.access) {
-        location.assign("reader.html");
+        location.assign("/reader");
         return;
       }
       if (/^obi_[a-z0-9]{16,64}$/.test(pending || "")) {
-        location.assign(`reader.html?session_id=${encodeURIComponent(pending)}`);
+        location.assign(`/reader?session_id=${encodeURIComponent(pending)}`);
         return;
       }
       message.textContent = "Signed in, but no active edition was found for this account. Return to the website to complete checkout.";

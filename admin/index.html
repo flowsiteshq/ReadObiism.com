@@ -13,7 +13,7 @@
   <button class="sidebar-backdrop" type="button" aria-label="Close navigation" tabindex="-1"></button>
   <aside class="sidebar" id="navigation" aria-label="Administration navigation">
     <button class="close-menu" type="button" aria-label="Close navigation">×</button>
-    <a class="brand" href="../index.html" aria-label="OBI-ISM website"><span>OBI<span>–ISM</span></span><small>ADMIN WORKSPACE</small></a>
+    <a class="brand" href="/" aria-label="OBI-ISM website"><span>OBI<span>–ISM</span></span><small>ADMIN WORKSPACE</small></a>
     <div class="nav-label">WORKSPACE</div>
     <nav aria-label="Dashboard sections">
       <a class="nav-link active" href="#overview" data-section="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span> Overview</a>
@@ -29,7 +29,7 @@
       <a class="nav-link" href="#payments" data-section="payments"><span class="nav-icon" aria-hidden="true">⚙</span> Payment settings</a>
     </nav>
     <div class="sidebar-note"><strong>Workspace</strong><p>Live production data.</p></div>
-    <a class="site-link" href="../index.html">← Back to website</a>
+    <a class="site-link" href="/">← Back to website</a>
   </aside>
   <div class="main-area">
     <header class="topbar">
@@ -70,7 +70,7 @@
       <section id="bulk-workspace" class="section" hidden aria-labelledby="bulk-heading">
         <article class="panel bulk-orders-panel" aria-labelledby="production-bulk-title">
           <div class="panel-heading"><div><h2 id="production-bulk-title">Production bulk orders</h2><p>Live group purchases. Shared codes are never shown here.</p></div><span class="tag">LIVE</span></div>
-          <p class="support-copy">Buyers purchase at <a href="../bulk.html" class="text-link">the group purchase page</a> and receive one shared activation code after payment.</p>
+          <p class="support-copy">Buyers purchase at <a href="/bulk" class="text-link">the group purchase page</a> and receive one shared activation code after payment.</p>
           <p id="production-bulk-message" class="table-message" aria-live="polite">Loading…</p>
           <div class="table-scroll"><table><thead><tr><th>Buyer</th><th>Order</th><th>Copies</th><th>Seats</th><th>Claimed</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th><th>Paid</th></tr></thead><tbody id="production-bulk-body"></tbody></table></div>
         </article>
@@ -80,7 +80,7 @@
             <div class="panel-heading"><div><h2 id="bulk-heading">Create a test order</h2><p>Try the shared-code workflow with local reader accounts.</p></div><span class="tag">NO PAYMENT</span></div>
             <form id="bulk-create-form" class="bulk-form"><label for="bulk-quantity">Number of editions</label><div class="bulk-create-row"><input id="bulk-quantity" type="number" min="1" max="1000" value="20" required><button class="payment-save" id="bulk-create-button" type="submit">Create test code</button></div><p id="bulk-create-message" class="muted" role="status"></p></form>
             <div id="bulk-code-result" class="bulk-code-result" hidden><strong>Copy this shared test code</strong><p>Share it only with people testing this local environment. Simulated-order codes are shown once; paid test codes can be recovered from the payment list.</p><div class="bulk-create-row"><input id="bulk-code" readonly aria-label="Generated bulk test code"><button class="outline-button" id="bulk-copy" type="button">Copy</button></div></div>
-            <a href="../bulk-redeem.html" class="text-link">Open the reader activation page →</a>
+            <a href="/bulk-redeem" class="text-link">Open the reader activation page →</a>
           </article>
           <article class="panel"><div class="panel-heading"><div><h2>Bulk test checkout</h2><p id="bulk-unit-price">Loading price…</p></div><span class="tag">NO REAL PAYMENT</span></div><p class="support-copy">Choose a gateway. The shared code appears only after that provider confirms the test payment.</p><form id="bulk-payment-form" class="bulk-form"><label for="bulk-gateway">Payment gateway and currency</label><select id="bulk-gateway"><option value="paystack">Paystack · NGN</option><option value="stripe">Stripe · USD</option></select><p id="bulk-gateway-status" class="muted"></p><label for="bulk-buyer-email">Buyer email</label><input id="bulk-buyer-email" type="email" required placeholder="buyer@example.com" autocomplete="email"><label for="bulk-paid-quantity">Number of editions</label><input id="bulk-paid-quantity" type="number" min="1" max="1000" value="20" required><label for="bulk-pricing">Pricing</label><select id="bulk-pricing"><option value="standard">Standard price</option><option value="discount">Approved bulk discount</option></select><div id="bulk-discount-fields" hidden><label for="bulk-discount">Discount percentage</label><input id="bulk-discount" type="number" min="1" max="99" step="1"><label for="bulk-approval-note">Approval note</label><input id="bulk-approval-note" type="text" minlength="3" maxlength="200" placeholder="Record the approval or agreement"><label><input id="bulk-approval-confirm" type="checkbox"> I confirm this discount is approved.</label></div><p id="bulk-test-total" class="bulk-test-total" aria-live="polite"></p><button class="payment-save" id="bulk-payment-button" type="submit">Open test checkout</button><p id="bulk-payment-message" class="muted" role="status"></p></form></article>
         </div>
