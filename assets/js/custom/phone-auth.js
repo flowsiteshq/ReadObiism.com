@@ -13,7 +13,7 @@
   const params = new URLSearchParams(location.search);
   const next = params.get("next");
   const seat = params.get("seat");
-  const destinations = { "bulk-redeem": "bulk-redeem.html", bulk: "bulk.html", "bulk-confirmation": "bulk-confirmation.html" };
+  const destinations = { "bulk-redeem": "bulk-/redeem", bulk: "/bulk", "bulk-confirmation": "/bulk-confirmation" };
   let mode = "login";
 
   function setMode(nextMode) {
@@ -41,7 +41,7 @@
   function continueAfterSignIn(body) {
     if (body.token) localStorage.setItem("obi-ism.session-token", body.token);
     if (next === "bulk-redeem") {
-      location.assign("bulk-redeem.html" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
+      location.assign("bulk-/redeem" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
       return;
     }
     if (Object.prototype.hasOwnProperty.call(destinations, next)) {
@@ -49,11 +49,11 @@
       return;
     }
     if (body.access && body.sessionId) {
-      location.assign("reader.html?session_id=" + encodeURIComponent(body.sessionId));
+      location.assign("/reader?session_id=" + encodeURIComponent(body.sessionId));
       return;
     }
     if (body.access) {
-      location.assign("reader.html");
+      location.assign("/reader");
       return;
     }
     phoneMessage("Account ready. Return to the website to buy an edition, or enter your group activation code.");

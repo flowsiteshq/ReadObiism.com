@@ -447,7 +447,7 @@ async function sendAccountVerification(env, account, { localTest = false } = {})
   if (!emailConfigured) return { status: 200, body: { message: "Local test code", testCode: code }, localTest: true };
   const message = verificationEmail({
     code,
-    link: `${publicOrigin(env)}/verify-email.html`,
+    link: `${publicOrigin(env)}/verify-email`,
     email: account.email,
   });
   try {
@@ -692,7 +692,7 @@ async function checkout(request, env) {
   const form = new URLSearchParams({
     mode: "payment",
     customer_email: checkoutEmail.trim().toLowerCase(),
-    success_url: `${origin}/reader.html?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${origin}/reader?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?purchase=cancelled`,
     "metadata[product_sku]": SKU,
     "metadata[purchaser_email]": checkoutEmail.trim().toLowerCase(),
@@ -711,7 +711,7 @@ async function checkout(request, env) {
     form.set("payment_intent_data[metadata][reader_name]", cleanReaderName);
   }
   if (gift) {
-    form.set("success_url", `${origin}/gift-confirmation.html?session_id={CHECKOUT_SESSION_ID}`);
+    form.set("success_url", `${origin}/gift-confirmation?session_id={CHECKOUT_SESSION_ID}`);
     form.set("cancel_url", `${origin}/?purchase=cancelled&gift=1#edition`);
     form.set("metadata[gift]", "1");
     form.set("metadata[gift_code]", gift.code);
@@ -746,8 +746,8 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null, p
   const deviceHash = await hashDeviceToken(deviceToken);
   const origin = localPaystackTest(request, env) ? "http://127.0.0.1:5514" : publicOrigin(env);
   const callback = gift
-    ? `${origin}/gift-confirmation.html?session_id=${reference}`
-    : `${origin}/reader.html?session_id=${reference}`;
+    ? `${origin}/gift-confirmation?session_id=${reference}`
+    : `${origin}/reader?session_id=${reference}`;
 
   const response = await fetch(`${paystackApi(env)}/transaction/initialize`, {
     method: "POST",
@@ -822,7 +822,7 @@ async function saveGiftOrder(env, gift, sessionId, buyerEmail) {
  */
 async function sendGiftCodeEmail(env, gift) {
   if (!env.RESEND_API_KEY?.startsWith("re_") || !env.GIFT_FROM_EMAIL) return false;
-  const link = `${publicOrigin(env)}/redeem.html?code=${encodeURIComponent(gift.code)}`;
+  const link = `${publicOrigin(env)}/redeem?code=${encodeURIComponent(gift.code)}`;
   const note = gift.message ? `<p style="color:#5f584c;font-size:14px;line-height:1.6;border-left:3px solid #ebc968;padding-left:12px">${escapeHtml(gift.message)}</p>` : "";
   const html = `<!doctype html><html><body style="margin:0;background:#f7f1e4;padding:32px;font-family:Inter,Arial,sans-serif;color:#17140e">
     <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:18px;padding:32px">
@@ -1013,7 +1013,7 @@ async function claimReader(request, env) {
   }
   const pendingGift = await env.OBI_DB.prepare("SELECT status FROM gift_orders WHERE checkout_session_id=?").bind(sessionId).first();
   if (pendingGift?.status === "active") {
-    return reply({ error: "This edition is a gift. Ask the sender for the gift code, then redeem it at /redeem.html." }, request, { status: 409 });
+    return reply({ error: "This edition is a gift. Ask the sender for the gift code, then redeem it at /redeem." }, request, { status: 409 });
   }
   if (!purchased) return reply({ error: "Purchase is not ready yet. Please retry shortly." }, request, { status: 404 });
   const deviceHash = await hashDeviceToken(deviceToken);
