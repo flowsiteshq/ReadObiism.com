@@ -4,8 +4,8 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow"><title>Admin workspace | OBI-ISM</title>
   <script>if (/\/admin$/i.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);</script>
-  <link rel="stylesheet" href="../assets/css/custom/admin.css?v=20261103-forensic">
-  <script src="../assets/js/custom/obi-api.js" defer></script><script src="./vendor/chart.umd.min.js" defer></script><script src="../assets/js/custom/admin-workspace.js?v=20261103-forensic" defer></script>
+  <link rel="stylesheet" href="../assets/css/custom/admin.css?v=20261103-forensic2">
+  <script src="../assets/js/custom/obi-api.js" defer></script><script src="./vendor/chart.umd.min.js" defer></script><script src="../assets/js/custom/admin-workspace.js?v=20261103-forensic2" defer></script>
 </head>
 <body class="auth-pending">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -137,15 +137,27 @@
         <div class="notice payment-warning"><strong>Payments</strong><span>Paystack and Stripe are configured via Worker secrets.</span></div>
       </section>
       <section id="forensics" class="section" hidden aria-labelledby="forensics-heading">
-        <article class="panel">
-          <div class="panel-heading"><div><h2 id="forensics-heading">Forensic watermark</h2><p>Paste leaked text to extract the embedded copy reference.</p></div><span class="tag">INTERNAL</span></div>
-          <p class="support-copy">Every protected chapter contains an invisible copy identifier. Paste copied text below to decode it and match it to a purchase.</p>
-          <label for="forensic-input">Leaked passage</label>
-          <textarea id="forensic-input" rows="8" placeholder="Paste copied text here…"></textarea>
-          <button id="forensic-decode" class="payment-save" type="button">Decode watermark</button>
-          <p id="forensic-message" class="payment-message" role="status" aria-live="polite"></p>
-          <div id="forensic-results"></div>
-        </article>
+        <div class="forensic-layout">
+          <article class="panel forensic-panel">
+            <div class="panel-heading"><div><h2 id="forensics-heading">Forensic watermark</h2><p>Decode an invisible copy identifier from leaked text.</p></div><span class="tag">INTERNAL</span></div>
+            <p class="forensic-lede">Every protected chapter carries an invisible zero-width identifier. Paste copied reader text below to identify the purchase.</p>
+            <label for="forensic-input">Leaked passage</label>
+            <textarea id="forensic-input" rows="10" placeholder="Paste copied text from a licensed reader here…"></textarea>
+            <div class="forensic-actions">
+              <button id="forensic-decode" class="payment-save" type="button">Decode watermark</button>
+              <button id="forensic-sample" class="outline-button" type="button">Load a sample</button>
+              <button id="forensic-clear" class="text-button" type="button">Clear</button>
+            </div>
+            <p id="forensic-message" class="payment-message" role="status" aria-live="polite"></p>
+          </article>
+          <aside class="panel forensic-help">
+            <p class="section-label">HOW IT WORKS</p>
+            <h3>Invisible, not absent.</h3>
+            <p>The identifier is made of zero-width characters, so the passage looks ordinary. It survives copy and paste, but retyping or some formatting tools can strip it.</p>
+            <div id="forensic-results" class="forensic-results"><p class="forensic-empty">Paste a passage and decode it to see the matched purchase.</p></div>
+            <p class="forensic-tip">Copy is disabled inside the reader to prevent casual sharing. Use <strong>Load a sample</strong> to test the decoder.</p>
+          </aside>
+        </div>
       </section>
       <section id="feature" class="section" hidden aria-labelledby="feature-heading"><article class="panel feature-panel"><div class="feature-icon" aria-hidden="true">✦</div><span class="tag">IN DEVELOPMENT</span><h2 id="feature-heading"></h2><p id="feature-description"></p><p class="feature-note">A bulk order will have one shareable code and a fixed number of activations. For example, a 20-copy purchase will allow 20 people to claim an edition before the code is exhausted. Checkout and redemption are not available yet.</p><a href="#gifts">View existing gifts →</a></article></section>
     </main>
