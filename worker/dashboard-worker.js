@@ -770,7 +770,9 @@ async function claimReader(request, env) {
     || (await enforceLimit(request, env, "claim", localTest ? "claim-device-local-test" : "claim-device", deviceToken));
   if (rateLimited) return rateLimited;
   let purchased = await activePurchase(env, sessionId);
-  if (!purchased && sessionId.startsWith("obi_") && localPaystackTest(request, env)) {
+  if (!purchased && sessionId.startsWith("obi_")) {
+    // The webhook can lag behind the browser return. Verify the reference
+    // directly with Paystack and grant only after the server-side check.
     const verified = await verifyAndRecordPaystack(request, env, sessionId);
     if (verified.ok) purchased = await activePurchase(env, sessionId);
   }
