@@ -2,7 +2,7 @@
 import { hashDeviceToken, same } from './security.js';
 import { adminData } from './admin-data.js';
 import { getPricing, savePricing, validatePricing } from './pricing-store.js';
-import { decodeWatermarks } from './watermark.js';
+import { decodeWatermarks, encodeWatermark } from './watermark.js';
 import { bulkLocalEnabled, createBulkLocal, ensureBulkLocal, startBulkPaystackTest, startBulkCheckoutTest, verifyBulkPaymentTest, NGN_PRICE_KOBO, USD_PRICE_CENTS } from './bulk-local.js';
 
 const cookieName = 'obi_admin_session';
@@ -79,6 +79,16 @@ export async function handleAdminAuth(request, env) {
       const parsed = validatePricing(body);
       if (!parsed.ok) return json({ error: parsed.error }, 400);
       return json({ pricing: await savePricing(env, parsed, sess.admin_email) });
+    }
+    if (path === '/api/admin/forensic/sample') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      if (!sameOrigin(request) || !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return json({ error: 'Request not allowed.' }, 403);
+      const row = await env.OBI_DB.prepare('SELECT checkout_session_id FROM purchases ORDER BY granted_at DESC LIMIT 1').first();
+      if (!row) return json({ error: 'No purchases are available for a sample.' }, 404);
+      return json({
+        text: `This is a sample leaked passage from a licensed OBI-ISM reader.${encodeWatermark(row.checkout_session_id)} If this text were shared, the invisible identifier above would identify the copy.`,
+        reference: row.checkout_session_id,
+      });
     }
     if (path === '/api/admin/forensic') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
