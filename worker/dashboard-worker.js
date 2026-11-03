@@ -8,6 +8,8 @@ import { getPricing } from "./api/src/pricing-store.js";
 import { verificationEmail } from "./api/src/email-templates.js";
 import { ensureDeviceSchema } from "./api/src/device-schema.js";
 import { ensureFeedbackSchema } from "./api/src/feedback-schema.js";
+import { encodeWatermark } from "./api/src/watermark.js";
+import { ensureReaderStateSchema } from "./api/src/reader-state-schema.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
@@ -37,6 +39,8 @@ const RATE_LIMITS = {
   "claim-device": { limit: 10, windowSeconds: 3600 },
   "feedback-ip": { limit: 20, windowSeconds: 3600 },
   "feedback-device": { limit: 15, windowSeconds: 3600 },
+  "state-ip": { limit: 3600, windowSeconds: 3600 },
+  "state-device": { limit: 3600, windowSeconds: 3600 },
   "transfer-auth": { limit: 5, windowSeconds: 900 },
   // Separate, more generous buckets for the loopback Paystack test Worker.
   "claim-ip-local-test": { limit: 200, windowSeconds: 3600 },
@@ -59,7 +63,7 @@ let limitCallCount = 0;
 
 const schema = `
 CREATE TABLE IF NOT EXISTS webhook_events (event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, status TEXT NOT NULL, received_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, reader_name TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL, metadata_json TEXT);
 CREATE TABLE IF NOT EXISTS device_transfer_challenges (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, old_device_hash TEXT NOT NULL, new_device_hash TEXT NOT NULL, code_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT);
 CREATE INDEX IF NOT EXISTS device_transfer_challenges_account_idx ON device_transfer_challenges(account_id, created_at);
@@ -262,6 +266,8 @@ async function ensure(env) {
   await ensureAccountSchema(env);
   await ensureDeviceSchema(env);
   await ensureFeedbackSchema(env);
+  await ensurePurchaseSchema(env);
+  await ensureReaderStateSchema(env);
 }
 
 // Databases created before email verification shipped have an obi_accounts
@@ -282,6 +288,21 @@ async function ensureAccountSchema(env) {
     }
   }
   repairedAccountSchemas.add(env.OBI_DB);
+}
+
+const repairedPurchaseSchemas = new WeakSet();
+async function ensurePurchaseSchema(env) {
+  if (repairedPurchaseSchemas.has(env.OBI_DB)) return;
+  const info = await env.OBI_DB.prepare("PRAGMA table_info(purchases)").bind().all();
+  const names = new Set((info.results || []).map((item) => item.name));
+  if (!names.has("reader_name")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE purchases ADD COLUMN reader_name TEXT").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  repairedPurchaseSchemas.add(env.OBI_DB);
 }
 
 function expected(session) {
@@ -470,7 +491,10 @@ async function accountAccess(request, env) {
 
 async function checkout(request, env) {
   const body = await request.json().catch(() => ({}));
-  const { email = "", device_token: deviceToken = "", currency = "USD" } = body;
+  const { email = "", device_token: deviceToken = "", currency = "USD", reader_name: readerName = "" } = body;
+  const cleanReaderName = typeof readerName === "string"
+    ? readerName.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80)
+    : "";
   const signedIn = await accountFromRequest(request, env);
   const checkoutEmail = signedIn?.email || email;
   if (typeof checkoutEmail !== "string" || !/^\S+@\S+\.\S+$/.test(checkoutEmail)) return reply({ error: "A valid email address is required" }, request, { status: 400 });
@@ -497,7 +521,7 @@ async function checkout(request, env) {
   }
 
   if (String(currency).toUpperCase() === "NGN") {
-    return paystackCheckout(request, env, checkoutEmail.trim().toLowerCase(), deviceToken, gift, pricing);
+    return paystackCheckout(request, env, checkoutEmail.trim().toLowerCase(), deviceToken, gift, pricing, cleanReaderName);
   }
 
   if (!env.OBI_STRIPE_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Checkout is not configured" }, request, { status: 503 });
@@ -521,6 +545,10 @@ async function checkout(request, env) {
     "line_items[0][price_data][product_data][name]": "OBI-ISM: Building a Just Society Through Character",
     "line_items[0][price_data][product_data][tax_code]": "txcd_10302000",
   });
+  if (cleanReaderName) {
+    form.set("metadata[reader_name]", cleanReaderName);
+    form.set("payment_intent_data[metadata][reader_name]", cleanReaderName);
+  }
   if (gift) {
     form.set("success_url", `${origin}/gift-confirmation.html?session_id={CHECKOUT_SESSION_ID}`);
     form.set("cancel_url", `${origin}/?purchase=cancelled&gift=1#edition`);
@@ -549,7 +577,7 @@ async function checkout(request, env) {
  * Naira checkout via Paystack. We mint our own reader reference (`obi_…`) and
  * use it as the reader session key, so the reader/claim flow is provider-neutral.
  */
-async function paystackCheckout(request, env, email, deviceToken, gift = null, pricing = null) {
+async function paystackCheckout(request, env, email, deviceToken, gift = null, pricing = null, readerName = "") {
   if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Naira checkout is not configured" }, request, { status: 503 });
   const ngnMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
 
@@ -578,6 +606,7 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null, p
         device_hash: deviceHash,
         provider: "paystack",
         price_minor: String(ngnMinor),
+        ...(readerName ? { reader_name: readerName } : {}),
         ...(gift ? {
           gift: "1",
           gift_code: gift.code,
@@ -730,6 +759,7 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
   if (String(tx.currency || "").toUpperCase() !== "NGN" || !amountMatches) {
     return reply({ error: "Payment amount does not match the edition price" }, request, { status: 400 });
   }
+  const readerName = typeof metadata?.reader_name === "string" ? metadata.reader_name.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80) : "";
 
   const email = String(tx.customer?.email || fallbackEmail || "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) return reply({ error: "Missing purchaser email" }, request, { status: 400 });
@@ -740,7 +770,7 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
   }
   const now = new Date().toISOString();
   await env.OBI_DB.batch([
-    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?)").bind(reference, String(tx.id ?? ""), email, Number(tx.amount), "NGN", SKU, "active", now),
+    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(reference, String(tx.id ?? ""), email, readerName, Number(tx.amount), "NGN", SKU, "active", now),
     env.OBI_DB.prepare("INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)").bind(reference, gift ? "UNBOUND" : metadata.device_hash, now),
   ]);
   if (gift) {
@@ -765,6 +795,9 @@ async function recordCheckoutCompletion(event, env) {
   const email = String(session.customer_details?.email || session.customer_email || session.metadata?.purchaser_email || "").toLowerCase() || null;
   const deviceHash = session.metadata.device_hash;
   const gift = giftDetails(session.metadata);
+  const readerName = typeof session.metadata?.reader_name === "string"
+    ? session.metadata.reader_name.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80)
+    : "";
   const amountCents = Number.isSafeInteger(Number(session?.metadata?.price_minor)) && Number(session?.metadata?.price_minor) > 0
     ? Number(session?.metadata?.price_minor)
     : PRICE;
@@ -773,7 +806,7 @@ async function recordCheckoutCompletion(event, env) {
   const deviceValue = gift ? "UNBOUND" : deviceHash;
   const result = await env.OBI_DB.batch([
     env.OBI_DB.prepare("INSERT OR IGNORE INTO webhook_events (event_id,event_type,status,received_at) VALUES (?,?,?,?)").bind(event.id, EVENT, "processed", now),
-    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?)").bind(session.id, typeof session.payment_intent === "string" ? session.payment_intent : null, email, amountCents, "usd", SKU, "active", now),
+    env.OBI_DB.prepare("INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(session.id, typeof session.payment_intent === "string" ? session.payment_intent : null, email, readerName, amountCents, "usd", SKU, "active", now),
     env.OBI_DB.prepare("INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)").bind(session.id, deviceValue, now),
   ]);
   if (gift) {
@@ -1136,6 +1169,43 @@ function sectionMetadata(section) {
   };
 }
 
+async function readerState(request, env) {
+  const url = new URL(request.url);
+  const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+  const sessionId = url.searchParams.get("session_id") || body.session_id;
+  const deviceToken = request.headers.get("x-obi-device-token") || body.device_token;
+  if (!validSessionId(sessionId) || !validDeviceToken(deviceToken)) return reply({ error: "Reader access is required" }, request, { status: 403 });
+  await ensure(env);
+  const rateLimited = (await enforceLimit(request, env, "state", "state-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "state", "state-device", deviceToken));
+  if (rateLimited) return rateLimited;
+  if (!(await activePurchase(env, sessionId))) return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  const deviceHash = await hashDeviceToken(deviceToken);
+  const bound = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
+  if (!bound || !same(bound.device_hash, deviceHash)) return reply({ error: "Reader is not authorized on this device" }, request, { status: 403 });
+  if (request.method === "GET") {
+    const rows = await env.OBI_DB.prepare("SELECT section_id,bookmark,note,progress,updated_at FROM reader_state WHERE checkout_session_id=? AND device_hash=? ORDER BY updated_at DESC").bind(sessionId, deviceHash).all();
+    const items = rows.results || [];
+    const last = items.find((item) => Number(item.progress) > 0) || items[0] || null;
+    return reply({ items, last }, request);
+  }
+  if (request.method !== "POST") return reply({ error: "Method not allowed" }, request, { status: 405 });
+  const sectionId = typeof body.section_id === "string" ? body.section_id.trim().slice(0, 80) : "";
+  if (!sectionId) return reply({ error: "A section is required." }, request, { status: 400 });
+  const section = await env.OBI_DB.prepare("SELECT 1 AS ok FROM book_sections WHERE section_id=?").bind(sectionId).first();
+  if (!section) return reply({ error: "That section is not available." }, request, { status: 404 });
+  const existing = await env.OBI_DB.prepare("SELECT bookmark,note,progress FROM reader_state WHERE checkout_session_id=? AND device_hash=? AND section_id=?").bind(sessionId, deviceHash, sectionId).first();
+  const bookmark = body.bookmark === undefined ? Number(existing?.bookmark || 0) : (body.bookmark ? 1 : 0);
+  const note = body.note === undefined ? String(existing?.note || "") : (typeof body.note === "string" ? body.note.trim().slice(0, 4000) : "");
+  const progress = body.progress === undefined ? Number(existing?.progress || 0) : Math.min(1, Math.max(0, Number(body.progress) || 0));
+  const now = new Date().toISOString();
+  await env.OBI_DB.prepare(`INSERT INTO reader_state (checkout_session_id,device_hash,section_id,bookmark,note,progress,updated_at)
+    VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(checkout_session_id,device_hash,section_id) DO UPDATE SET bookmark=excluded.bookmark,note=excluded.note,progress=excluded.progress,updated_at=excluded.updated_at`)
+    .bind(sessionId, deviceHash, sectionId, bookmark, note, progress, now).run();
+  return reply({ saved: true, state: { section_id: sectionId, bookmark, note, progress, updated_at: now } }, request);
+}
+
 async function readerFeedback(request, env) {
   const url = new URL(request.url);
   const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
@@ -1199,18 +1269,34 @@ async function reader(request, env) {
   if (sectionId) {
     const section = await env.OBI_DB.prepare("SELECT section_id, label, title, kind, paragraphs_json FROM book_sections WHERE section_id=?").bind(sectionId).first();
     if (!section) return reply({ error: "This section is not available." }, request, { status: 404 });
-    return reply({ chapter: { ...sectionMetadata(section), paragraphs: JSON.parse(section.paragraphs_json) } }, request);
+    const paragraphs = JSON.parse(section.paragraphs_json);
+    const hidden = encodeWatermark(sessionId);
+    const marked = paragraphs.map((paragraph, index) => (index % 3 === 0 ? `${paragraph}${hidden}` : paragraph));
+    return reply({ chapter: { ...sectionMetadata(section), paragraphs: marked } }, request);
   }
 
   const sections = await env.OBI_DB.prepare("SELECT section_id, label, title, kind, paragraphs_json FROM book_sections ORDER BY position ASC").all();
   if (!sections.results?.length) return reply({ error: "The protected edition is being prepared. Please retry shortly." }, request, { status: 503 });
-  const purchase = await env.OBI_DB.prepare("SELECT purchaser_email,granted_at FROM purchases WHERE checkout_session_id=?").bind(sessionId).first();
+  const purchase = await env.OBI_DB.prepare(`SELECT p.rowid AS edition_no,p.purchaser_email,p.reader_name,p.granted_at,
+      g.recipient_email,g.recipient_name,g.status AS gift_status
+    FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
+    WHERE p.checkout_session_id=?`).bind(sessionId).first();
+  const giftLicense = purchase?.gift_status === "redeemed" && purchase?.recipient_email;
+  const licenseEmail = giftLicense ? purchase.recipient_email : purchase?.purchaser_email || "";
+  const licenseName = giftLicense ? purchase.recipient_name || "" : purchase?.reader_name || "";
+  const editionYear = new Date(purchase?.granted_at || Date.now()).getUTCFullYear();
+  const editionNo = Number(purchase?.edition_no);
+  const edition = Number.isInteger(editionNo) && editionNo > 0
+    ? `OBI-${editionYear}-${String(editionNo).padStart(6, "0")}`
+    : "";
   return reply({
     title: "OBI-ISM",
     subtitle: "Building a Just Society Through Character",
     authors: "Eze Echesi & Mpamugo",
     license: {
-      email: purchase?.purchaser_email || "",
+      email: licenseEmail,
+      name: licenseName,
+      edition,
       device: deviceLabel,
       reference: sessionId.slice(-8).toUpperCase(),
       granted_at: purchase?.granted_at || "",
@@ -1312,6 +1398,7 @@ async function handleRequest(request, env) {
     if (path === "/api/reader/transfer/start" && request.method === "POST") return startDeviceTransfer(request, env);
     if (path === "/api/reader/transfer/confirm" && request.method === "POST") return confirmDeviceTransfer(request, env);
     if (path === "/api/narration" && request.method === "POST") return narration(request, env);
+    if (path === "/api/reader/state" && (request.method === "GET" || request.method === "POST")) return readerState(request, env);
     if (path === "/api/reader/feedback" && (request.method === "GET" || request.method === "POST")) return readerFeedback(request, env);
     if (path === "/api/reader" && request.method === "GET") return reader(request, env);
     if (path === "/api/access" && request.method === "GET") {
