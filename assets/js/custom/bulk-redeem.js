@@ -30,7 +30,7 @@
     const code = $('code').value.trim().toUpperCase();
     if (!/^OBI-BULK-(?:[A-F0-9]{48}|[A-F0-9]{32})$/.test(code) || (code.length === 41 && !local)) { $('message').textContent = 'Enter the full activation code.'; return; }
     $('submit').disabled = true;
-    $('message').textContent = 'Checking your test code…';
+    $('message').textContent = 'Activating your edition…';
     try {
       const key = await deviceKey(code);
       let device = localStorage.getItem(key);
@@ -40,7 +40,7 @@
       if (!response.ok) throw new Error(data.error || 'Could not activate the edition.');
       localStorage.setItem('obi-ism.reader-device.' + data.session_id, device);
       location.assign('reader.html?session_id=' + encodeURIComponent(data.session_id));
-    } catch (error) { $('message').textContent = error.message || 'Could not activate the test edition.'; $('submit').disabled = false; }
+    } catch (error) { $('message').textContent = error.message || 'Could not activate the edition.'; $('submit').disabled = false; }
   });
   checkAccount();
 })();
