@@ -184,7 +184,7 @@
         let amount;
         try { amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: order.currency }).format(order.total_minor / 100); }
         catch { amount = String(order.total_minor / 100) + ' ' + (order.currency || ''); }
-        [order.buyer_email, order.id, order.quantity, amount, order.provider === 'stripe' ? 'Stripe' : 'Paystack', String(order.status || '').replaceAll('_', ' '), format('created_at', order.created_at, order), format('created_at', order.paid_at, order)].forEach((value) => {
+        [order.buyer_email, order.id, order.quantity, order.seat_count ?? 0, order.claimed_seats ?? 0, amount, order.provider === 'stripe' ? 'Stripe' : 'Paystack', String(order.status || '').replaceAll('_', ' '), format('created_at', order.created_at, order), format('created_at', order.paid_at, order)].forEach((value) => {
           const td = document.createElement('td'); td.textContent = String(value); tr.append(td);
         });
         body.append(tr);

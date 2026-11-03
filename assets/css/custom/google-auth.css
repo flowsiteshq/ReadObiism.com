@@ -1,0 +1,5 @@
+#google-signin{margin-top:18px}
+.google-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:#8a8272;font:800 9px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase}
+.google-divider:before,.google-divider:after{content:"";flex:1;height:1px;background:#ddd3c3}
+#google-button{display:flex;justify-content:center;min-height:44px}
+#google-message{margin:10px 0 0;text-align:center;font-size:11px;line-height:1.5}
