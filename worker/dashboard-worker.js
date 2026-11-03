@@ -2,7 +2,7 @@ import { validDeviceToken, validSessionId } from "./api/src/validation.js";
 import { hashDeviceToken, same } from "./api/src/security.js";
 import { handleAdminAuth } from "./api/src/admin-auth.js";
 import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
-import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder } from "./api/src/bulk-orders.js";
+import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder, ensureBulkOrders } from "./api/src/bulk-orders.js";
 import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./api/src/pricing.js";
 import { getPricing } from "./api/src/pricing-store.js";
 import { verificationEmail } from "./api/src/email-templates.js";
@@ -647,8 +647,13 @@ async function paystackWebhook(request, env) {
 
   const reference = String(event.data?.reference || "");
   if (reference.startsWith("bpo_")) {
-    // Keep provider retries available until bulk fulfillment and recovery are safe.
-    return reply({ error: "Bulk payment fulfillment is temporarily unavailable." }, request, { status: 503 });
+    if (!env.OBI_DB) return reply({ error: "Bulk order storage is not configured." }, request, { status: 503 });
+    await ensureBulkOrders(env);
+    const order = await env.OBI_DB.prepare("SELECT id FROM bulk_orders WHERE provider_reference=?").bind(reference).first();
+    if (!order) return reply({ received: true, ignored: true }, request);
+    const result = await verifyBulkOrderPayment(env, order.id);
+    if (result.status >= 400) return reply({ error: result.body.error || "Bulk payment could not be verified." }, request, { status: result.status });
+    return reply({ received: true, status: result.body.status }, request);
   }
   if (!validSessionId(reference)) return reply({ error: "Invalid reference" }, request, { status: 400 });
 
@@ -707,6 +712,12 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
 
 async function recordCheckoutCompletion(event, env) {
   const session = event.data?.object;
+  if (event?.type === EVENT && session?.metadata?.bulk_order === "1") {
+    const orderId = session.metadata.bulk_order_id;
+    if (!/^bprod_[a-f0-9]{32}$/.test(orderId || "")) return { received: true, ignored: true };
+    const result = await verifyBulkOrderPayment(env, orderId);
+    return { received: true, bulk: true, status: result.body.status };
+  }
   if (event?.type !== EVENT || !event.id?.startsWith("evt_") || !expected(session)) return { received: true, ignored: true };
   await ensure(env);
   const now = new Date().toISOString();
@@ -1115,11 +1126,6 @@ async function handleRequest(request, env) {
     });
     if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
     if (path === "/api/pricing" && request.method === "GET") return reply(await getPricing(env), request);
-    // Production bulk payments remain unavailable pending security and payment review.
-    // Local-only test endpoints remain separate.
-    if (request.method === "POST" && ["/api/bulk", "/api/bulk/verify", "/api/bulk/claim"].includes(path)) {
-      return reply({ error: "Bulk orders are not available yet." }, request, { status: 503 });
-    }
     if (path === "/api/account/register" && request.method === "POST") return registerAccount(request, env);
     if (path === "/api/account/login" && request.method === "POST") return loginAccount(request, env);
     if (path === "/api/account/access" && request.method === "GET") return accountAccess(request, env);
