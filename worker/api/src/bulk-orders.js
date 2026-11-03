@@ -44,10 +44,18 @@ CREATE TABLE IF NOT EXISTS bulk_order_events (
 );
 `;
 
+const ensuredBulkOrders = new WeakSet();
+
 export async function ensureBulkOrders(env) {
-  await env.OBI_DB.exec(bulkOrdersSchema);
+  if (!env?.OBI_DB || ensuredBulkOrders.has(env.OBI_DB)) return;
+  // D1's exec() has rejected this multi-statement string in production, so
+  // run each statement through a prepared statement instead.
+  for (const statement of bulkOrdersSchema.split(';').map((value) => value.trim()).filter(Boolean)) {
+    await env.OBI_DB.prepare(statement).bind().run();
+  }
   const columns = await env.OBI_DB.prepare('PRAGMA table_info(bulk_orders)').bind().all();
   if (!(columns.results || []).some((column) => column.name === 'code_encrypted')) throw new Error('Bulk order schema requires the code_encrypted migration');
+  ensuredBulkOrders.add(env.OBI_DB);
 }
 
 function randomHex(bytes) {
