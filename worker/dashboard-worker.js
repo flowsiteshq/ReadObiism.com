@@ -1021,6 +1021,8 @@ async function confirmDeviceTransfer(request, env) {
   const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
   const result = await env.OBI_DB.batch([
     env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=?, metadata_json=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM purchases WHERE checkout_session_id=? AND status='active')").bind(challenge.new_device_hash, now, metadataJson, challenge.checkout_session_id, challenge.old_device_hash, challenge.checkout_session_id),
+    env.OBI_DB.prepare("UPDATE reader_state SET device_hash=? WHERE checkout_session_id=? AND device_hash=?").bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash),
+    env.OBI_DB.prepare("UPDATE book_feedback SET device_hash=? WHERE checkout_session_id=? AND device_hash=?").bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash),
     env.OBI_DB.prepare("INSERT INTO device_transfer_audit (id,account_id,checkout_session_id,old_device_hash,new_device_hash,metadata_json,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?)").bind(`audit_${await randomToken(18)}`, account.id, challenge.checkout_session_id, challenge.old_device_hash, challenge.new_device_hash, metadataJson, now, challenge.checkout_session_id, challenge.new_device_hash),
   ]);
   if (!result[0]?.meta?.changes) return reply({ error: "The active device changed. Please start again." }, request, { status: 409 });
