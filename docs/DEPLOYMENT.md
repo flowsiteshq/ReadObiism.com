@@ -299,6 +299,8 @@ Optional, not currently configured (features fail closed):
 
 **Bulk code key:** do not rotate `BULK_CODE_ENCRYPTION_KEY` while paid bulk orders exist. The key decrypts the recovery copy of every shared code; rotating it makes existing codes unrecoverable. Export/recover outstanding codes first.
 
+**Google sign-in:** `GOOGLE_CLIENT_ID` is a public variable in `wrangler.toml`, not a secret. It is set to the Readobiism web client ID. The Google client must list `https://readobiism.com` under Authorized JavaScript origins.
+
 Set a secret:
 
 ```powershell

@@ -9,9 +9,9 @@
 3. The Worker creates a `bprod_...` order, stores the unit amount and total in minor units, and initializes the provider checkout.
 4. After payment, the buyer returns to `bulk-confirmation.html?order=...`. `POST /api/bulk/verify` verifies the payment directly with the provider and issues one `OBI-BULK-...` code.
 5. The buyer must have a verified account email before the code is released.
-6. The code is stored as a hash for lookup and as an AES-GCM encrypted copy for recovery. The encryption key is `BULK_CODE_ENCRYPTION_KEY`.
-7. Recipients open `/bulk-redeem.html`, sign in, enter the shared code, and claim one edition. Each claim creates an active purchase and device binding for that recipient.
-8. The same recipient can retry without consuming another copy. Claims are capped at the purchased quantity.
+6. The buyer shares the code. Recipients open `/bulk-redeem.html`, sign in or create an account with an email **or a phone number and password**, enter the code, and claim one edition. Each claim creates an active purchase and device binding for that recipient.
+7. The same recipient can retry without consuming another copy. Claims are capped at the purchased quantity.
+8. Individual per-seat links are optional behind `OBI_BULK_INDIVIDUAL_SEATS=1`. The default is the shared code exactly as described above. When enabled, one link per copy is generated up to 500 copies, and the shared code is disabled for that order.
 
 ## Payment handling
 
