@@ -1,0 +1,33 @@
+# Pretty URLs for Cloudflare Pages / Netlify-style hosts.
+# GitHub Pages ignores this file. See docs/CLEAN-URLS.md.
+
+# Redirect old .html URLs to the clean URL.
+/index.html /
+/login.html /login
+/reader.html /reader
+/redeem.html /redeem
+/gift-confirmation.html /gift-confirmation
+/bulk.html /bulk
+/bulk-redeem.html /bulk-redeem
+/bulk-confirmation.html /bulk-confirmation
+/verify-email.html /verify-email
+/terms.html /terms
+/privacy.html /privacy
+/refund.html /refund
+/delete-account.html /delete-account
+/404.html /404
+
+# Serve the clean URL without changing the browser address.
+/login /login.html 200
+/reader /reader.html 200
+/redeem /redeem.html 200
+/gift-confirmation /gift-confirmation.html 200
+/bulk /bulk.html 200
+/bulk-redeem /bulk-redeem.html 200
+/bulk-confirmation /bulk-confirmation.html 200
+/verify-email /verify-email.html 200
+/terms /terms.html 200
+/privacy /privacy.html 200
+/refund /refund.html 200
+/delete-account /delete-account.html 200
+/404 /404.html 200
