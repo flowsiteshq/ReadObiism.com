@@ -455,11 +455,13 @@ Do not change prices without checking the payment-provider minimums and the land
 
 ## 10. Website: GitHub Pages publishing
 
-The published site is the `gh-pages` branch. It contains only the website files (currently 1,764 files), plus:
+The published site is the `gh-pages` branch. It contains only the website files (currently 1,769 files), plus:
 
 - `CNAME` → `readobiism.com`
 - `.nojekyll`
 - `_headers` (preserved, but see the caveat below)
+
+Clean URLs without `.html` are configured at the Cloudflare edge, not in GitHub Pages. See `docs/CLEAN-URLS.md` for the URL Rewrite rule and the Cloudflare Pages `_redirects` alternative.
 
 Build the publishable artifact from the repo root:
 
