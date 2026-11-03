@@ -2,8 +2,8 @@
 <html lang="en"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><title>Activate your edition | OBI-ISM</title>
-  <link rel="stylesheet" href="assets/css/custom/bulk-redeem.css">
-  <script src="assets/js/custom/obi-api.js" defer></script><script src="assets/js/custom/bulk-redeem.js" defer></script>
+  <link rel="stylesheet" href="assets/css/custom/bulk-redeem.css?v=20261103-seats">
+  <script src="assets/js/custom/obi-api.js" defer></script><script src="assets/js/custom/bulk-redeem.js?v=20261103-seats" defer></script>
 </head><body>
   <main class="card">
     <a class="brand" href="index.html">OBI<span>–ISM</span></a><p class="eyebrow">SHARED EDITION</p>
@@ -11,6 +11,7 @@
     
     <div id="auth-state" role="status" aria-live="polite">Checking your reader account…</div>
     <div id="sign-in" hidden><a class="button secondary" href="login.html?next=bulk-redeem">SIGN IN OR CREATE AN ACCOUNT →</a></div>
+    <div id="seat-panel" hidden><p class="note">This seat link activates one copy of the edition on this device. It can be used once.</p><button class="button primary" id="seat-claim" type="button">ACTIVATE MY SEAT →</button><p id="seat-message" role="status" aria-live="polite"></p></div>
     <form id="bulk-form" hidden autocomplete="off">
       <label for="code">SHARED ACTIVATION CODE</label>
       <input id="code" name="code" autocomplete="off" spellcheck="false" placeholder="OBI-BULK-…" maxlength="57" required>

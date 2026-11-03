@@ -9,3 +9,21 @@ select{width:100%;padding:15px;border:1px solid #cfc5b3;border-radius:12px;font:
 .verify-card #verify-code{font-size:24px;font-weight:800;letter-spacing:.24em;text-align:center;text-transform:none;font-family:ui-monospace,Consolas,monospace;background:#fff}
 .verify-card #verify-code::placeholder{color:#b7ad9c;letter-spacing:.18em}
 .verify-card #verify-hint{margin:8px 0 0;border:0;padding:0;font-size:11px;color:#746c5f}
+.seat-panel-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:26px 0 14px;padding-top:22px;border-top:1px solid #d7cebe}
+.seat-panel-heading h2{font:700 clamp(25px,4vw,32px)/1.05 Georgia,serif;letter-spacing:-.045em;margin:0 0 5px}
+.seat-panel-heading p{margin:0;color:#5f584c;font-size:12px;line-height:1.5}
+.seat-card{border:1px solid #ddd3c3;border-radius:12px;padding:14px;background:#fffdf8;margin:0 0 12px}
+.seat-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.seat-heading strong{font:700 17px/1.2 Georgia,serif}
+.seat-status{border-radius:999px;padding:4px 8px;background:#efe8d8;color:#6f6757;font-size:8px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.seat-status[data-status="claimed"]{background:#e5f1e3;color:#376b36}
+.seat-status[data-status="revoked"]{background:#f9e9e6;color:#963e35}
+.seat-link-row{display:flex;gap:8px;margin:10px 0}
+.seat-link-row input{flex:1;min-width:0;font:11px/1.4 ui-monospace,Consolas,monospace;padding:10px;border:1px solid #d7cebe;border-radius:8px;background:#fff;color:#5f584c;text-transform:none}
+.seat-assign{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seat-assign input{width:100%;padding:10px 11px;border:1px solid #d7cebe;border-radius:8px;font:12px/1.4 system-ui,sans-serif;text-transform:none;background:#fff;color:#17140e}
+.seat-card button{width:auto;margin:0;padding:10px 12px;border:1px solid #cfc5b3;border-radius:999px;background:#fff;color:#5f584c;font:800 9px/1.2 system-ui,sans-serif;letter-spacing:.08em;cursor:pointer}
+.seat-card button:hover{border-color:#c69b38;color:#8b6a1c;background:#fff7df}
+.seat-card button:disabled{opacity:.45;cursor:not-allowed}
+.seat-card .text-button{border:0;background:transparent;color:#8b302a;padding:10px 4px}
+@media(max-width:600px){.seat-panel-heading{align-items:flex-start;flex-direction:column}.seat-assign{grid-template-columns:1fr}.seat-link-row{flex-direction:column}}

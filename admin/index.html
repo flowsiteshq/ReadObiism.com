@@ -5,7 +5,7 @@
   <meta name="robots" content="noindex, nofollow"><title>Admin workspace | OBI-ISM</title>
   <script>if (/\/admin$/i.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);</script>
   <link rel="stylesheet" href="../assets/css/custom/admin.css?v=20261103-forensic2">
-  <script src="../assets/js/custom/obi-api.js" defer></script><script src="./vendor/chart.umd.min.js" defer></script><script src="../assets/js/custom/admin-workspace.js?v=20261103-forensic2" defer></script>
+  <script src="../assets/js/custom/obi-api.js" defer></script><script src="./vendor/chart.umd.min.js" defer></script><script src="../assets/js/custom/admin-workspace.js?v=20261103-seats" defer></script>
 </head>
 <body class="auth-pending">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -72,7 +72,7 @@
           <div class="panel-heading"><div><h2 id="production-bulk-title">Production bulk orders</h2><p>Live group purchases. Shared codes are never shown here.</p></div><span class="tag">LIVE</span></div>
           <p class="support-copy">Buyers purchase at <a href="../bulk.html" class="text-link">the group purchase page</a> and receive one shared activation code after payment.</p>
           <p id="production-bulk-message" class="table-message" aria-live="polite">Loading…</p>
-          <div class="table-scroll"><table><thead><tr><th>Buyer</th><th>Order</th><th>Copies</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th><th>Paid</th></tr></thead><tbody id="production-bulk-body"></tbody></table></div>
+          <div class="table-scroll"><table><thead><tr><th>Buyer</th><th>Order</th><th>Copies</th><th>Seats</th><th>Claimed</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th><th>Paid</th></tr></thead><tbody id="production-bulk-body"></tbody></table></div>
         </article>
         <div class="notice"><strong>Local test tools</strong><span>The controls below are loopback-only and never take a live payment. Production orders appear above.</span></div>
         <div class="bulk-layout">

@@ -102,7 +102,7 @@
     const heroBookLink = document.getElementById("hero-book-link");
     const note = document.getElementById("signed-in-note");
     if (!accountLink || !editionLink) return;
-    const emailAddress = data.email || "your account";
+    const emailAddress = data.phone || data.email || "your account";
     if (data.access) {
       accountLink.textContent = "MY BOOK";
       accountLink.href = "reader.html";
