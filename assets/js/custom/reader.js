@@ -297,7 +297,10 @@
           const link = document.createElement("a");
           link.href = url;
           link.download = `OBI-ISM-certificate-${license.reference || "licensed"}.svg`;
+          link.style.display = "none";
+          document.body.append(link);
           link.click();
+          link.remove();
           URL.revokeObjectURL(url);
         });
       }
