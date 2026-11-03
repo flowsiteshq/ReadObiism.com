@@ -18,7 +18,7 @@ Cloudflare dashboard → **Rules → Transform Rules → URL Rewrite** → **Cre
 - **When incoming requests match:** Custom filter expression:
 
 ```text
-(http.request.uri.path matches "^/[A-Za-z0-9_-]+$" and not http.request.uri.path in {"/admin" "/dashboard" "/assets" "/api"})
+(http.request.uri.path matches "^/[A-Za-z0-9_-]+$" and not (http.request.uri.path in {"/admin" "/dashboard" "/assets" "/api"}))
 ```
 
 - **Rewrite to:** Dynamic
@@ -51,20 +51,20 @@ Use **Rules → Redirect Rules → Bulk Redirects** with a list:
 
 | Source | Target | Status |
 | --- | --- | --- |
-| `/login.html` | `/login` | 301 |
-| `/reader.html` | `/reader` | 301 |
-| `/terms.html` | `/terms` | 301 |
-| `/privacy.html` | `/privacy` | 301 |
-| `/refund.html` | `/refund` | 301 |
-| `/delete-account.html` | `/delete-account` | 301 |
-| `/redeem.html` | `/redeem` | 301 |
-| `/gift-confirmation.html` | `/gift-confirmation` | 301 |
-| `/bulk.html` | `/bulk` | 301 |
-| `/bulk-redeem.html` | `/bulk-redeem` | 301 |
-| `/bulk-confirmation.html` | `/bulk-confirmation` | 301 |
-| `/verify-email.html` | `/verify-email` | 301 |
-| `/index.html` | `/` | 301 |
-| `/404.html` | `/404` | 301 |
+| `https://readobiism.com/login.html` | `https://readobiism.com/login` | 301 |
+| `https://readobiism.com/reader.html` | `https://readobiism.com/reader` | 301 |
+| `https://readobiism.com/terms.html` | `https://readobiism.com/terms` | 301 |
+| `https://readobiism.com/privacy.html` | `https://readobiism.com/privacy` | 301 |
+| `https://readobiism.com/refund.html` | `https://readobiism.com/refund` | 301 |
+| `https://readobiism.com/delete-account.html` | `https://readobiism.com/delete-account` | 301 |
+| `https://readobiism.com/redeem.html` | `https://readobiism.com/redeem` | 301 |
+| `https://readobiism.com/gift-confirmation.html` | `https://readobiism.com/gift-confirmation` | 301 |
+| `https://readobiism.com/bulk.html` | `https://readobiism.com/bulk` | 301 |
+| `https://readobiism.com/bulk-redeem.html` | `https://readobiism.com/bulk-redeem` | 301 |
+| `https://readobiism.com/bulk-confirmation.html` | `https://readobiism.com/bulk-confirmation` | 301 |
+| `https://readobiism.com/verify-email.html` | `https://readobiism.com/verify-email` | 301 |
+| `https://readobiism.com/index.html` | `https://readobiism.com/` | 301 |
+| `https://readobiism.com/404.html` | `https://readobiism.com/404` | 301 |
 
 Enable **Preserve query string** so links such as `/reader.html?session_id=obi_...` keep their session.
 
