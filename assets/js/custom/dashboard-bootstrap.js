@@ -1,7 +1,7 @@
 // Load the OBI dashboard fragments once so existing form state and event
 // handlers survive ALG route changes. The API, not this router, authorizes data.
 (async () => {
-  const views = ['overview', 'records', 'bulk-workspace', 'payment-settings', 'feature'];
+  const views = ['overview', 'records', 'bulk-workspace', 'payment-settings', 'feature', 'forensics'];
   const bank = document.getElementById('obi-view-bank');
   const main = document.getElementById('main-content');
   try {
@@ -30,7 +30,7 @@
       script.src = src; script.onload = resolve; script.onerror = reject;
       document.body.append(script);
     });
-    await loadScript('../assets/js/custom/dashboard-controller.js?v=20261103-feedback');
+    await loadScript('../assets/js/custom/dashboard-controller.js?v=20261103-forensic');
     await loadScript('../assets/js/alg/obi-router.js');
   } catch {
     document.body.classList.remove('auth-pending');
