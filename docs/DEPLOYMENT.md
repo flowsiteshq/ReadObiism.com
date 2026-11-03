@@ -627,6 +627,7 @@ A 429 means the rate limit is active; wait or clear the registration buckets.
 5. Do not modify or delete the real account without owner approval.
 6. Deploy the Worker before publishing site changes that call new endpoints.
 7. After any production change, report the commit hash and Worker Version ID.
+8. Device binding is one purchase = one active device. Read `docs/DEVICE-BINDING.md` before changing the transfer flow. Transfers require the account password, an email code, a 7-day cooldown and a 3-per-180-day cap.
 
 ---
 
