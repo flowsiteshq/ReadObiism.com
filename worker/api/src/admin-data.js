@@ -1,6 +1,7 @@
 // Read-only administrative views. Never return password, session or device hashes.
 import { ensureBulkOrders } from './bulk-orders.js';
 import { ensureDeviceSchema } from './device-schema.js';
+import { ensureFeedbackSchema } from './feedback-schema.js';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const rows = async (db, sql, ...args) => (await db.prepare(sql).bind(...args).all()).results;
 
@@ -37,6 +38,9 @@ export async function adminData(request, env) {
   if (url.pathname === '/api/admin/devices') {
     await ensureDeviceSchema(env);
   }
+  if (url.pathname === '/api/admin/feedback') {
+    await ensureFeedbackSchema(env);
+  }
   const page = Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const size = 10, offset = (page - 1) * size;
   const search = (url.searchParams.get('q') || '').trim().slice(0, 100);
@@ -70,8 +74,11 @@ export async function adminData(request, env) {
   } else if (url.pathname === '/api/admin/bulk-orders') {
     query = "SELECT id,buyer_email,quantity,currency,total_minor,provider,status,discount_percentage,created_at,paid_at FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\'";
+  } else if (url.pathname === '/api/admin/feedback') {
+    query = "SELECT id,purchaser_email,checkout_session_id,rating,comment,created_at,updated_at FROM book_feedback WHERE purchaser_email LIKE ? ESCAPE '\\' OR comment LIKE ? ESCAPE '\\' OR checkout_session_id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    count = "SELECT COUNT(*) AS total FROM book_feedback WHERE purchaser_email LIKE ? ESCAPE '\\' OR comment LIKE ? ESCAPE '\\' OR checkout_session_id LIKE ? ESCAPE '\\'";
   } else return json({ error: 'Not found' }, 404);
-  const filters = url.pathname === '/api/admin/gifts' ? [pattern, pattern, pattern] : [pattern, pattern];
+  const filters = ['/api/admin/gifts', '/api/admin/feedback'].includes(url.pathname) ? [pattern, pattern, pattern] : [pattern, pattern];
   const [items, total] = await Promise.all([rows(db, query, ...filters, size, offset), db.prepare(count).bind(...filters).first()]);
   return json({ items, total: total.total, page, pageSize: size });
 }

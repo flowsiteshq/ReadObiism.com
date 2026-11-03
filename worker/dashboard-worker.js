@@ -7,6 +7,7 @@ import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./
 import { getPricing } from "./api/src/pricing-store.js";
 import { verificationEmail } from "./api/src/email-templates.js";
 import { ensureDeviceSchema } from "./api/src/device-schema.js";
+import { ensureFeedbackSchema } from "./api/src/feedback-schema.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
@@ -34,6 +35,8 @@ const RATE_LIMITS = {
   "reader-sections": { limit: 30, windowSeconds: 600 },
   "claim-ip": { limit: 20, windowSeconds: 3600 },
   "claim-device": { limit: 10, windowSeconds: 3600 },
+  "feedback-ip": { limit: 20, windowSeconds: 3600 },
+  "feedback-device": { limit: 15, windowSeconds: 3600 },
   "transfer-auth": { limit: 5, windowSeconds: 900 },
   // Separate, more generous buckets for the loopback Paystack test Worker.
   "claim-ip-local-test": { limit: 200, windowSeconds: 3600 },
@@ -258,6 +261,7 @@ async function ensure(env) {
   await env.OBI_DB.exec(schema);
   await ensureAccountSchema(env);
   await ensureDeviceSchema(env);
+  await ensureFeedbackSchema(env);
 }
 
 // Databases created before email verification shipped have an obi_accounts
@@ -1132,6 +1136,41 @@ function sectionMetadata(section) {
   };
 }
 
+async function readerFeedback(request, env) {
+  const url = new URL(request.url);
+  const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+  const sessionId = url.searchParams.get("session_id") || body.session_id;
+  const deviceToken = request.headers.get("x-obi-device-token") || body.device_token;
+  if (!validSessionId(sessionId) || !validDeviceToken(deviceToken)) return reply({ error: "Reader access is required" }, request, { status: 403 });
+  await ensure(env);
+  const rateLimited = (await enforceLimit(request, env, "feedback", "feedback-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "feedback", "feedback-device", deviceToken));
+  if (rateLimited) return rateLimited;
+  if (!(await activePurchase(env, sessionId))) return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  const deviceHash = await hashDeviceToken(deviceToken);
+  const bound = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
+  if (!bound || !same(bound.device_hash, deviceHash)) return reply({ error: "Reader is not authorized on this device" }, request, { status: 403 });
+  const summaryRow = async () => env.OBI_DB.prepare("SELECT count(*) AS count, round(avg(rating),2) AS average FROM book_feedback").first();
+  if (request.method === "GET") {
+    const feedback = await env.OBI_DB.prepare("SELECT rating,comment,created_at,updated_at FROM book_feedback WHERE checkout_session_id=? AND device_hash=?").bind(sessionId, deviceHash).first();
+    const summary = await summaryRow();
+    return reply({ feedback: feedback || null, summary: { count: Number(summary?.count || 0), average: Number(summary?.average || 0) } }, request);
+  }
+  if (request.method !== "POST") return reply({ error: "Method not allowed" }, request, { status: 405 });
+  const rating = Number(body.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return reply({ error: "Choose a rating from 1 to 5." }, request, { status: 400 });
+  const comment = typeof body.comment === "string" ? body.comment.trim().slice(0, 1000) : "";
+  const purchase = await env.OBI_DB.prepare("SELECT purchaser_email FROM purchases WHERE checkout_session_id=?").bind(sessionId).first();
+  const now = new Date().toISOString();
+  await env.OBI_DB.prepare(`INSERT INTO book_feedback (id,checkout_session_id,device_hash,purchaser_email,rating,comment,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?)
+    ON CONFLICT(checkout_session_id,device_hash) DO UPDATE SET rating=excluded.rating,comment=excluded.comment,updated_at=excluded.updated_at`)
+    .bind(`fb_${await randomToken(18)}`, sessionId, deviceHash, purchase?.purchaser_email || "", rating, comment, now, now).run();
+  const feedback = await env.OBI_DB.prepare("SELECT rating,comment,created_at,updated_at FROM book_feedback WHERE checkout_session_id=? AND device_hash=?").bind(sessionId, deviceHash).first();
+  const summary = await summaryRow();
+  return reply({ saved: true, feedback, summary: { count: Number(summary?.count || 0), average: Number(summary?.average || 0) } }, request);
+}
+
 async function reader(request, env) {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id");
@@ -1272,6 +1311,7 @@ async function handleRequest(request, env) {
     if (path === "/api/reader/transfer/start" && request.method === "POST") return startDeviceTransfer(request, env);
     if (path === "/api/reader/transfer/confirm" && request.method === "POST") return confirmDeviceTransfer(request, env);
     if (path === "/api/narration" && request.method === "POST") return narration(request, env);
+    if (path === "/api/reader/feedback" && (request.method === "GET" || request.method === "POST")) return readerFeedback(request, env);
     if (path === "/api/reader" && request.method === "GET") return reader(request, env);
     if (path === "/api/access" && request.method === "GET") {
       const sessionId = new URL(request.url).searchParams.get("session_id");
