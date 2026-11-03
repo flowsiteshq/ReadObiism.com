@@ -1,5 +1,6 @@
 // Read-only administrative views. Never return password, session or device hashes.
 import { ensureBulkOrders } from './bulk-orders.js';
+import { ensureDeviceSchema } from './device-schema.js';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const rows = async (db, sql, ...args) => (await db.prepare(sql).bind(...args).all()).results;
 
@@ -30,6 +31,9 @@ export async function adminData(request, env) {
   if (url.pathname === '/api/admin/bulk-orders') {
     await ensureBulkOrders(env);
   }
+  if (url.pathname === '/api/admin/transfers') {
+    await ensureDeviceSchema(env);
+  }
   const page = Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const size = 10, offset = (page - 1) * size;
   const search = (url.searchParams.get('q') || '').trim().slice(0, 100);
@@ -58,7 +62,7 @@ export async function adminData(request, env) {
     query = "SELECT section_id,label,title,kind,position FROM book_sections WHERE title LIKE ? ESCAPE '\\' OR section_id LIKE ? ESCAPE '\\' ORDER BY position LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM book_sections WHERE title LIKE ? ESCAPE '\\' OR section_id LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/transfers') {
-    query = "SELECT t.checkout_session_id,t.created_at,a.email FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\' ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
+    query = "SELECT t.checkout_session_id,t.created_at,t.metadata_json AS metadata,a.email FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\' ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/bulk-orders') {
     query = "SELECT id,buyer_email,quantity,currency,total_minor,provider,status,discount_percentage,created_at,paid_at FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";

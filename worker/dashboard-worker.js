@@ -6,12 +6,18 @@ import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder, ensure
 import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./api/src/pricing.js";
 import { getPricing } from "./api/src/pricing-store.js";
 import { verificationEmail } from "./api/src/email-templates.js";
+import { ensureDeviceSchema } from "./api/src/device-schema.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
 const NAIRA_PRICE = NGN_PRICE_KOBO / 100;
 const EVENT = "checkout.session.completed";
 const NARRATOR_VOICE_ID = "F18yf5BixLZCvKiiW0yJ"; // Steven — West African Narrator
+// Device moves are deliberately inconvenient: one week between moves and a
+// rolling 180-day cap. Support can handle legitimate edge cases manually.
+const TRANSFER_COOLDOWN_MS = 7 * 86400000;
+const TRANSFER_MAX_WINDOW_MS = 180 * 86400000;
+const TRANSFER_MAX_PER_WINDOW = 3;
 
 /**
  * Fixed-window abuse limits. Counters live in D1 so every Worker isolate
@@ -28,6 +34,7 @@ const RATE_LIMITS = {
   "reader-sections": { limit: 30, windowSeconds: 600 },
   "claim-ip": { limit: 20, windowSeconds: 3600 },
   "claim-device": { limit: 10, windowSeconds: 3600 },
+  "transfer-auth": { limit: 5, windowSeconds: 900 },
   // Separate, more generous buckets for the loopback Paystack test Worker.
   "claim-ip-local-test": { limit: 200, windowSeconds: 3600 },
   "claim-device-local-test": { limit: 100, windowSeconds: 3600 },
@@ -50,10 +57,11 @@ let limitCallCount = 0;
 const schema = `
 CREATE TABLE IF NOT EXISTS webhook_events (event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, status TEXT NOT NULL, received_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL, metadata_json TEXT);
 CREATE TABLE IF NOT EXISTS device_transfer_challenges (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, old_device_hash TEXT NOT NULL, new_device_hash TEXT NOT NULL, code_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT);
 CREATE INDEX IF NOT EXISTS device_transfer_challenges_account_idx ON device_transfer_challenges(account_id, created_at);
-CREATE TABLE IF NOT EXISTS device_transfer_audit (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS device_transfer_audit (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, old_device_hash TEXT, new_device_hash TEXT, metadata_json TEXT, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS device_transfer_audit_session_idx ON device_transfer_audit(checkout_session_id, created_at);
 CREATE TABLE IF NOT EXISTS gift_orders (code TEXT PRIMARY KEY, checkout_session_id TEXT UNIQUE NOT NULL, buyer_email TEXT NOT NULL, recipient_name TEXT NOT NULL, recipient_email TEXT NOT NULL, message TEXT, status TEXT NOT NULL, created_at TEXT NOT NULL, redeemed_at TEXT);
 CREATE INDEX IF NOT EXISTS gift_orders_email_idx ON gift_orders(recipient_email);
 CREATE INDEX IF NOT EXISTS gift_orders_session_idx ON gift_orders(checkout_session_id);
@@ -109,6 +117,34 @@ function clientIp(request) {
   return request.headers.get("CF-Connecting-IP")
     || (forwarded ? forwarded.split(",")[0].trim() : "")
     || "unknown";
+}
+
+/**
+ * Audit-only device context. IP is hashed, never stored raw. IP and geography
+ * are risk signals, not hard binding keys: mobile networks and NAT change them
+ * legitimately. They must never be used as the sole access gate.
+ */
+async function requestDeviceMetadata(request) {
+  const cf = request.cf || {};
+  const userAgent = String(request.headers.get("user-agent") || "").slice(0, 300);
+  const headerPlatform = String(request.headers.get("sec-ch-ua-platform") || "").replace(/"/g, "").trim().slice(0, 40);
+  const platform = headerPlatform
+    || (/android/i.test(userAgent) ? "Android"
+      : /iphone|ipad|ios/i.test(userAgent) ? "iOS"
+        : /windows/i.test(userAgent) ? "Windows"
+          : /macintosh|mac os/i.test(userAgent) ? "macOS"
+            : "Unknown");
+  const mobile = request.headers.get("sec-ch-ua-mobile") === "?1" || /mobile|android|iphone|ipad/i.test(userAgent);
+  return {
+    ipHash: await hashDeviceToken(clientIp(request)),
+    country: String(cf.country || "").slice(0, 2),
+    city: String(cf.city || "").slice(0, 80),
+    region: String(cf.region || "").slice(0, 80),
+    asn: cf.asn ? Number(cf.asn) : null,
+    platform,
+    mobile: Boolean(mobile),
+    userAgent,
+  };
 }
 
 /** Opportunistic maintenance so the counters table cannot grow forever. */
@@ -221,6 +257,7 @@ async function ensure(env) {
   if (!env.OBI_DB) throw new Error("OBI_DB binding unavailable");
   await env.OBI_DB.exec(schema);
   await ensureAccountSchema(env);
+  await ensureDeviceSchema(env);
 }
 
 // Databases created before email verification shipped have an obi_accounts
@@ -782,12 +819,15 @@ async function claimReader(request, env) {
   }
   if (!purchased) return reply({ error: "Purchase is not ready yet. Please retry shortly." }, request, { status: 404 });
   const deviceHash = await hashDeviceToken(deviceToken);
+  const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
   const existing = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
   if (existing && existing.device_hash !== "UNBOUND" && !same(existing.device_hash, deviceHash)) return reply({ error: "This edition is already active on another device." }, request, { status: 409 });
   if (!existing) {
-    await env.OBI_DB.prepare("INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)").bind(sessionId, deviceHash, new Date().toISOString()).run();
+    await env.OBI_DB.prepare("INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at,metadata_json) VALUES (?,?,?,?)").bind(sessionId, deviceHash, new Date().toISOString(), metadataJson).run();
   } else if (existing.device_hash === "UNBOUND") {
-    await env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=? WHERE checkout_session_id=? AND device_hash='UNBOUND'").bind(deviceHash, new Date().toISOString(), sessionId).run();
+    await env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=?, metadata_json=? WHERE checkout_session_id=? AND device_hash='UNBOUND'").bind(deviceHash, new Date().toISOString(), metadataJson, sessionId).run();
+  } else {
+    await env.OBI_DB.prepare("UPDATE reader_devices SET metadata_json=? WHERE checkout_session_id=? AND device_hash=?").bind(metadataJson, sessionId, deviceHash).run();
   }
   const actual = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
   if (!actual || !same(actual.device_hash, deviceHash)) return reply({ error: "This edition is already active on another device." }, request, { status: 409 });
@@ -855,6 +895,12 @@ async function claimBulkOrderEndpoint(request, env) {
   const body = await request.json().catch(() => ({}));
   if (!validDeviceToken(body.device_token)) return reply({ error: "A secure reader device is required." }, request, { status: 400 });
   const result = await claimBulkOrder(env, account, body.code, await hashDeviceToken(body.device_token));
+  if (result.status === 200 && result.body.session_id) {
+    try {
+      const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
+      await env.OBI_DB.prepare("UPDATE reader_devices SET metadata_json=? WHERE checkout_session_id=?").bind(metadataJson, result.body.session_id).run();
+    } catch { /* metadata is optional */ }
+  }
   return reply(result.body, request, { status: result.status });
 }
 
@@ -875,14 +921,34 @@ async function startDeviceTransfer(request, env) {
   if (!transferOriginAllowed(request)) return reply({ error: "Request origin is not allowed." }, request, { status: 403 });
   const account = await accountFromRequest(request, env);
   if (!account) return reply({ error: "Please sign in before moving your edition." }, request, { status: 401 });
+  const authLimited = await enforceLimit(request, env, "transfer", "transfer-auth", account.id);
+  if (authLimited) return authLimited;
   const body = await request.json().catch(() => ({}));
   if (!validSessionId(body.session_id) || !validDeviceToken(body.device_token)) return reply({ error: "Invalid transfer request." }, request, { status: 400 });
+  const password = typeof body.password === "string" ? body.password : "";
+  const accountRow = await env.OBI_DB.prepare("SELECT password_hash,password_salt FROM obi_accounts WHERE id=?").bind(account.id).first();
+  if (!accountRow || !password || !(await passwordDigest(password, accountRow.password_salt)).startsWith(accountRow.password_hash)) {
+    return reply({ error: "Confirm your account password to move your edition." }, request, { status: 401 });
+  }
   if (!(await transferOwner(env, body.session_id, account.email))) return reply({ error: "No active edition was found for this account." }, request, { status: 403 });
+  const lastTransfer = await env.OBI_DB.prepare("SELECT created_at FROM device_transfer_audit WHERE checkout_session_id=? ORDER BY created_at DESC LIMIT 1").bind(body.session_id).first();
+  if (lastTransfer) {
+    const waitMs = Date.parse(lastTransfer.created_at) + TRANSFER_COOLDOWN_MS - Date.now();
+    if (Number.isFinite(waitMs) && waitMs > 0) {
+      return reply({ error: `This edition was moved recently. Please wait ${Math.ceil(waitMs / 86400000)} day(s) or contact support.` }, request, { status: 429 });
+    }
+  }
+  const recentTransfers = await env.OBI_DB.prepare("SELECT count(*) AS count FROM device_transfer_audit WHERE checkout_session_id=? AND created_at>?").bind(body.session_id, new Date(Date.now() - TRANSFER_MAX_WINDOW_MS).toISOString()).first();
+  if (Number(recentTransfers?.count || 0) >= TRANSFER_MAX_PER_WINDOW) {
+    return reply({ error: "This edition has reached its transfer limit. Please contact support." }, request, { status: 429 });
+  }
   const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
   const url = new URL(request.url);
   const localTest = env.OBI_LOCAL_TRANSFER_TEST === '1' && url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
   const emailConfigured = env.RESEND_API_KEY?.startsWith("re_") && Boolean(from);
   if (!emailConfigured && !localTest) return reply({ error: "Email verification is not configured. Please contact support to move your edition." }, request, { status: 503 });
+  const metadata = await requestDeviceMetadata(request);
+  const deviceLabel = [metadata.platform, metadata.mobile ? "mobile" : "desktop", metadata.country].filter(Boolean).join(" · ");
   const recent = await env.OBI_DB.prepare("SELECT count(*) AS count FROM device_transfer_challenges WHERE account_id=? AND created_at>?").bind(account.id, new Date(Date.now() - 3600000).toISOString()).first();
   if (Number(recent?.count || 0) >= 5) return reply({ error: "Too many verification requests. Please try again later." }, request, { status: 429 });
   const device = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(body.session_id).first();
@@ -894,7 +960,7 @@ async function startDeviceTransfer(request, env) {
   await env.OBI_DB.prepare("INSERT INTO device_transfer_challenges (id,account_id,checkout_session_id,old_device_hash,new_device_hash,code_hash,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?)").bind(id, account.id, body.session_id, device.device_hash, await hashDeviceToken(body.device_token), await hashDeviceToken(`${id}:${code}`), now.toISOString(), new Date(now.getTime() + 600000).toISOString()).run();
   if (localTest && !emailConfigured) return reply({ challengeId: id, localTest: true, testCode: code, message: 'Local test only: use the verification code shown below.' }, request);
   try {
-    const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [account.email], subject: "Your OBI-ISM verification code", text: `Your code to move your OBI-ISM edition is ${code}. It expires in 10 minutes. If you did not request this, ignore this email.` }) });
+    const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [account.email], subject: "Confirm your OBI-ISM device move", text: `Your code to move your OBI-ISM edition is ${code}. It expires in 10 minutes.\n\nRequested from ${deviceLabel || "a new device"}. If this was not you, do not share this code and contact support.` }) });
     if (!sent.ok) throw new Error("Email provider rejected request");
   } catch {
     await env.OBI_DB.prepare("UPDATE device_transfer_challenges SET consumed_at=? WHERE id=?").bind(new Date().toISOString(), id).run();
@@ -915,11 +981,29 @@ async function confirmDeviceTransfer(request, env) {
   if (!(await transferOwner(env, challenge.checkout_session_id, account.email))) return reply({ error: "No active edition was found for this account." }, request, { status: 403 });
   const consumed = await env.OBI_DB.prepare("UPDATE device_transfer_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL RETURNING id").bind(now, challenge.id).first();
   if (!consumed) return reply({ error: "This code has already been used." }, request, { status: 409 });
+  const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
   const result = await env.OBI_DB.batch([
-    env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM purchases WHERE checkout_session_id=? AND status='active')").bind(challenge.new_device_hash, now, challenge.checkout_session_id, challenge.old_device_hash, challenge.checkout_session_id),
-    env.OBI_DB.prepare("INSERT INTO device_transfer_audit (id,account_id,checkout_session_id,created_at) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?)").bind(`audit_${await randomToken(18)}`, account.id, challenge.checkout_session_id, now, challenge.checkout_session_id, challenge.new_device_hash),
+    env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=?, metadata_json=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM purchases WHERE checkout_session_id=? AND status='active')").bind(challenge.new_device_hash, now, metadataJson, challenge.checkout_session_id, challenge.old_device_hash, challenge.checkout_session_id),
+    env.OBI_DB.prepare("INSERT INTO device_transfer_audit (id,account_id,checkout_session_id,old_device_hash,new_device_hash,metadata_json,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?)").bind(`audit_${await randomToken(18)}`, account.id, challenge.checkout_session_id, challenge.old_device_hash, challenge.new_device_hash, metadataJson, now, challenge.checkout_session_id, challenge.new_device_hash),
   ]);
   if (!result[0]?.meta?.changes) return reply({ error: "The active device changed. Please start again." }, request, { status: 409 });
+  const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
+  if (env.RESEND_API_KEY?.startsWith("re_") && from) {
+    try {
+      const meta = JSON.parse(metadataJson);
+      const label = [meta.platform, meta.mobile ? "mobile" : "desktop", meta.country].filter(Boolean).join(" · ");
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          from,
+          to: [account.email],
+          subject: "Your OBI-ISM edition was moved",
+          text: `Your edition was moved to a new device (${label || "unknown device"}) on ${new Date().toUTCString()}.\n\nIf this was not you, contact support immediately.`,
+        }),
+      });
+    } catch (error) { console.error("Transfer notice email failed", error); }
+  }
   return reply({ access: true, message: "Your edition has been moved to this browser." }, request);
 }
 
@@ -1002,6 +1086,10 @@ async function redeemGift(request, env) {
     await env.OBI_DB.prepare("UPDATE reader_devices SET device_hash=?, claimed_at=? WHERE checkout_session_id=? AND device_hash='UNBOUND'")
       .bind(deviceHash, new Date().toISOString(), gift.checkout_session_id).run();
   }
+  try {
+    const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
+    await env.OBI_DB.prepare("UPDATE reader_devices SET metadata_json=? WHERE checkout_session_id=?").bind(metadataJson, gift.checkout_session_id).run();
+  } catch { /* metadata is optional */ }
 
   return reply({ session_id: gift.checkout_session_id, redeemed: true }, request);
 }
@@ -1055,8 +1143,13 @@ async function reader(request, env) {
   if (ipLimited) return ipLimited;
   if (!(await activePurchase(env, sessionId))) return reply({ error: "Reader access is not active" }, request, { status: 403 });
   const deviceHash = await hashDeviceToken(deviceToken);
-  const boundDevice = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
+  const boundDevice = await env.OBI_DB.prepare("SELECT device_hash,metadata_json FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
   if (!boundDevice || !same(boundDevice.device_hash, deviceHash)) return reply({ error: "Reader is not authorized on this device" }, request, { status: 403 });
+  let deviceLabel = "";
+  try {
+    const meta = JSON.parse(boundDevice.metadata_json || "{}");
+    deviceLabel = [meta.platform, meta.mobile ? "mobile" : "desktop", meta.country].filter(Boolean).join(" · ");
+  } catch { /* metadata is optional */ }
 
   // Only licensed devices reach the content counters. Section requests get a
   // tighter scrape budget than catalogue/metadata refreshes.
@@ -1072,10 +1165,16 @@ async function reader(request, env) {
 
   const sections = await env.OBI_DB.prepare("SELECT section_id, label, title, kind, paragraphs_json FROM book_sections ORDER BY position ASC").all();
   if (!sections.results?.length) return reply({ error: "The protected edition is being prepared. Please retry shortly." }, request, { status: 503 });
+  const purchase = await env.OBI_DB.prepare("SELECT purchaser_email FROM purchases WHERE checkout_session_id=?").bind(sessionId).first();
   return reply({
     title: "OBI-ISM",
     subtitle: "Building a Just Society Through Character",
     authors: "Eze Echesi & Mpamugo",
+    license: {
+      email: purchase?.purchaser_email || "",
+      device: deviceLabel,
+      reference: sessionId.slice(-8).toUpperCase(),
+    },
     chapters: sections.results.map(sectionMetadata),
   }, request);
 }
