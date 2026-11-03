@@ -17,7 +17,7 @@
     gifts: { headers: ['Buyer', 'Recipient', 'Code ending', 'Purchase reference', 'Status', 'Created', 'Redeemed'], fields: ['buyer_email', 'recipient_email', 'code_last4', 'checkout_session_id', 'status', 'created_at', 'redeemed_at'], description: 'Search buyer email, recipient email or purchase reference. Full gift codes are hidden.' },
     devices: { headers: ['Buyer email', 'Purchase reference', 'Binding', 'Recorded'], fields: ['purchaser_email', 'checkout_session_id', 'binding_status', 'claimed_at'], description: 'Search by purchaser email or purchase reference. Gifts awaiting redemption may be unbound.' },
     content: { headers: ['Position', 'Section ID', 'Label', 'Title', 'Type'], fields: ['position', 'section_id', 'label', 'title', 'kind'], description: 'Search section titles or IDs. Reader text is not displayed.' },
-    transfers: { headers: ['Reader email', 'Purchase reference', 'Transferred'], fields: ['email', 'checkout_session_id', 'created_at'], description: 'Search reader email or purchase reference. These are reader transfers, not an admin audit log.' },
+    transfers: { headers: ['Reader email', 'Purchase reference', 'Device', 'Transferred'], fields: ['email', 'checkout_session_id', 'metadata', 'created_at'], description: 'Search reader email or purchase reference. Device metadata is recorded for each transfer.' },
   };
   const mobile = matchMedia('(max-width: 800px)');
   const menu = document.querySelector('.menu-button');
@@ -244,6 +244,12 @@
     if (field === 'amount') {
       try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: record.currency }).format(record.amount_cents / 100); }
       catch { return String(record.amount_cents / 100) + ' ' + (record.currency || ''); }
+    }
+    if (field === 'metadata') {
+      try {
+        const meta = JSON.parse(value || '{}');
+        return [meta.platform, meta.mobile ? 'Mobile' : 'Desktop', meta.country, meta.city].filter(Boolean).join(' · ') || '—';
+      } catch { return '—'; }
     }
     if (field === 'code_last4') return value ? '••••-' + value : '—';
     if (['created_at', 'last_signed_in', 'granted_at', 'claimed_at', 'redeemed_at'].includes(field)) {

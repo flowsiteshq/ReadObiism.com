@@ -34,16 +34,19 @@
       const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
       const offerTransfer = (deviceToken) => {
         app.className = "access-state";
-        app.innerHTML = `<div class="panel"><h1>Move your <span style="color:#d5ac47">edition</span></h1><p>Your edition is active in another browser or device. Sign in to your account, then verify your purchase email to move it here.</p><button class="retry" id="send-code" type="button">SEND VERIFICATION CODE →</button><p id="transfer-status" aria-live="polite"></p><form id="transfer-form" hidden><label for="transfer-code">Eight-digit code</label><br><input id="transfer-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" required style="font:inherit;padding:12px;margin-top:12px;max-width:100%"><br><button class="retry" type="submit">MOVE EDITION →</button></form><p><a href="login.html" style="color:#d5ac47">SIGN IN TO YOUR ACCOUNT</a></p></div>`;
+        app.innerHTML = `<div class="panel"><h1>Move your <span style="color:#d5ac47">edition</span></h1><p>Your edition is active in another browser or device. Confirm your account password, then verify the email code to move it here. The old device will lose access.</p><label for="transfer-password" style="display:block;color:#d5ac47;font-size:9px;font-weight:800;letter-spacing:.15em;margin:18px 0 7px">CONFIRM YOUR ACCOUNT PASSWORD</label><input id="transfer-password" type="password" autocomplete="current-password" minlength="8" required style="font:inherit;padding:12px;max-width:100%;width:100%;border:1px solid #4b463b;border-radius:7px;background:#1b1f18;color:#fff"><button class="retry" id="send-code" type="button">SEND VERIFICATION CODE →</button><p id="transfer-status" aria-live="polite"></p><form id="transfer-form" hidden><label for="transfer-code">Eight-digit code</label><br><input id="transfer-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" required style="font:inherit;padding:12px;margin-top:12px;max-width:100%"><br><button class="retry" type="submit">MOVE EDITION →</button></form><p style="color:#9f988a;font-size:11px;line-height:1.5">One active device. Transfers are limited to one every 7 days and three per 180 days.</p><p><a href="login.html" style="color:#d5ac47">SIGN IN TO YOUR ACCOUNT</a></p></div>`;
         const status = document.getElementById("transfer-status");
         const send = document.getElementById("send-code");
         const form = document.getElementById("transfer-form");
+        const password = document.getElementById("transfer-password");
         let challengeId = "";
         send.addEventListener("click", async () => {
+          const confirmed = password.value;
+          if (!confirmed) { status.textContent = "Confirm your account password first."; password.focus(); return; }
           send.disabled = true;
           status.textContent = "Sending your verification code…";
           try {
-            const response = await apiFetch("/api/reader/transfer/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken }) });
+            const response = await apiFetch("/api/reader/transfer/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken, password: confirmed }) });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.error || "Could not start verification.");
             challengeId = body.challengeId;
@@ -74,8 +77,12 @@
         let current = 0;
         const chapters = edition.chapters.filter((chapter) => chapter.kind !== "part");
         const sectionCache = new Map();
+        const license = edition.license || {};
+        const mark = license.email
+          ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(license.email)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
+          : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div></nav><article class="reading" id="reading"></article></section>`;
+        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div></nav><article class="reading" id="reading"></article></section>${mark}`;
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
         const sidebar = document.getElementById("chapter-sidebar");
