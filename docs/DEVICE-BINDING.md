@@ -59,6 +59,10 @@ LICENSED TO reader@example.com · 1A2B3C4D · Windows · desktop · NG
 
 The watermark is a deterrent against casual screenshots and sharing. It does not prevent a determined user from using developer tools; no browser-only reader can guarantee that.
 
+The reader also renders a centred watermark with the licensee and edition reference. Every protected chapter contains an invisible zero-width forensic watermark encoding the purchase reference. Admin → **Forensics** decodes leaked text and matches the identifier to a purchase.
+
+Reader value features are tied to the licensed copy: a personal certificate with edition number, private bookmarks, private chapter notes, and reading-progress restore. These are stored per device and are not available to a copied file.
+
 ## Why credentials sharing cannot be fully prevented
 
 If the owner gives another person:
