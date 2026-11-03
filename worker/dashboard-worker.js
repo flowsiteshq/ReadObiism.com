@@ -2,7 +2,7 @@ import { validDeviceToken, validSessionId } from "./api/src/validation.js";
 import { hashDeviceToken, same } from "./api/src/security.js";
 import { handleAdminAuth } from "./api/src/admin-auth.js";
 import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
-import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder, ensureBulkOrders } from "./api/src/bulk-orders.js";
+import { createBulkOrderCheckout, verifyBulkOrderPayment, claimBulkOrder, ensureBulkOrders, seatsForOrder, assignBulkSeat, revokeBulkSeat, claimBulkSeat } from "./api/src/bulk-orders.js";
 import { USD_PRICE_CENTS as PRICE, NGN_PRICE_KOBO, EDITION_SKU as SKU } from "./api/src/pricing.js";
 import { getPricing } from "./api/src/pricing-store.js";
 import { verificationEmail } from "./api/src/email-templates.js";
@@ -47,8 +47,11 @@ const RATE_LIMITS = {
   "claim-device-local-test": { limit: 100, windowSeconds: 3600 },
   "login-ip": { limit: 25, windowSeconds: 900 },
   "login-account": { limit: 10, windowSeconds: 900 },
+  "google-ip": { limit: 20, windowSeconds: 900 },
+  "google-account": { limit: 10, windowSeconds: 900 },
   "register-ip": { limit: 6, windowSeconds: 3600 },
   "register-email": { limit: 3, windowSeconds: 3600 },
+  "register-phone": { limit: 3, windowSeconds: 3600 },
   "checkout-ip": { limit: 15, windowSeconds: 3600 },
   "gift-redeem-ip": { limit: 20, windowSeconds: 3600 },
   "gift-redeem-code": { limit: 10, windowSeconds: 3600 },
@@ -74,7 +77,7 @@ CREATE INDEX IF NOT EXISTS gift_orders_email_idx ON gift_orders(recipient_email)
 CREATE INDEX IF NOT EXISTS gift_orders_session_idx ON gift_orders(checkout_session_id);
 CREATE TABLE IF NOT EXISTS book_sections (position INTEGER PRIMARY KEY, section_id TEXT UNIQUE NOT NULL, label TEXT NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, paragraphs_json TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS purchases_email_idx ON purchases(purchaser_email);
-CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0, phone TEXT, phone_verified INTEGER NOT NULL DEFAULT 0, google_sub TEXT, auth_provider TEXT NOT NULL DEFAULT 'password', created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS account_sessions_account_idx ON obi_account_sessions(account_id);
 CREATE TABLE IF NOT EXISTS account_verification_challenges (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, code_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT);
@@ -287,6 +290,40 @@ async function ensureAccountSchema(env) {
       if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
     }
   }
+  if (!names.has("google_sub")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE obi_accounts ADD COLUMN google_sub TEXT").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  if (!names.has("auth_provider")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE obi_accounts ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'password'").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  if (!names.has("phone")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE obi_accounts ADD COLUMN phone TEXT").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  if (!names.has("phone_verified")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE obi_accounts ADD COLUMN phone_verified INTEGER NOT NULL DEFAULT 0").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error))) throw error;
+    }
+  }
+  try {
+    await env.OBI_DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS obi_accounts_phone_idx ON obi_accounts(phone) WHERE phone IS NOT NULL").bind().run();
+  } catch { /* Duplicate or unsupported partial index is non-fatal. */ }
+  try {
+    await env.OBI_DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS obi_accounts_google_sub_idx ON obi_accounts(google_sub) WHERE google_sub IS NOT NULL").bind().run();
+  } catch { /* Duplicate or unsupported partial index is non-fatal. */ }
   repairedAccountSchemas.add(env.OBI_DB);
 }
 
@@ -481,12 +518,136 @@ async function loginAccount(request, env) {
   return reply({ account: { email: account.email }, access: Boolean(purchase), sessionId: purchase?.checkout_session_id ?? null, ...(usesBearerAuth(request) ? { token } : {}) }, request, { headers: { "set-cookie": authCookie(token) } });
 }
 
+async function googleLogin(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const credential = typeof body.credential === "string" ? body.credential : "";
+  if (!env.GOOGLE_CLIENT_ID) return reply({ error: "Google sign-in is not configured." }, request, { status: 503 });
+  if (credential.length < 20 || credential.length > 10000) return reply({ error: "Invalid Google credential." }, request, { status: 400 });
+  await ensure(env);
+  const rateLimited = (await enforceLimit(request, env, "google", "google-ip", clientIp(request)));
+  if (rateLimited) return rateLimited;
+  let info;
+  try {
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    info = await response.json().catch(() => null);
+    if (!response.ok || !info) return reply({ error: "Google sign-in could not be verified." }, request, { status: 401 });
+  } catch {
+    return reply({ error: "Google sign-in is temporarily unavailable." }, request, { status: 502 });
+  }
+  const email = String(info.email || "").trim().toLowerCase();
+  const subject = String(info.sub || "");
+  const verified = info.email_verified === true || info.email_verified === "true";
+  const issuer = String(info.iss || "");
+  const expires = Number(info.exp);
+  if (String(info.aud || "") !== env.GOOGLE_CLIENT_ID
+    || !["accounts.google.com", "https://accounts.google.com"].includes(issuer)
+    || !verified
+    || !validEmail(email)
+    || !subject
+    || (Number.isFinite(expires) && expires * 1000 < Date.now())) {
+    return reply({ error: "Google sign-in could not be verified." }, request, { status: 401 });
+  }
+  const accountLimited = await enforceLimit(request, env, "google", "google-account", email);
+  if (accountLimited) return accountLimited;
+  const now = new Date();
+  let account = await env.OBI_DB.prepare("SELECT id,email,google_sub FROM obi_accounts WHERE email=?").bind(email).first();
+  if (account) {
+    if (account.google_sub && account.google_sub !== subject) return reply({ error: "This email is linked to a different Google account." }, request, { status: 409 });
+    await env.OBI_DB.prepare("UPDATE obi_accounts SET google_sub=COALESCE(google_sub,?), auth_provider='google', email_verified=1, last_signed_in=? WHERE id=?").bind(subject, now.toISOString(), account.id).run();
+  } else {
+    const id = `acct_${await randomToken(18)}`;
+    const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+    const digest = await passwordDigest(await randomToken(48), salt);
+    await env.OBI_DB.prepare("INSERT INTO obi_accounts (id,email,password_hash,password_salt,email_verified,google_sub,auth_provider,created_at,last_signed_in) VALUES (?,?,?,?,1,?, 'google', ?, ?)")
+      .bind(id, email, digest, salt, subject, now.toISOString(), now.toISOString()).run();
+    account = { id, email, google_sub: subject };
+  }
+  const token = await randomToken();
+  await env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)")
+    .bind(await hashDeviceToken(token), account.id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()).run();
+  const purchase = await accountPurchase(env, email);
+  return reply({
+    account: { email, email_verified: true },
+    access: Boolean(purchase),
+    sessionId: purchase?.checkout_session_id ?? null,
+    provider: "google",
+    ...(usesBearerAuth(request) ? { token } : {}),
+  }, request, { headers: { "set-cookie": authCookie(token) } });
+}
+
+function normalizePhone(value) {
+  const raw = String(value ?? "").trim();
+  const plus = raw.startsWith("+");
+  let digits = raw.replace(/\D/g, "");
+  if (!plus && digits.length === 11 && digits.startsWith("0")) digits = "234" + digits.slice(1);
+  if (digits.length < 7 || digits.length > 15) return "";
+  return "+" + digits;
+}
+
+async function phoneAccountEmail(phone) {
+  return `phone_${(await hashDeviceToken(phone)).slice(0, 24)}@phone.obiism.local`;
+}
+
+async function registerPhoneAccount(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const phone = normalizePhone(body.phone);
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!phone) return reply({ error: "Enter a valid phone number with country code, for example +234 801 234 5678." }, request, { status: 400 });
+  if (password.length < 8 || password.length > 128) return reply({ error: "Enter a password of at least 8 characters." }, request, { status: 400 });
+  await ensure(env);
+  const rateLimited = (await enforceLimit(request, env, "register", "register-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "register", "register-phone", phone));
+  if (rateLimited) return rateLimited;
+  const existing = await env.OBI_DB.prepare("SELECT id FROM obi_accounts WHERE phone=?").bind(phone).first();
+  if (existing) return reply({ error: "A phone account already exists. Sign in instead." }, request, { status: 409 });
+  const email = await phoneAccountEmail(phone);
+  const id = `acct_${await randomToken(18)}`;
+  const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const digest = await passwordDigest(password, salt);
+  const now = new Date();
+  const token = await randomToken();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare("INSERT INTO obi_accounts (id,email,password_hash,password_salt,email_verified,phone,phone_verified,google_sub,auth_provider,created_at,last_signed_in) VALUES (?,?,?,?,0,?,0,NULL,'phone',?,?)").bind(id, email, digest, salt, phone, now.toISOString(), now.toISOString()),
+    env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)").bind(await hashDeviceToken(token), id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
+  ]);
+  const purchase = await accountPurchase(env, email);
+  return reply({ account: { email, phone, email_verified: false, phone_verified: false }, access: Boolean(purchase), sessionId: purchase?.checkout_session_id ?? null, ...(usesBearerAuth(request) ? { token } : {}) }, request, { headers: { "set-cookie": authCookie(token) } });
+}
+
+async function loginPhoneAccount(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const phone = normalizePhone(body.phone);
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!phone) return reply({ error: "Enter a valid phone number." }, request, { status: 400 });
+  await ensure(env);
+  const rateLimited = (await enforceLimit(request, env, "login", "login-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "login", "login-account", phone));
+  if (rateLimited) return rateLimited;
+  const account = await env.OBI_DB.prepare("SELECT id,email,phone,password_hash,password_salt,email_verified,phone_verified FROM obi_accounts WHERE phone=?").bind(phone).first();
+  if (!account || !(await passwordDigest(password, account.password_salt)).startsWith(account.password_hash)) {
+    return reply({ error: "Phone number or password is incorrect." }, request, { status: 401 });
+  }
+  const now = new Date();
+  const token = await randomToken();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare("UPDATE obi_accounts SET last_signed_in=? WHERE id=?").bind(now.toISOString(), account.id),
+    env.OBI_DB.prepare("INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)").bind(await hashDeviceToken(token), account.id, now.toISOString(), new Date(now.getTime() + 2592000000).toISOString()),
+  ]);
+  const purchase = await accountPurchase(env, account.email);
+  return reply({
+    account: { email: account.email, phone: account.phone, email_verified: account.email_verified === 1, phone_verified: account.phone_verified === 1 },
+    access: Boolean(purchase),
+    sessionId: purchase?.checkout_session_id ?? null,
+    ...(usesBearerAuth(request) ? { token } : {}),
+  }, request, { headers: { "set-cookie": authCookie(token) } });
+}
+
 async function accountAccess(request, env) {
   const account = await accountFromRequest(request, env);
   if (!account) return reply({ authenticated: false, access: false }, request, { status: 401 });
   const purchase = await accountPurchase(env, account.email);
-  const acc = await env.OBI_DB.prepare("SELECT email_verified FROM obi_accounts WHERE id=?").bind(account.id).first().catch(() => null);
-  return reply({ authenticated: true, email: account.email, email_verified: acc?.email_verified === 1, access: Boolean(purchase), sessionId: purchase?.checkout_session_id || null }, request);
+  const acc = await env.OBI_DB.prepare("SELECT email_verified,phone,phone_verified FROM obi_accounts WHERE id=?").bind(account.id).first().catch(() => null);
+  return reply({ authenticated: true, email: account.email, phone: acc?.phone || "", email_verified: acc?.email_verified === 1, phone_verified: acc?.phone_verified === 1, access: Boolean(purchase), sessionId: purchase?.checkout_session_id || null }, request);
 }
 
 async function checkout(request, env) {
@@ -885,6 +1046,60 @@ async function redeemLocalBulk(request, env) {
   return reply(result.body, request, { status: result.status });
 }
 
+async function bulkSeats(request, env) {
+  const path = new URL(request.url).pathname;
+  const origin = request.headers.get('origin');
+  const allowed = origin && (allowedOrigins.has(origin) || devOrigins.has(origin));
+  if (request.method === 'POST' && !allowed) return reply({ error: "Request origin is not allowed." }, request, { status: 403 });
+  if (request.method === 'POST' && !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return reply({ error: "Request not allowed." }, request, { status: 415 });
+  const account = await accountFromRequest(request, env);
+  if (!account) return reply({ error: "Sign in to your account first." }, request, { status: 401 });
+  const rateLimited = (await enforceLimit(request, env, "bulk-order", "bulk-order-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "bulk-order", "bulk-order-account", account.id));
+  if (rateLimited) return rateLimited;
+  const url = new URL(request.url);
+  const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
+  const orderId = url.searchParams.get('order_id') || body.order_id;
+  if (!/^bprod_[a-f0-9]{32}$/.test(orderId || '')) return reply({ error: "Invalid order." }, request, { status: 400 });
+  const order = await env.OBI_DB.prepare('SELECT id,buyer_email,status FROM bulk_orders WHERE id=?').bind(orderId).first();
+  if (!order || order.buyer_email !== account.email) return reply({ error: "Order not found." }, request, { status: 404 });
+  const verified = await env.OBI_DB.prepare('SELECT email_verified FROM obi_accounts WHERE id=?').bind(account.id).first().catch(() => null);
+  if (verified?.email_verified !== 1) return reply({ error: "Verify your account email first." }, request, { status: 403 });
+  if (order.status !== 'paid') return reply({ error: "Individual seat links are available after payment." }, request, { status: 409 });
+  if (request.method === 'GET' && path === '/api/bulk/seats') {
+    const data = await seatsForOrder(env, orderId);
+    return reply(data || { seats: [] }, request);
+  }
+  if (request.method === 'POST' && path === '/api/bulk/seats/assign') {
+    const result = await assignBulkSeat(env, orderId, body.seat_no, { label: body.label, email: body.email, phone: body.phone }, account.email);
+    return reply(result.body, request, { status: result.status });
+  }
+  if (request.method === 'POST' && path === '/api/bulk/seats/revoke') {
+    const result = await revokeBulkSeat(env, orderId, body.seat_no, account.email);
+    return reply(result.body, request, { status: result.status });
+  }
+  return reply({ error: "Method not allowed." }, request, { status: 405 });
+}
+
+async function claimBulkSeatEndpoint(request, env) {
+  if (!transferOriginAllowed(request)) return reply({ error: "Request origin is not allowed." }, request, { status: 403 });
+  const account = await accountFromRequest(request, env);
+  if (!account) return reply({ error: "Sign in to your reader account first." }, request, { status: 401 });
+  const rateLimited = (await enforceLimit(request, env, "bulk-order", "bulk-order-ip", clientIp(request)))
+    || (await enforceLimit(request, env, "bulk-order", "bulk-order-account", account.id));
+  if (rateLimited) return rateLimited;
+  const body = await request.json().catch(() => ({}));
+  if (!validDeviceToken(body.device_token)) return reply({ error: "A secure reader device is required." }, request, { status: 400 });
+  const result = await claimBulkSeat(env, account, body.seat_token, await hashDeviceToken(body.device_token));
+  if (result.status === 200 && result.body.session_id) {
+    try {
+      const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
+      await env.OBI_DB.prepare("UPDATE reader_devices SET metadata_json=? WHERE checkout_session_id=?").bind(metadataJson, result.body.session_id).run();
+    } catch { /* metadata is optional */ }
+  }
+  return reply(result.body, request, { status: result.status });
+}
+
 async function createBulkOrder(request, env) {
   const origin = request.headers.get('origin');
   const allowed = origin && (allowedOrigins.has(origin) || devOrigins.has(origin));
@@ -1280,11 +1495,13 @@ async function reader(request, env) {
   const sections = await env.OBI_DB.prepare("SELECT section_id, label, title, kind, paragraphs_json FROM book_sections ORDER BY position ASC").all();
   if (!sections.results?.length) return reply({ error: "The protected edition is being prepared. Please retry shortly." }, request, { status: 503 });
   const purchase = await env.OBI_DB.prepare(`SELECT p.rowid AS edition_no,p.purchaser_email,p.reader_name,p.granted_at,
-      g.recipient_email,g.recipient_name,g.status AS gift_status
+      g.recipient_email,g.recipient_name,g.status AS gift_status,a.phone AS account_phone
     FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
+    LEFT JOIN obi_accounts a ON lower(a.email)=lower(p.purchaser_email)
     WHERE p.checkout_session_id=?`).bind(sessionId).first();
   const giftLicense = purchase?.gift_status === "redeemed" && purchase?.recipient_email;
   const licenseEmail = giftLicense ? purchase.recipient_email : purchase?.purchaser_email || "";
+  const licensePhone = giftLicense ? "" : purchase?.account_phone || "";
   const licenseName = giftLicense ? purchase.recipient_name || "" : purchase?.reader_name || "";
   const editionYear = new Date(purchase?.granted_at || Date.now()).getUTCFullYear();
   const editionNo = Number(purchase?.edition_no);
@@ -1297,6 +1514,7 @@ async function reader(request, env) {
     authors: "Eze Echesi & Mpamugo",
     license: {
       email: licenseEmail,
+      phone: licensePhone,
       name: licenseName,
       edition,
       device: deviceLabel,
@@ -1354,9 +1572,13 @@ async function handleRequest(request, env) {
       },
     });
     if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
+    if (path === "/api/auth/config" && request.method === "GET") return reply({ googleClientId: env.GOOGLE_CLIENT_ID || "" }, request);
     if (path === "/api/pricing" && request.method === "GET") return reply(await getPricing(env), request);
     if (path === "/api/account/register" && request.method === "POST") return registerAccount(request, env);
     if (path === "/api/account/login" && request.method === "POST") return loginAccount(request, env);
+    if (path === "/api/account/google" && request.method === "POST") return googleLogin(request, env);
+    if (path === "/api/account/phone/register" && request.method === "POST") return registerPhoneAccount(request, env);
+    if (path === "/api/account/phone/login" && request.method === "POST") return loginPhoneAccount(request, env);
     if (path === "/api/account/access" && request.method === "GET") return accountAccess(request, env);
     if (path === "/api/account/verify/request" && request.method === "POST") {
       const account = await accountFromRequest(request, env);
@@ -1390,6 +1612,10 @@ async function handleRequest(request, env) {
     if (path === "/api/stripe/webhook") return webhook(request, env);
     if (path === "/api/paystack/webhook" && request.method === "POST") return paystackWebhook(request, env);
     if (path === "/api/checkout" && request.method === "POST") return checkout(request, env);
+    if (path === "/api/bulk/seats" && request.method === "GET") return bulkSeats(request, env);
+    if (path === "/api/bulk/seats/assign" && request.method === "POST") return bulkSeats(request, env);
+    if (path === "/api/bulk/seats/revoke" && request.method === "POST") return bulkSeats(request, env);
+    if (path === "/api/bulk/seat/claim" && request.method === "POST") return claimBulkSeatEndpoint(request, env);
     if (path === "/api/bulk" && request.method === "POST") return createBulkOrder(request, env);
     if (path === "/api/bulk/verify" && request.method === "POST") return verifyBulkOrder(request, env);
     if (path === "/api/bulk/claim" && request.method === "POST") return claimBulkOrderEndpoint(request, env);
