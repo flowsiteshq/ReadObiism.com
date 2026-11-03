@@ -168,6 +168,31 @@
       return false;
     }
   }
+  async function loadProductionBulkOrders() {
+    const body = $('production-bulk-body');
+    if (!body) return false;
+    $('production-bulk-message').textContent = 'Loading production orders…';
+    body.replaceChildren();
+    try {
+      const data = await api('bulk-orders?page=1');
+      (data.items || []).forEach((order) => {
+        const tr = document.createElement('tr');
+        let amount;
+        try { amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: order.currency }).format(order.total_minor / 100); }
+        catch { amount = String(order.total_minor / 100) + ' ' + (order.currency || ''); }
+        [order.buyer_email, order.id, order.quantity, amount, order.provider === 'stripe' ? 'Stripe' : 'Paystack', String(order.status || '').replaceAll('_', ' '), format('created_at', order.created_at, order), format('created_at', order.paid_at, order)].forEach((value) => {
+          const td = document.createElement('td'); td.textContent = String(value); tr.append(td);
+        });
+        body.append(tr);
+      });
+      $('production-bulk-message').textContent = data.items?.length ? '' : 'No production bulk orders yet.';
+      return true;
+    } catch (error) {
+      $('production-bulk-message').textContent = error.message;
+      toast(error.message, true);
+      return false;
+    }
+  }
   async function loadBulkOrders() {
     $('bulk-list-message').textContent = 'Loading…';
     $('bulk-orders-body').replaceChildren();
@@ -286,6 +311,7 @@
     if (section === 'overview') loadOverview();
     if (section === 'payments') { loadPaymentStatus(); loadPricing(); }
     if (section === 'bulk') {
+      loadProductionBulkOrders();
       loadBulkOrders();
       if (pendingBulkVerification) {
         const id = pendingBulkVerification; pendingBulkVerification = '';
@@ -297,7 +323,7 @@
   $('previous').addEventListener('click', () => { if (page > 1) { page--; loadTable(); } });
   $('next').addEventListener('click', () => { if (page * 10 < total) { page++; loadTable(); } });
   $('refresh').addEventListener('click', async () => {
-    const loaded = section === 'overview' ? await loadOverview() : section === 'payments' ? (await Promise.all([loadPaymentStatus(), loadPricing()])).every(Boolean) : section === 'bulk' ? await loadBulkOrders() : views[section] ? await loadTable() : false;
+    const loaded = section === 'overview' ? await loadOverview() : section === 'payments' ? (await Promise.all([loadPaymentStatus(), loadPricing()])).every(Boolean) : section === 'bulk' ? (await Promise.all([loadBulkOrders(), loadProductionBulkOrders()])).some(Boolean) : views[section] ? await loadTable() : false;
     if (loaded) toast('Data refreshed.');
   });
   async function checkHealth() {
