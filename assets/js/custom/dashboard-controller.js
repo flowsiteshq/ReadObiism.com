@@ -496,7 +496,18 @@
       if (!response.ok) throw new Error(data.error || 'Could not decode the watermark.');
       const ids = data.ids || [], matches = data.matches || [];
       message.textContent = ids.length ? `${ids.length} identifier(s) found.` : 'No watermark found in this passage.';
-      if (!ids.length) return;
+      results.replaceChildren();
+      if (!ids.length) {
+        const empty = document.createElement('p');
+        empty.className = 'forensic-empty';
+        empty.textContent = 'No invisible identifier was found. The passage may have been retyped, or an app stripped the zero-width characters.';
+        results.append(empty);
+        return;
+      }
+      const label = document.createElement('p');
+      label.className = 'forensic-result-label';
+      label.textContent = matches.length ? 'MATCHED PURCHASE' : 'UNMATCHED COPY IDENTIFIER';
+      results.append(label);
       if (matches.length) {
         matches.forEach((match) => {
           const card = document.createElement('div'); card.className = 'forensic-match';
@@ -514,7 +525,32 @@
       }
     } catch (error) { message.textContent = error.message || 'Could not decode the watermark.'; toast('Could not decode the watermark.', true); }
   }
+  async function loadForensicSample() {
+    const input = $('forensic-input'), message = $('forensic-message'), results = $('forensic-results');
+    if (!input) return;
+    message.textContent = 'Loading a sample…';
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/forensic/sample', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' });
+      if (response.status === 401) { location.replace('./login.html'); return; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not load a sample.');
+      input.value = data.text || '';
+      results.replaceChildren();
+      message.textContent = 'Sample loaded. Select Decode watermark.';
+      input.focus();
+    } catch (error) { message.textContent = error.message || 'Could not load a sample.'; toast('Could not load a sample.', true); }
+  }
+  function clearForensic() {
+    const input = $('forensic-input'), message = $('forensic-message'), results = $('forensic-results');
+    if (!input) return;
+    input.value = '';
+    results.replaceChildren();
+    message.textContent = '';
+    input.focus();
+  }
   $('forensic-decode').addEventListener('click', decodeForensic);
+  $('forensic-sample').addEventListener('click', loadForensicSample);
+  $('forensic-clear').addEventListener('click', clearForensic);
   $('sign-out').addEventListener('click', async () => {
     try {
       const response = await window.OBI_API.fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
