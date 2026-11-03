@@ -5,6 +5,7 @@
     readers: ['Readers', 'Find a reader and review their account and edition access.'],
     purchases: ['Purchases', 'Review recorded purchases and edition statuses.'],
     feedback: ['Reader feedback', 'Ratings and comments from readers with active access.'],
+    forensics: ['Forensic watermark', 'Decode the invisible copy reference from leaked text.'],
     gifts: ['Gifts & codes', 'Track gift purchases and their redemption status.'],
     bulk: ['Bulk orders', 'Manage editions for groups and organisations.'],
     devices: ['Devices', 'Review device activations linked to purchases.'],
@@ -304,7 +305,8 @@
     $('records').hidden = !views[section];
     $('payment-settings').hidden = section !== 'payments';
     $('bulk-workspace').hidden = section !== 'bulk';
-    $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || !!views[section];
+    $('forensics').hidden = section !== 'forensics';
+    $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || section === 'forensics' || !!views[section];
     if (section !== 'payments') { $('payment-form').reset(); $('pricing-form').reset(); $('payment-message').textContent = ''; $('pricing-message').textContent = ''; }
     $('feature-heading').textContent = title;
     $('feature-description').textContent = description;
@@ -479,6 +481,39 @@
       toast('Could not save local settings.', true);
     } finally { $('save-payment').disabled = false; }
   });
+  async function decodeForensic() {
+    const input = $('forensic-input'), message = $('forensic-message'), results = $('forensic-results');
+    if (!input || !message || !results) return;
+    const text = input.value;
+    if (!text.trim()) { message.textContent = 'Paste a passage first.'; return; }
+    message.textContent = 'Decoding…';
+    results.replaceChildren();
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/forensic', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (response.status === 401) { location.replace('./login.html'); return; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not decode the watermark.');
+      const ids = data.ids || [], matches = data.matches || [];
+      message.textContent = ids.length ? `${ids.length} identifier(s) found.` : 'No watermark found in this passage.';
+      if (!ids.length) return;
+      if (matches.length) {
+        matches.forEach((match) => {
+          const card = document.createElement('div'); card.className = 'forensic-match';
+          const title = document.createElement('strong'); title.textContent = match.purchaser_email || 'Unknown reader';
+          const details = document.createElement('small'); details.textContent = `${match.checkout_session_id} · ${format('created_at', match.granted_at, match)}`;
+          card.append(title, details); results.append(card);
+        });
+      } else {
+        ids.forEach((id) => {
+          const card = document.createElement('div'); card.className = 'forensic-match';
+          const title = document.createElement('strong'); title.textContent = 'Unmatched copy identifier';
+          const details = document.createElement('small'); details.textContent = id;
+          card.append(title, details); results.append(card);
+        });
+      }
+    } catch (error) { message.textContent = error.message || 'Could not decode the watermark.'; toast('Could not decode the watermark.', true); }
+  }
+  $('forensic-decode').addEventListener('click', decodeForensic);
   $('sign-out').addEventListener('click', async () => {
     try {
       const response = await window.OBI_API.fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
