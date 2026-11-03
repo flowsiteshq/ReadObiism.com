@@ -81,7 +81,7 @@
         <p class="note" id="redeem-note"></p>
       </div>
       <div id="error" class="error" hidden></div>
-      <div class="footer-links"><a href="index.html">Back to OBI-ISM</a><a href="redeem.html">Redeem a code</a><a href="mailto:sensei30002003@gmail.com?subject=OBI-ISM%20gift%20support">Gift support</a></div>
+      <div class="footer-links"><a href="/">Back to OBI-ISM</a><a href="/redeem">Redeem a code</a><a href="mailto:sensei30002003@gmail.com?subject=OBI-ISM%20gift%20support">Gift support</a></div>
     </section>
   </main>
   <script src="assets/js/custom/obi-api.js"></script><script>
@@ -105,7 +105,7 @@
         errorPanel.textContent = message;
       };
       const setShareStatus = (message) => { shareStatus.textContent = message; };
-      const redeemLink = (code) => new URL(`redeem.html?code=${encodeURIComponent(code)}`, location.href).toString();
+      const redeemLink = (code) => new URL(`/redeem?code=${encodeURIComponent(code)}`, location.href).toString();
 
       function render(gift, pending = false) {
         loading.hidden = true;
