@@ -2,6 +2,9 @@ name = "steep-leaf-f57d"
 main = "dashboard-worker.js"
 compatibility_date = "2026-09-28"
 
+[vars]
+GOOGLE_CLIENT_ID = "339479049445-b6ajep162p13r415shpo7e2b13f8gvf3.apps.googleusercontent.com"
+
 [[d1_databases]]
 binding = "OBI_DB"
 database_name = "obi-ism-payments"

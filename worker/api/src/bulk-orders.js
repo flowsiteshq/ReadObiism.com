@@ -34,6 +34,24 @@ CREATE TABLE IF NOT EXISTS bulk_order_claims (
 );
 CREATE INDEX IF NOT EXISTS bulk_order_claims_order_idx ON bulk_order_claims(order_id);
 CREATE INDEX IF NOT EXISTS bulk_order_claims_account_idx ON bulk_order_claims(account_id);
+CREATE TABLE IF NOT EXISTS bulk_seats (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  seat_no INTEGER NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
+  token_encrypted TEXT,
+  recipient_label TEXT,
+  recipient_email TEXT,
+  recipient_phone TEXT,
+  status TEXT NOT NULL CHECK(status IN ('available','claimed','revoked')),
+  claimed_by_account TEXT,
+  claim_reference TEXT UNIQUE,
+  created_at TEXT NOT NULL,
+  claimed_at TEXT,
+  revoked_at TEXT,
+  UNIQUE(order_id, seat_no)
+);
+CREATE INDEX IF NOT EXISTS bulk_seats_order_idx ON bulk_seats(order_id, status);
 CREATE TABLE IF NOT EXISTS bulk_order_events (
   id TEXT PRIMARY KEY,
   order_id TEXT NOT NULL,
@@ -223,7 +241,8 @@ export async function verifyBulkOrderPayment(env, orderId) {
   if (order.status === 'paid') {
     try {
       const code = await decryptCode(env, order.id, order.code_encrypted);
-      return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
+      const seatData = env.OBI_BULK_INDIVIDUAL_SEATS === '1' ? await seatsForOrder(env, order.id) : {};
+      return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity, ...seatData } };
     } catch {
       return { status: 503, body: { error: 'Code recovery is unavailable. Contact support.' } };
     }
@@ -245,7 +264,8 @@ export async function verifyBulkOrderPayment(env, orderId) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         const code = await issueCode(env, order);
-        return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
+        const seatData = env.OBI_BULK_INDIVIDUAL_SEATS === '1' ? await seatsForOrder(env, order.id) : {};
+        return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity, ...seatData } };
       } catch (e) {
         return { status: 502, body: { error: 'Could not verify payment.' } };
       }
@@ -265,7 +285,8 @@ export async function verifyBulkOrderPayment(env, orderId) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         const code = await issueCode(env, order);
-        return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity } };
+        const seatData = env.OBI_BULK_INDIVIDUAL_SEATS === '1' ? await seatsForOrder(env, order.id) : {};
+        return { status: 200, body: { order_id: order.id, status: 'paid', code, quantity: order.quantity, ...seatData } };
       } catch {
         return { status: 502, body: { error: 'Could not verify payment.' } };
       }
@@ -281,6 +302,8 @@ export async function claimBulkOrder(env, account, codeInput, deviceHash) {
   const order = await env.OBI_DB.prepare('SELECT id,quantity,status,currency FROM bulk_orders WHERE code_hash=?').bind(await hashCode(code)).first();
   if (!order) return { status: 404, body: { error: 'That bulk code was not found.' } };
   if (order.status !== 'paid') return { status: 409, body: { error: 'This bulk order is not active yet.' } };
+  const seats = await env.OBI_DB.prepare('SELECT count(*) AS count FROM bulk_seats WHERE order_id=?').bind(order.id).first();
+  if (Number(seats?.count || 0) > 0) return { status: 409, body: { error: 'Use an individual seat link for this order.' } };
   const existing = await env.OBI_DB.prepare('SELECT checkout_session_id FROM bulk_order_claims WHERE order_id=? AND account_id=?').bind(order.id, account.id).first();
   if (existing) return { status: 200, body: { session_id: existing.checkout_session_id, alreadyClaimed: true } };
   const reference = 'obi_' + randomHex(16);
@@ -303,3 +326,167 @@ export async function claimBulkOrder(env, account, codeInput, deviceHash) {
     ? { status: 200, body: { session_id: retry.checkout_session_id, alreadyClaimed: true } }
     : { status: 409, body: { error: 'All activations for this bulk code have been used.' } };
 }
+
+export const MAX_INDIVIDUAL_SEATS = 500;
+
+/**
+ * Generate one encrypted seat token per copy, up to the per-seat UI limit.
+ * The shared code remains available for larger orders.
+ */
+export async function ensureBulkSeats(env, order) {
+  await ensureBulkOrders(env);
+  if (!order || order.status !== 'paid') return;
+  const quantity = Number(order.quantity) || 0;
+  if (quantity > MAX_INDIVIDUAL_SEATS) return;
+  const target = quantity;
+  if (!target) return;
+  const existing = await env.OBI_DB.prepare('SELECT seat_no FROM bulk_seats WHERE order_id=?').bind(order.id).all();
+  const present = new Set((existing.results || []).map((row) => Number(row.seat_no)));
+  const now = new Date().toISOString();
+  const statements = [];
+  for (let seatNo = 1; seatNo <= target; seatNo += 1) {
+    if (present.has(seatNo)) continue;
+    const token = 'seat_' + randomHex(24);
+    const encrypted = await encryptCode(env, `${order.id}:seat:${seatNo}`, token);
+    statements.push(
+      env.OBI_DB.prepare(`INSERT OR IGNORE INTO bulk_seats
+        (id,order_id,seat_no,token_hash,token_encrypted,status,created_at)
+        VALUES (?,?,?,?,?,'available',?)`)
+        .bind(`seat_${randomHex(12)}`, order.id, seatNo, await hashCode(token), encrypted, now),
+    );
+  }
+  for (let index = 0; index < statements.length; index += 50) {
+    await env.OBI_DB.batch(statements.slice(index, index + 50));
+  }
+}
+
+function publicSeat(row, link) {
+  return {
+    seat_no: Number(row.seat_no),
+    status: row.status,
+    recipient_label: row.recipient_label || '',
+    recipient_email: row.recipient_email || '',
+    recipient_phone: row.recipient_phone || '',
+    claimed_at: row.claimed_at || null,
+    revoked_at: row.revoked_at || null,
+    link,
+  };
+}
+
+export async function seatsForOrder(env, orderId) {
+  await ensureBulkOrders(env);
+  const order = await env.OBI_DB.prepare('SELECT id,quantity,status,currency FROM bulk_orders WHERE id=?').bind(orderId).first();
+  if (!order) return null;
+  if (order.status !== 'paid') return { seats: [], limited: false, max_individual: MAX_INDIVIDUAL_SEATS };
+  if (Number(order.quantity) > MAX_INDIVIDUAL_SEATS) return { seats: [], limited: true, max_individual: MAX_INDIVIDUAL_SEATS };
+  await ensureBulkSeats(env, order);
+  const rows = await env.OBI_DB.prepare(`SELECT seat_no,token_encrypted,status,recipient_label,recipient_email,recipient_phone,claimed_at,revoked_at
+    FROM bulk_seats WHERE order_id=? ORDER BY seat_no`).bind(order.id).all();
+  const origin = String(env.OBI_PUBLIC_APP_URL || 'https://readobiism.com').replace(/\/+$/, '');
+  const seats = [];
+  for (const row of rows.results || []) {
+    let link = '';
+    try {
+      const token = await decryptCode(env, `${order.id}:seat:${row.seat_no}`, row.token_encrypted);
+      link = `${origin}/bulk-redeem.html?seat=${encodeURIComponent(token)}`;
+    } catch { /* A lost key leaves the seat unavailable for link delivery. */ }
+    seats.push(publicSeat(row, link));
+  }
+  return {
+    seats,
+    limited: Number(order.quantity) > MAX_INDIVIDUAL_SEATS,
+    max_individual: MAX_INDIVIDUAL_SEATS,
+  };
+}
+
+export async function assignBulkSeat(env, orderId, seatNo, input = {}, actor = '') {
+  await ensureBulkOrders(env);
+  const order = await env.OBI_DB.prepare('SELECT id,quantity,status FROM bulk_orders WHERE id=?').bind(orderId).first();
+  if (!order) return { status: 404, body: { error: 'Order not found.' } };
+  const number = Number(seatNo);
+  if (!Number.isInteger(number) || number < 1 || number > Number(order.quantity)) return { status: 400, body: { error: 'Invalid seat.' } };
+  const seat = await env.OBI_DB.prepare('SELECT * FROM bulk_seats WHERE order_id=? AND seat_no=?').bind(orderId, number).first();
+  if (!seat) return { status: 404, body: { error: 'Seat not found.' } };
+  if (seat.status === 'claimed') return { status: 409, body: { error: 'A claimed seat cannot be reassigned. Revoke it first.' } };
+  const label = typeof input.label === 'string' ? input.label.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, 80) : '';
+  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase().slice(0, 254) : '';
+  if (email && !validEmail(email)) return { status: 400, body: { error: 'Enter a valid recipient email.' } };
+  const phone = typeof input.phone === 'string' ? input.phone.replace(/[^\d+]/g, '').slice(0, 20) : '';
+  if (phone && !/^\+?\d{7,20}$/.test(phone)) return { status: 400, body: { error: 'Enter a valid phone number.' } };
+  const now = new Date().toISOString();
+  await env.OBI_DB.prepare(`UPDATE bulk_seats SET
+      recipient_label=?, recipient_email=?, recipient_phone=?,
+      status=CASE WHEN status='revoked' THEN 'available' ELSE status END,
+      claimed_by_account=CASE WHEN status='revoked' THEN NULL ELSE claimed_by_account END,
+      claim_reference=CASE WHEN status='revoked' THEN NULL ELSE claim_reference END,
+      claimed_at=CASE WHEN status='revoked' THEN NULL ELSE claimed_at END,
+      revoked_at=NULL
+    WHERE order_id=? AND seat_no=?`).bind(label || null, email || null, phone || null, orderId, number).run();
+  await env.OBI_DB.prepare('INSERT INTO bulk_order_events (id,order_id,event_type,actor,details,created_at) VALUES (?,?,?,?,?,?)')
+    .bind('boe_' + randomHex(12), orderId, 'seat_assigned', actor || null, JSON.stringify({ seat_no: number, email, phone }), now).run();
+  const updated = await env.OBI_DB.prepare('SELECT * FROM bulk_seats WHERE order_id=? AND seat_no=?').bind(orderId, number).first();
+  return { status: 200, body: { seat: publicSeat(updated, '') } };
+}
+
+export async function revokeBulkSeat(env, orderId, seatNo, actor = '') {
+  await ensureBulkOrders(env);
+  const seat = await env.OBI_DB.prepare('SELECT * FROM bulk_seats WHERE order_id=? AND seat_no=?').bind(orderId, Number(seatNo)).first();
+  if (!seat) return { status: 404, body: { error: 'Seat not found.' } };
+  if (seat.status === 'revoked') return { status: 200, body: { seat: publicSeat(seat, ''), alreadyRevoked: true } };
+  const now = new Date().toISOString();
+  const statements = [
+    env.OBI_DB.prepare("UPDATE bulk_seats SET status='revoked', revoked_at=? WHERE id=?").bind(now, seat.id),
+    env.OBI_DB.prepare('INSERT INTO bulk_order_events (id,order_id,event_type,actor,details,created_at) VALUES (?,?,?,?,?,?)')
+      .bind('boe_' + randomHex(12), orderId, 'seat_revoked', actor || null, JSON.stringify({ seat_no: Number(seatNo) }), now),
+  ];
+  if (seat.claim_reference) {
+    statements.unshift(env.OBI_DB.prepare("UPDATE purchases SET status='revoked' WHERE checkout_session_id=?").bind(seat.claim_reference));
+  }
+  await env.OBI_DB.batch(statements);
+  const updated = await env.OBI_DB.prepare('SELECT * FROM bulk_seats WHERE id=?').bind(seat.id).first();
+  return { status: 200, body: { seat: publicSeat(updated, '') } };
+}
+
+export async function claimBulkSeat(env, account, tokenInput, deviceHash) {
+  const token = typeof tokenInput === 'string' ? tokenInput.trim() : '';
+  if (!/^seat_[a-f0-9]{48}$/.test(token)) return { status: 400, body: { error: 'Enter a valid seat link.' } };
+  await ensureBulkOrders(env);
+  const seat = await env.OBI_DB.prepare(`SELECT s.id,s.order_id,s.seat_no,s.status,s.recipient_label,s.recipient_email,s.recipient_phone,
+      s.claimed_by_account,s.claim_reference,o.status AS order_status,o.currency
+    FROM bulk_seats s JOIN bulk_orders o ON o.id=s.order_id WHERE s.token_hash=?`).bind(await hashCode(token)).first();
+  if (!seat) return { status: 404, body: { error: 'That seat link was not found.' } };
+  if (seat.order_status !== 'paid') return { status: 409, body: { error: 'This order is not active yet.' } };
+  if (seat.status === 'claimed') {
+    if (seat.claimed_by_account === account.id) return { status: 200, body: { session_id: seat.claim_reference, alreadyClaimed: true } };
+    return { status: 409, body: { error: 'This seat has already been claimed on another account.' } };
+  }
+  if (seat.status === 'revoked') return { status: 409, body: { error: 'This seat has been revoked by the purchaser.' } };
+  if (seat.recipient_email && seat.recipient_email.toLowerCase() !== String(account.email || '').toLowerCase()) {
+    return { status: 403, body: { error: 'This seat was assigned to a different email address.' } };
+  }
+  const reference = 'obi_' + randomHex(16);
+  const now = new Date().toISOString();
+  const readerName = seat.recipient_label || null;
+  const results = await env.OBI_DB.batch([
+    env.OBI_DB.prepare("UPDATE bulk_seats SET status='claimed',claimed_by_account=?,claim_reference=?,claimed_at=? WHERE id=? AND status='available'")
+      .bind(account.id, reference, now, seat.id),
+    env.OBI_DB.prepare(`INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at)
+      SELECT ?,?,?,?,0,?,?,'active',? FROM bulk_seats s JOIN bulk_orders o ON o.id=s.order_id
+      WHERE s.id=? AND s.status='claimed' AND s.claim_reference=?`)
+      .bind(reference, 'bulk-seat:' + seat.order_id, account.email, readerName, seat.currency, EDITION_SKU, now, seat.id, reference),
+    env.OBI_DB.prepare(`INSERT INTO reader_devices (checkout_session_id,device_hash,claimed_at)
+      SELECT claim_reference,?,? FROM bulk_seats WHERE id=? AND status='claimed' AND claim_reference=?`)
+      .bind(deviceHash, now, seat.id, reference),
+    env.OBI_DB.prepare(`INSERT INTO bulk_order_events (id,order_id,event_type,actor,details,created_at)
+      SELECT ?,order_id,'seat_claimed',?,?,? FROM bulk_seats WHERE id=? AND status='claimed' AND claim_reference=?`)
+      .bind('boe_' + randomHex(12), account.email, JSON.stringify({ seat_no: seat.seat_no }), now, seat.id, reference),
+  ]);
+  if (Number(results[1]?.meta?.changes || 0) > 0) {
+    return { status: 200, body: { session_id: reference, claimed: true } };
+  }
+  const retry = await env.OBI_DB.prepare('SELECT claim_reference FROM bulk_seats WHERE id=? AND claimed_by_account=?').bind(seat.id, account.id).first();
+  return retry?.claim_reference
+    ? { status: 200, body: { session_id: retry.claim_reference, alreadyClaimed: true } }
+    : { status: 409, body: { error: 'This seat is no longer available.' } };
+}
+
