@@ -4,6 +4,7 @@
     overview: ['Overview', 'A clear view of your publication and reader support.'],
     readers: ['Readers', 'Find a reader and review their account and edition access.'],
     purchases: ['Purchases', 'Review recorded purchases and edition statuses.'],
+    feedback: ['Reader feedback', 'Ratings and comments from readers with active access.'],
     gifts: ['Gifts & codes', 'Track gift purchases and their redemption status.'],
     bulk: ['Bulk orders', 'Manage editions for groups and organisations.'],
     devices: ['Devices', 'Review device activations linked to purchases.'],
@@ -14,6 +15,7 @@
   const views = {
     readers: { headers: ['Email', 'Account ID', 'Created', 'Last sign-in', 'Active editions'], fields: ['email', 'id', 'created_at', 'last_signed_in', 'active_editions'], description: 'Search by account email or ID.' },
     purchases: { headers: ['Email', 'Reference', 'Amount', 'Source', 'Status', 'Recorded'], fields: ['purchaser_email', 'checkout_session_id', 'amount', 'source', 'status', 'granted_at'], description: 'Search by purchaser email or payment reference. Local bulk tests are labelled separately.' },
+    feedback: { headers: ['Reader', 'Purchase reference', 'Rating', 'Comment', 'Submitted', 'Updated'], fields: ['purchaser_email', 'checkout_session_id', 'rating', 'comment', 'created_at', 'updated_at'], description: 'Search reader email, purchase reference or comment. Only readers with active access can submit feedback.' },
     gifts: { headers: ['Buyer', 'Recipient', 'Code ending', 'Purchase reference', 'Status', 'Created', 'Redeemed'], fields: ['buyer_email', 'recipient_email', 'code_last4', 'checkout_session_id', 'status', 'created_at', 'redeemed_at'], description: 'Search buyer email, recipient email or purchase reference. Full gift codes are hidden.' },
     devices: { headers: ['Buyer email', 'Purchase reference', 'Device', 'Binding', 'Recorded'], fields: ['purchaser_email', 'checkout_session_id', 'metadata', 'binding_status', 'claimed_at'], description: 'Search by purchaser email or purchase reference. Gifts awaiting redemption may be unbound. Device metadata is recorded from new claims.' },
     content: { headers: ['Position', 'Section ID', 'Label', 'Title', 'Type'], fields: ['position', 'section_id', 'label', 'title', 'kind'], description: 'Search section titles or IDs. Reader text is not displayed.' },
@@ -240,6 +242,10 @@
     } catch (error) { $('bulk-list-message').textContent = error.message; $('bulk-payments-empty').textContent = error.message; toast(error.message, true); return false; }
   }
   function format(field, value, record) {
+    if (field === 'rating') {
+      const labels = { 1: '😞 Not for me', 2: '😕 It was okay', 3: '🙂 Good', 4: '😊 Loved it', 5: '🤩 Transforming' };
+      return labels[Number(value)] || '—';
+    }
     if (field === 'amount') {
       try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: record.currency }).format(record.amount_cents / 100); }
       catch { return String(record.amount_cents / 100) + ' ' + (record.currency || ''); }
@@ -251,7 +257,7 @@
       } catch { return '—'; }
     }
     if (field === 'code_last4') return value ? '••••-' + value : '—';
-    if (['created_at', 'last_signed_in', 'granted_at', 'claimed_at', 'redeemed_at'].includes(field)) {
+    if (['created_at', 'last_signed_in', 'granted_at', 'claimed_at', 'redeemed_at', 'updated_at'].includes(field)) {
       const date = new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString() : '—';
     }
     return value == null || value === '' ? '—' : String(value);
@@ -311,7 +317,7 @@
     page = 1; query = ''; $('search').value = '';
     if (views[section]) {
       $('records-heading').textContent = title; $('records-description').textContent = views[section].description;
-      $('search').placeholder = section === 'content' ? 'Search title or section ID' : 'Search email or reference';
+      $('search').placeholder = section === 'content' ? 'Search title or section ID' : section === 'feedback' ? 'Search reader, reference or comment' : 'Search email or reference';
       loadTable();
     }
     if (section === 'overview') loadOverview();
