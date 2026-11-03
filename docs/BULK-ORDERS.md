@@ -15,7 +15,7 @@
 
 ## Payment handling
 
-- **Paystack:** `/api/paystack/webhook` accepts `charge.success` events for `bpo_` references, looks up the order, verifies the transaction with Paystack, and marks the order paid. The buyer-return endpoint `/api/bulk/verify` is the fallback when the webhook is delayed.
+- **Paystack:** `/api/paystack/webhook` accepts `charge.success` events for `bpo_` references, looks up the order, verifies the transaction with Paystack, and marks the order paid. The buyer-return endpoint `/api/bulk/verify` is the fallback when the webhook is delayed. For a single-edition Paystack purchase, `/api/reader/claim` also verifies the `obi_...` reference on demand, so a delayed webhook does not block book access.
 - **Stripe:** `checkout.session.completed` sessions with `metadata.bulk_order=1` are routed to the same verification function. This remains inactive until `OBI_STRIPE_SECRET_KEY` and `OBI_STRIPE_WEBHOOK_SECRET` are configured.
 
 ## Security controls
