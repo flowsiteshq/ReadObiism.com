@@ -4,6 +4,7 @@
       const apiFetch = window.OBI_API.fetch;
       const params = new URLSearchParams(location.search);
       let sessionId = params.get("session_id");
+      let currentDeviceToken = "";
       const validSession = (value) => typeof value === "string" && /^(cs_[A-Za-z0-9_]{12,255}|obi_[a-z0-9]{16,64})$/.test(value);
       // Keep the payment return reference in this tab for refresh/retry, then
       // remove payment parameters from the address bar and current history entry.
@@ -82,7 +83,8 @@
           ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(license.email)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
           : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div></nav><article class="reading" id="reading"></article></section>${mark}`;
+        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div></nav><article class="reading" id="reading"></article></section>${mark}`;
+        document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
         const sidebar = document.getElementById("chapter-sidebar");
@@ -147,6 +149,68 @@
         };
         void show(0);
       };
+      function openFeedback() {
+        if (!sessionId || !currentDeviceToken) return;
+        document.querySelector(".feedback-modal")?.remove();
+        const options = [[1, "😞", "Not for me"], [2, "😕", "It was okay"], [3, "🙂", "Good"], [4, "😊", "Loved it"], [5, "🤩", "Transforming"]];
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-feedback-close></div><section class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="feedback-title" tabindex="-1"><button class="feedback-close" type="button" data-feedback-close aria-label="Close feedback">×</button><p class="feedback-eyebrow">YOUR READING EXPERIENCE</p><h2 id="feedback-title">How did this edition feel?</h2><p class="feedback-intro">Choose the face that matches your experience. Your feedback goes privately to the OBI-ISM team.</p><div class="feedback-emojis" role="radiogroup" aria-label="Rate the book">${options.map(([value, emoji, label]) => `<button type="button" class="feedback-emoji" data-rating="${value}" role="radio" aria-checked="false"><span aria-hidden="true">${emoji}</span><small>${label}</small></button>`).join("")}</div><label class="feedback-label" for="feedback-comment">Anything you want to tell us? <span>Optional</span></label><textarea id="feedback-comment" maxlength="1000" rows="4" placeholder="What stayed with you? What could be better?"></textarea><div class="feedback-meta"><span id="feedback-count">0 / 1000</span><span id="feedback-message" role="status" aria-live="polite"></span></div><button class="feedback-submit" id="feedback-submit" type="button" disabled>SHARE MY FEEDBACK →</button><p class="feedback-note">Only readers with active access can submit feedback. Your comment is private to the OBI-ISM team.</p></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".feedback-card");
+        const submit = modal.querySelector("#feedback-submit");
+        const comment = modal.querySelector("#feedback-comment");
+        const count = modal.querySelector("#feedback-count");
+        const message = modal.querySelector("#feedback-message");
+        let rating = 0;
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); document.getElementById("feedback-open")?.focus(); };
+        const setRating = (value) => {
+          rating = value;
+          modal.querySelectorAll(".feedback-emoji").forEach((button) => {
+            const selected = Number(button.dataset.rating) === value;
+            button.classList.toggle("selected", selected);
+            button.setAttribute("aria-checked", String(selected));
+          });
+          submit.disabled = !rating;
+        };
+        modal.querySelectorAll("[data-feedback-close]").forEach((element) => element.addEventListener("click", close));
+        modal.querySelectorAll(".feedback-emoji").forEach((button) => button.addEventListener("click", () => setRating(Number(button.dataset.rating))));
+        comment.addEventListener("input", () => { count.textContent = `${comment.value.length} / 1000`; });
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        document.addEventListener("keydown", onKey);
+        card.focus();
+        apiFetch(`/api/reader/feedback?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data) => {
+            if (!data?.feedback) return;
+            setRating(Number(data.feedback.rating));
+            comment.value = data.feedback.comment || "";
+            count.textContent = `${comment.value.length} / 1000`;
+            message.textContent = "You can update your feedback.";
+          })
+          .catch(() => {});
+        submit.addEventListener("click", async () => {
+          if (!rating) return;
+          submit.disabled = true;
+          message.textContent = "Saving…";
+          try {
+            const response = await apiFetch("/api/reader/feedback", {
+              method: "POST",
+              headers: { "content-type": "application/json", "x-obi-device-token": currentDeviceToken },
+              body: JSON.stringify({ session_id: sessionId, device_token: currentDeviceToken, rating, comment: comment.value }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || "Could not save feedback.");
+            card.innerHTML = `<button class="feedback-close" type="button" data-feedback-close aria-label="Close feedback">×</button><div class="feedback-thanks"><span aria-hidden="true">🤩</span><p class="feedback-eyebrow">THANK YOU</p><h2>Your feedback matters.</h2><p>Your rating and comment have been shared privately with the OBI-ISM team.</p><button class="feedback-submit" type="button" data-feedback-close>CLOSE</button></div>`;
+            card.querySelectorAll("[data-feedback-close]").forEach((element) => element.addEventListener("click", close));
+            card.focus();
+          } catch (error) {
+            message.textContent = error.message || "Could not save feedback.";
+            submit.disabled = false;
+          }
+        });
+      }
+
       async function start() {
         // No ?session_id in the URL? Recover it from the signed-in account so a
         // bookmark or a fresh visit still opens the purchased edition.
@@ -161,6 +225,7 @@
         const tokenKey = `obi-ism.reader-device.${sessionId}`;
         let deviceToken = localStorage.getItem(tokenKey);
         if (!deviceToken) { deviceToken = newToken(); localStorage.setItem(tokenKey, deviceToken); }
+        currentDeviceToken = deviceToken;
         localStorage.setItem("obi-ism.last-session", sessionId);
         const claimOnce = async () => {
           const response = await apiFetch("/api/reader/claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken }) });
