@@ -1,29 +1,45 @@
 # Bulk orders and shared activation codes
 
-## Agreed workflow
+## Production flow (enabled for Paystack)
 
-One buyer purchases a quantity of editions. After payment is verified, the order receives **one unique shareable code**. Different recipients use that code to activate their own edition. A 20-copy order permits 20 successful activations in total; once exhausted, the code cannot grant another edition. Existing gift purchases remain a separate one-recipient flow.
+1. The buyer opens `/bulk.html` and signs in. A reader account is required.
+2. The buyer chooses the quantity (1–10,000) and a provider:
+   - **Paystack (NGN)** — enabled in production.
+   - **Stripe (USD)** — code path exists, but the production Stripe secrets are not configured, so USD checkout returns `503` until they are set.
+3. The Worker creates a `bprod_...` order, stores the unit amount and total in minor units, and initializes the provider checkout.
+4. After payment, the buyer returns to `bulk-confirmation.html?order=...`. `POST /api/bulk/verify` verifies the payment directly with the provider and issues one `OBI-BULK-...` code.
+5. The buyer must have a verified account email before the code is released.
+6. The code is stored as a hash for lookup and as an AES-GCM encrypted copy for recovery. The encryption key is `BULK_CODE_ENCRYPTION_KEY`.
+7. Recipients open `/bulk-redeem.html`, sign in, enter the shared code, and claim one edition. Each claim creates an active purchase and device binding for that recipient.
+8. The same recipient can retry without consuming another copy. Claims are capped at the purchased quantity.
 
-## Local prototype available
+## Payment handling
 
-Open `http://127.0.0.1:5514/admin/#bulk`. The admin can create a **simulated** order without payment, or choose Paystack (NGN) or Stripe (USD) for a **test-mode** checkout. Choose standard pricing or an approved whole-percentage discount (1–99%). For a discount, the administrator records an approval note and confirms it; the administrator's identity and note are retained with the order. This is an administrator's attestation, not an independent approval workflow. The Worker calculates the unit price in minor currency units, rounds it to the nearest unit, and multiplies by the quantity. It records the gateway, currency and amount for each order. Existing Paystack test orders remain readable. Arbitrary custom prices, conversion and additional gateways are not yet supported.
+- **Paystack:** `/api/paystack/webhook` accepts `charge.success` events for `bpo_` references, looks up the order, verifies the transaction with Paystack, and marks the order paid. The buyer-return endpoint `/api/bulk/verify` is the fallback when the webhook is delayed.
+- **Stripe:** `checkout.session.completed` sessions with `metadata.bulk_order=1` are routed to the same verification function. This remains inactive until `OBI_STRIPE_SECRET_KEY` and `OBI_STRIPE_WEBHOOK_SECRET` are configured.
 
-After returning, the admin uses **Check payment**. The Worker verifies the payment directly with the selected provider, including its test mode, successful status, currency, amount, buyer email and order details, before making the test code available. An authenticated administrator can recover a paid test code from the payment list. The local code derivation secret is in ignored `.dev.vars`; changing or losing it prevents recovery of existing paid test codes. Configure the relevant test key in admin Payment settings and restart the Worker before checkout.
+## Security controls
 
-Copy the code to `http://127.0.0.1:5514/bulk-redeem.html`. Each recipient must sign in or register a reader account. The same account can retry without consuming another copy; a new account consumes one copy, until the quantity is exhausted. D1 applies the capacity check, claim, test entitlement and device binding as one batch. Use separate browser profiles on this computer to simulate different readers. Loopback URLs do not work for recipients on other machines.
+- Signed-in buyer only; the account email must be verified before the code is shown.
+- Provider amount, currency, reference, metadata and buyer email are verified server-side.
+- High-entropy codes: `OBI-BULK-` followed by 48 hex characters.
+- Rate limits: 30 requests/hour per IP and 15/hour per account for bulk routes.
+- Admin/local test flow stays separate under `/api/admin/bulk-local` and is loopback-only.
 
-The prototype is restricted to loopback requests with `OBI_BULK_LOCAL_TEST=1`; it cannot take a live key or make a real payment. Records are marked as local tests, including the zero-value reader entitlements. It does **not** establish that different accounts belong to different people: registration email verification is not implemented. The existing one-browser/device restriction remains in effect.
+## Current limitations
 
-Tests cover idempotent retries, concurrent capacity, transactional rollback, unauthenticated access, provider amount verification and reading a claimed local test edition. Successful hosted test payments require a manual browser pass. The production flow is not complete.
+- Stripe production keys are not set, so USD checkout is unavailable.
+- The admin dashboard's **Bulk orders** section still shows the local-test workspace. Production orders are available through `GET /api/admin/bulk-orders` but are not yet rendered in the dashboard.
+- Refund, dispute and partial-refund states exist in the schema but are not automated.
+- The buyer receives the code on the confirmation page. Email delivery of the shared code is not implemented.
+- Discounts are rejected at checkout until an administrator approval workflow is wired into the production buyer flow.
 
-## Work required before this is operational
+## Verification
 
-- Add production bulk checkout for the buyer's chosen Stripe (USD) or Paystack (NGN) gateway. The Worker must set and verify the quantity, unit price, currency, amount, order reference and product server-side. A redirect or unverified callback must never issue a code.
-- Create an order and high-entropy code only after the correct verified payment or signed, idempotently processed webhook. Ensure retries return the same order and cannot issue duplicate codes. Store a secure code hash for lookup and provide an appropriately protected delivery/recovery process; do not put codes in URLs, logs or public analytics.
-- Require a recipient to authenticate before claiming; add verified ownership of their identity before depending on it for recovery. A claim must attach one entitlement to that recipient, integrate with the existing reader and device rules, and be idempotent for repeat requests by the same recipient.
-- Use a D1 atomic transaction or equivalent database-enforced mechanism for checking available capacity, inserting a unique recipient claim and granting the entitlement. Concurrent claims for the last copy must never exceed the purchased quantity; a failed grant must not consume a copy. A device transfer must not consume a second copy.
-- Define expired, refunded, cancelled, disputed and partially refunded orders, including how previously activated copies and unused capacity are reconciled. Record administrator actions and payment events in an audit trail and enforce server-side roles.
-- Provide a buyer confirmation and code-sharing path, a recipient activation screen, and a read-only dashboard showing purchaser, quantity, claimed and remaining copies, status and payment reference. Mask codes in routine lists. Avoid showing real customer records in local fixtures or unprotected previews.
-- Test zero and full capacity, 20 unique claims, repeated recipient retries, simultaneous final claims, partial failure/rollback, forged and duplicate payment events, refunds, account/device recovery and both payment providers in isolated test environments.
+Run the Worker tests from `worker/`:
 
-The existing single-edition checkout validates an amount for one copy, and the existing gift code is restricted to one named recipient. The local prototype is separate from both. Production deployment, payment webhooks, refunds, buyer access and the remaining production protections above are not implemented.
+```powershell
+npm test
+```
+
+The bulk recovery tests cover idempotent verification, concurrent claims, capacity limits, rollback, provider amount checks, currency retention and wrong-key recovery.
