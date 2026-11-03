@@ -1204,7 +1204,7 @@ async function reader(request, env) {
 
   const sections = await env.OBI_DB.prepare("SELECT section_id, label, title, kind, paragraphs_json FROM book_sections ORDER BY position ASC").all();
   if (!sections.results?.length) return reply({ error: "The protected edition is being prepared. Please retry shortly." }, request, { status: 503 });
-  const purchase = await env.OBI_DB.prepare("SELECT purchaser_email FROM purchases WHERE checkout_session_id=?").bind(sessionId).first();
+  const purchase = await env.OBI_DB.prepare("SELECT purchaser_email,granted_at FROM purchases WHERE checkout_session_id=?").bind(sessionId).first();
   return reply({
     title: "OBI-ISM",
     subtitle: "Building a Just Society Through Character",
@@ -1213,6 +1213,7 @@ async function reader(request, env) {
       email: purchase?.purchaser_email || "",
       device: deviceLabel,
       reference: sessionId.slice(-8).toUpperCase(),
+      granted_at: purchase?.granted_at || "",
     },
     chapters: sections.results.map(sectionMetadata),
   }, request);
