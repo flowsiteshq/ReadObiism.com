@@ -1,4 +1,5 @@
 // Read-only administrative views. Never return password, session or device hashes.
+import { ensureBulkOrders } from './bulk-orders.js';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const rows = async (db, sql, ...args) => (await db.prepare(sql).bind(...args).all()).results;
 
@@ -25,6 +26,9 @@ export async function adminData(request, env) {
       rows(db, "SELECT status, COUNT(*) AS total FROM purchases GROUP BY status ORDER BY total DESC"),
     ]);
     return json({ totals, registrations, purchases, statuses });
+  }
+  if (url.pathname === '/api/admin/bulk-orders') {
+    await ensureBulkOrders(env);
   }
   const page = Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const size = 10, offset = (page - 1) * size;

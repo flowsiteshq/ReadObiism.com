@@ -1,6 +1,7 @@
 // Production bulk orders (Stripe USD / Paystack NGN). Verified payments only.
 import { hashDeviceToken } from './security.js';
-import { NGN_PRICE_KOBO, USD_PRICE_CENTS, EDITION_SKU } from './pricing.js';
+import { EDITION_SKU } from './pricing.js';
+import { getPricing } from './pricing-store.js';
 
 export const bulkOrdersSchema = `
 CREATE TABLE IF NOT EXISTS bulk_orders (
@@ -89,10 +90,11 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
 
   if (!/^[a-f0-9]{64}$/i.test(env.BULK_CODE_ENCRYPTION_KEY || '')) return { status: 503, body: { error: 'Bulk code recovery is not configured.' } };
   await ensureBulkOrders(env);
+  const pricing = await getPricing(env);
 
   if (provider === 'paystack') {
     if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_')) return { status: 503, body: { error: 'Paystack is not configured.' } };
-    const price = computePrice(NGN_PRICE_KOBO, discount);
+    const price = computePrice(pricing.NGN.minor, discount);
     if (!price) return { status: 400, body: { error: 'Invalid discount. Enter 1-99%, approval note, and confirmation.' } };
     const id = 'bprod_' + randomHex(16);
     const reference = 'bpo_' + randomHex(16);
@@ -124,7 +126,7 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
     }
   } else {
     if (!env.OBI_STRIPE_SECRET_KEY?.startsWith('sk_')) return { status: 503, body: { error: 'Stripe is not configured.' } };
-    const price = computePrice(USD_PRICE_CENTS, discount);
+    const price = computePrice(pricing.USD.minor, discount);
     if (!price) return { status: 400, body: { error: 'Invalid discount. Enter 1-99%, approval note, and confirmation.' } };
     const id = 'bprod_' + randomHex(16);
     const now = new Date().toISOString();
