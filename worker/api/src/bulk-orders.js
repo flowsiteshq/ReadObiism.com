@@ -134,7 +134,7 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
     try {
       const api = String(env.PAYSTACK_API_BASE || 'https://api.paystack.co').replace(/\/+$/, '');
       const origin = env.OBI_PUBLIC_APP_URL || 'https://readobiism.com';
-      const callback = `${origin}/bulk-confirmation.html?order=${encodeURIComponent(id)}`;
+      const callback = `${origin}/bulk-confirmation?order=${encodeURIComponent(id)}`;
       const resp = await fetch(api + '/transaction/initialize', {
         method: 'POST',
         headers: { authorization: 'Bearer ' + env.PAYSTACK_SECRET_KEY, 'content-type': 'application/json' },
@@ -167,8 +167,8 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
       const form = new URLSearchParams({
         mode: 'payment',
         customer_email: email,
-        success_url: `${origin}/bulk-confirmation.html?order=${encodeURIComponent(id)}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/bulk.html?cancelled=1`,
+        success_url: `${origin}/bulk-confirmation?order=${encodeURIComponent(id)}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/bulk?cancelled=1`,
         'client_reference_id': id,
         'metadata[bulk_order]': '1',
         'metadata[bulk_order_id]': id,
@@ -388,7 +388,7 @@ export async function seatsForOrder(env, orderId) {
     let link = '';
     try {
       const token = await decryptCode(env, `${order.id}:seat:${row.seat_no}`, row.token_encrypted);
-      link = `${origin}/bulk-redeem.html?seat=${encodeURIComponent(token)}`;
+      link = `${origin}/bulk-redeem?seat=${encodeURIComponent(token)}`;
     } catch { /* A lost key leaves the seat unavailable for link delivery. */ }
     seats.push(publicSeat(row, link));
   }

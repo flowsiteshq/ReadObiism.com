@@ -67,9 +67,9 @@ test('registration sends a verification email when Resend is configured', async 
     assert.equal(sent.body.reply_to, 'sensei30002003@gmail.com');
     assert.equal(sent.body.subject, 'Your OBI-ISM verification code');
     assert.match(sent.body.text, /\d{8}/);
-    assert.match(sent.body.text, /\/verify-email\.html/);
+    assert.match(sent.body.text, /\/verify-email/);
     assert.match(sent.body.html, /\d{8}/);
-    assert.match(sent.body.html, /\/verify-email\.html/);
+    assert.match(sent.body.html, /\/verify-email/);
     assert.match(sent.body.html, /OBI–/);
     assert.deepEqual(sent.body.tags, [{ name: 'type', value: 'account-verification' }]);
     assert.equal(db.raw.prepare('SELECT count(*) n FROM account_verification_challenges').get().n, 1);

@@ -59,7 +59,7 @@ test('per-seat links generate, assign, claim, revoke and reassign', async () => 
 
   const seats = await seatsForOrder(env, orderId);
   assert.equal(seats.seats.length, 3);
-  assert.match(seats.seats[0].link, /^https:\/\/readobiism\.com\/bulk-redeem\.html\?seat=seat_/);
+  assert.match(seats.seats[0].link, /^https:\/\/readobiism\.com\/bulk-redeem\?seat=seat_/);
 
   const assigned = await assignBulkSeat(env, orderId, 1, { label: 'Chile', email: 'chile@example.test' }, 'buyer@example.test');
   assert.equal(assigned.status, 200);

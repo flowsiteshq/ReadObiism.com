@@ -12,7 +12,7 @@
         const signIn = $('sign-in');
         signIn.hidden = false;
         const link = signIn.querySelector('a');
-        if (link) link.href = 'login.html?next=bulk-redeem' + (isSeat ? '&seat=' + encodeURIComponent(seatToken) : '');
+        if (link) link.href = '/login?next=bulk-redeem' + (isSeat ? '&seat=' + encodeURIComponent(seatToken) : '');
         return;
       }
       if (!response.ok) throw new Error();
@@ -50,7 +50,7 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Could not activate this seat.');
       localStorage.setItem('obi-ism.reader-device.' + data.session_id, device);
-      location.assign('reader.html?session_id=' + encodeURIComponent(data.session_id));
+      location.assign('/reader?session_id=' + encodeURIComponent(data.session_id));
     } catch (error) { $('seat-message').textContent = error.message; $('seat-claim').disabled = false; }
   });
   $('bulk-form').addEventListener('submit', async (event) => {
@@ -65,7 +65,7 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not activate the edition.');
       localStorage.setItem('obi-ism.reader-device.' + data.session_id, device);
-      location.assign('reader.html?session_id=' + encodeURIComponent(data.session_id));
+      location.assign('/reader?session_id=' + encodeURIComponent(data.session_id));
     } catch (error) { $('message').textContent = error.message || 'Could not activate the edition.'; $('submit').disabled = false; }
   });
   checkAccount();
