@@ -34,6 +34,9 @@ export async function adminData(request, env) {
   if (url.pathname === '/api/admin/transfers') {
     await ensureDeviceSchema(env);
   }
+  if (url.pathname === '/api/admin/devices') {
+    await ensureDeviceSchema(env);
+  }
   const page = Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const size = 10, offset = (page - 1) * size;
   const search = (url.searchParams.get('q') || '').trim().slice(0, 100);
@@ -50,7 +53,7 @@ export async function adminData(request, env) {
     query = "SELECT checkout_session_id,purchaser_email,amount_cents,currency,status,granted_at,CASE WHEN payment_intent_id LIKE 'local-bulk-test:%' THEN 'Local bulk test' ELSE 'Checkout record' END AS source FROM purchases WHERE purchaser_email LIKE ? ESCAPE '\\' OR checkout_session_id LIKE ? ESCAPE '\\' ORDER BY granted_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM purchases WHERE purchaser_email LIKE ? ESCAPE '\\' OR checkout_session_id LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/devices') {
-    query = `SELECT d.checkout_session_id,d.claimed_at,p.purchaser_email,
+    query = `SELECT d.checkout_session_id,d.claimed_at,d.metadata_json AS metadata,p.purchaser_email,
       CASE WHEN d.device_hash='UNBOUND' THEN 'Awaiting activation' ELSE 'Bound' END AS binding_status
       FROM reader_devices d LEFT JOIN purchases p ON p.checkout_session_id=d.checkout_session_id
       WHERE d.checkout_session_id LIKE ? ESCAPE '\\' OR p.purchaser_email LIKE ? ESCAPE '\\' ORDER BY d.claimed_at DESC LIMIT ? OFFSET ?`;
