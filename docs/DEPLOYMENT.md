@@ -281,6 +281,10 @@ Currently configured in production:
 | `OBI_ADMIN_EMAIL` | admin UI login |
 | `OBI_ADMIN_PASSWORD` | admin UI password |
 | `PAYSTACK_SECRET_KEY` | Paystack checkout/verification |
+| `BULK_CODE_ENCRYPTION_KEY` | 64 hex characters; required for bulk code recovery |
+| `RESEND_API_KEY` | email delivery (verification/gift) |
+| `GIFT_FROM_EMAIL` | gift email sender |
+| `ACCOUNT_FROM_EMAIL` | account email sender |
 
 Optional, not currently configured (features fail closed):
 
@@ -290,12 +294,10 @@ Optional, not currently configured (features fail closed):
 | `OBI_STRIPE_WEBHOOK_SECRET` | Stripe webhook verification |
 | `OBI_STRIPE_LIVE_MODE` | `1` allows live Stripe payments |
 | `OBI_STRIPE_REQUIRE_LIVE` | `1` requires live Stripe mode |
-| `RESEND_API_KEY` | email delivery (verification/gift) |
-| `GIFT_FROM_EMAIL` | gift email sender |
-| `ACCOUNT_FROM_EMAIL` | account email sender, if used |
-| `BULK_CODE_ENCRYPTION_KEY` | 64 hex characters; required for bulk code recovery |
 | `OBI_PUBLIC_APP_URL` | defaults to `https://readobiism.com` |
 | `PAYSTACK_API_BASE` | defaults to `https://api.paystack.co` |
+
+**Bulk code key:** do not rotate `BULK_CODE_ENCRYPTION_KEY` while paid bulk orders exist. The key decrypts the recovery copy of every shared code; rotating it makes existing codes unrecoverable. Export/recover outstanding codes first.
 
 Set a secret:
 
