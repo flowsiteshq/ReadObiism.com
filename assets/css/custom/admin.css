@@ -121,6 +121,12 @@ td{color:#332d24}
 .payment-save:disabled{opacity:.5;cursor:wait}
 .payment-warning{margin:18px 0 0}
 @media(max-width:800px){.payment-grid{grid-template-columns:1fr}.pricing-fields{grid-template-columns:1fr}.pricing-actions{align-items:stretch;flex-direction:column}.pricing-actions .payment-save{width:100%}}
+#forensic-input{width:100%;min-height:170px;border:1px solid #ddd6c9;border-radius:9px;padding:12px;background:#fff;color:#17140e;font:13px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+#forensic-input:focus{outline:3px solid #c69b38;outline-offset:2px}
+#forensic-results{margin-top:16px;display:grid;gap:8px}
+.forensic-match{border:1px solid #ece6dc;border-radius:8px;padding:12px;background:#fffdf8;font-size:12px;line-height:1.5}
+.forensic-match strong{display:block;font-size:13px;color:#17140e}
+.forensic-match small{display:block;color:#746c5f;overflow-wrap:anywhere;margin-top:3px}
 .bulk-layout{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
 .bulk-form{margin-top:20px}
 .bulk-form label,.bulk-code-result strong{display:block;font-size:12px;font-weight:800;color:#4d4437;margin-bottom:8px}

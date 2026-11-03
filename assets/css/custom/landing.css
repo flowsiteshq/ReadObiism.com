@@ -30,6 +30,6 @@
       .top-nav .edition-pill{padding:10px 14px}
       .content{padding-top:clamp(64px,12vh,110px)}
     }
-    .signed-in-note{border:1px solid rgba(235,201,104,.55);background:rgba(235,201,104,.08);padding:14px 16px;margin:22px 0 0;color:#f5f1e8;font-size:14px;line-height:1.6}
-    .signed-in-note a{color:var(--gold);font-weight:800;text-decoration:none;white-space:nowrap}
+    .signed-in-note{border:1px solid rgba(23,20,14,.28);background:rgba(255,255,255,.58);padding:14px 16px;margin:22px 0 0;color:#17140e;font-size:14px;line-height:1.6;border-radius:9px}
+    .signed-in-note a{color:#17140e;font-weight:900;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
   
