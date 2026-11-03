@@ -86,7 +86,8 @@
         width: 300,
       });
     } catch {
-      container.hidden = true;
+      container.hidden = false;
+      message("Google sign-in could not load. Use your phone or email below.");
     }
   })();
 })();
