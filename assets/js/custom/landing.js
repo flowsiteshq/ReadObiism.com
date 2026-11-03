@@ -19,6 +19,7 @@
   const apiFetch = window.OBI_API.fetch;
   const button = document.getElementById("buy-edition");
   const email = document.getElementById("purchase-email");
+  const readerName = document.getElementById("reader-name");
   const emailLabel = document.getElementById("purchase-email-label");
   const status = document.getElementById("purchase-status");
   const modeSelf = document.getElementById("mode-self");
@@ -191,7 +192,7 @@
     updateStatus(purchaseMode === "gift" ? "Creating your secure gift checkout…" : "Creating your secure checkout session…");
     try {
       const deviceToken = newDeviceToken();
-      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, ...(gift || {}) }) });
+      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}) }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.url || !/^(cs_[A-Za-z0-9_]{12,255}|obi_[a-z0-9]{16,64})$/.test(body.sessionId || "")) throw new Error(body.error || "Checkout could not be started.");
       if (gift) {

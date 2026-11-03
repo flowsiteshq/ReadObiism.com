@@ -47,6 +47,8 @@
       const params = new URLSearchParams(location.search);
       let sessionId = params.get("session_id");
       let currentDeviceToken = "";
+      let activeLicense = {};
+      const readerState = new Map();
       const validSession = (value) => typeof value === "string" && /^(cs_[A-Za-z0-9_]{12,255}|obi_[a-z0-9]{16,64})$/.test(value);
       // Keep the payment return reference in this tab for refresh/retry, then
       // remove payment parameters from the address bar and current history entry.
@@ -121,18 +123,21 @@
         const chapters = edition.chapters.filter((chapter) => chapter.kind !== "part");
         const sectionCache = new Map();
         const license = edition.license || {};
+        activeLicense = license;
+        const displayName = license.name || license.email;
         const mark = license.email
-          ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(license.email)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
+          ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(displayName)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
           : "";
         const licenseField = license.email
-          ? `<div class="license-field" aria-hidden="true"><span>${escape(license.email)} · ${escape(license.reference)}</span></div>`
+          ? `<div class="license-field" aria-hidden="true"><span>${escape(displayName)} · ${escape(license.edition || license.reference)}</span></div>`
           : "";
         const licenseCard = license.email
-          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(license.email)}</strong><small>${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}<small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
+          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && license.email ? `<small>${escape(license.email)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE →</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
           : "";
         app.className = "reader-shell";
         app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
         document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
+        document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
         const sidebar = document.getElementById("chapter-sidebar");
@@ -173,11 +178,34 @@
             first.focus();
           }
         });
-        const show = async (index) => {
+        const markToc = () => {
+          contents.querySelectorAll("button").forEach((button) => {
+            const state = readerState.get(chapters[Number(button.dataset.chapter)]?.id);
+            const flags = button.querySelector(".toc-flags");
+            if (flags) flags.textContent = `${state?.bookmark ? "★" : ""}${state?.note ? "✎" : ""}`;
+          });
+        };
+        const updateProgress = () => {
+          const metadata = chapters[current];
+          if (!metadata || !reading) return;
+          const rect = reading.getBoundingClientRect();
+          const progress = Math.max(0, Math.min(1, (window.scrollY + window.innerHeight - (rect.top + window.scrollY)) / Math.max(1, rect.height)));
+          const state = readerState.get(metadata.id) || { section_id: metadata.id, bookmark: 0, note: "", progress: 0 };
+          state.progress = progress;
+          readerState.set(metadata.id, state);
+          const label = document.getElementById("chapter-progress");
+          if (label) label.textContent = `${Math.round(progress * 100)}%`;
+          if (Date.now() - lastProgressSave > 2500) {
+            lastProgressSave = Date.now();
+            void saveReaderState(metadata.id, { progress });
+          }
+        };
+        const show = async (index, restoreProgress = 0) => {
           current = Math.min(Math.max(index, 0), chapters.length - 1);
           const metadata = chapters[current];
-          contents.innerHTML = chapters.map((item, itemIndex) => `<button data-chapter="${itemIndex}" aria-current="${itemIndex === current}"><small>${escape(item.label)}</small>${escape(item.title)}</button>`).join("");
+          contents.innerHTML = chapters.map((item, itemIndex) => `<button data-chapter="${itemIndex}" aria-current="${itemIndex === current}"><small>${escape(item.label)}</small>${escape(item.title)}<span class="toc-flags" aria-hidden="true"></span></button>`).join("");
           contents.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { if (mobile.matches) setSidebar(false, true); void show(Number(button.dataset.chapter)); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+          markToc();
           reading.innerHTML = `<p class="chapter-label">${escape(metadata.label)}</p><h1>${escape(metadata.title)}</h1><p>Loading this licensed section…</p>`;
           try {
             let chapter = sectionCache.get(metadata.id);
@@ -186,17 +214,142 @@
               sectionCache.set(metadata.id, chapter);
             }
             if (chapters[current].id !== metadata.id) return;
-            reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>← PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT →</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
+            const state = readerState.get(chapter.id) || { section_id: chapter.id, bookmark: 0, note: "", progress: 0 };
+            readerState.set(chapter.id, state);
+            reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><div class="chapter-tools"><button class="chapter-tool" id="bookmark-toggle" type="button" aria-pressed="false">☆ SAVE</button><button class="chapter-tool" id="note-toggle" type="button">✎ NOTE</button><span class="chapter-progress" id="chapter-progress">0%</span></div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>← PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT →</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
+            const bookmarkToggle = document.getElementById("bookmark-toggle");
+            const noteToggle = document.getElementById("note-toggle");
+            const progressLabel = document.getElementById("chapter-progress");
+            const syncTools = () => {
+              bookmarkToggle.textContent = state.bookmark ? "★ SAVED" : "☆ SAVE";
+              bookmarkToggle.setAttribute("aria-pressed", String(Boolean(state.bookmark)));
+              noteToggle.textContent = state.note ? "✎ NOTE •" : "✎ NOTE";
+              if (progressLabel) progressLabel.textContent = `${Math.round(Number(state.progress || 0) * 100)}%`;
+            };
+            syncTools();
+            bookmarkToggle.addEventListener("click", async () => {
+              state.bookmark = state.bookmark ? 0 : 1;
+              syncTools(); markToc();
+              await saveReaderState(chapter.id, { bookmark: state.bookmark });
+            });
+            noteToggle.addEventListener("click", () => openNote(chapter.id, state.note || "", (note) => {
+              state.note = note; syncTools(); markToc();
+            }));
             document.getElementById("previous").addEventListener("click", () => void show(current - 1));
             document.getElementById("next").addEventListener("click", () => void show(current + 1));
             document.title = `${chapter.title} — OBI-ISM`;
+            updateProgress();
+            if (restoreProgress > 0) {
+              requestAnimationFrame(() => {
+                const top = reading.getBoundingClientRect().top + window.scrollY;
+                window.scrollTo(0, top + restoreProgress * Math.max(0, reading.offsetHeight - window.innerHeight));
+              });
+            }
           } catch {
             if (chapters[current].id === metadata.id) reading.innerHTML = `<p class="chapter-label">${escape(metadata.label)}</p><h1>${escape(metadata.title)}</h1><p>We could not load this section. Reconnect and try again.</p><button id="retry-section">RETRY SECTION</button>`;
             document.getElementById("retry-section")?.addEventListener("click", () => void show(current));
           }
         };
-        void show(0);
+        let lastProgressSave = 0;
+        let scrollTick = false;
+        window.addEventListener("scroll", () => {
+          if (scrollTick) return;
+          scrollTick = true;
+          requestAnimationFrame(() => { scrollTick = false; updateProgress(); });
+        }, { passive: true });
+        const loadReaderState = async () => {
+          try {
+            const response = await apiFetch(`/api/reader/state?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } });
+            if (response.ok) {
+              const data = await response.json();
+              (data.items || []).forEach((item) => readerState.set(item.section_id, item));
+              const index = data.last ? chapters.findIndex((chapter) => chapter.id === data.last.section_id) : -1;
+              if (index >= 0) { await show(index, Number(data.last.progress) || 0); return; }
+            }
+          } catch { /* local reading still works */ }
+          await show(0);
+        };
+        void loadReaderState();
       };
+      function openCertificate() {
+        const license = activeLicense;
+        if (!license.email) return;
+        document.querySelector(".certificate-modal")?.remove();
+        const name = license.name || license.email;
+        const issued = license.granted_at
+          ? new Date(license.granted_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+          : new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal certificate-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-certificate-close></div><section class="certificate-card" role="dialog" aria-modal="true" aria-labelledby="certificate-title" tabindex="-1"><button class="feedback-close" type="button" data-certificate-close aria-label="Close certificate">×</button><p class="certificate-eyebrow">OBI–ISM · LICENSED EDITION</p><div class="certificate-ornament" aria-hidden="true">✦</div><h2 id="certificate-title">Certificate of Licensed Reading</h2><p class="certificate-lead">This certifies that</p><p class="certificate-name">${escape(name)}</p>${license.name && license.email ? `<p class="certificate-email">${escape(license.email)}</p>` : ""}<p class="certificate-lead">is the licensed reader of the complete digital edition of</p><p class="certificate-book">Building a Just Society Through Character</p><div class="certificate-details"><div><span>EDITION</span><strong>${escape(license.edition || license.reference)}</strong></div><div><span>COPY REFERENCE</span><strong>${escape(license.reference || "—")}</strong></div><div><span>ACTIVATED</span><strong>${escape(issued)}</strong></div><div><span>DEVICE</span><strong>${escape(license.device || "Registered reader")}</strong></div></div><p class="certificate-note">This is a personal, traceable licence. The edition is bound to one active device and may be moved only through the verified transfer process.</p><div class="certificate-signature"><span>OBI–<i>ISM</i></span><small>PEOPLE · PRINCIPLES · PROGRESS</small></div><button class="feedback-submit" id="certificate-download" type="button">DOWNLOAD CERTIFICATE →</button></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".certificate-card");
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); };
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        modal.querySelectorAll("[data-certificate-close]").forEach((element) => element.addEventListener("click", close));
+        document.addEventListener("keydown", onKey);
+        card.focus();
+        modal.querySelector("#certificate-download")?.addEventListener("click", () => {
+          const xml = (value) => String(value ?? "").replace(/[<>&'"]/g, (character) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[character]));
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700"><rect width="1000" height="700" fill="#f8f3e8"/><rect x="34" y="34" width="932" height="632" fill="none" stroke="#c69b38" stroke-width="2"/><rect x="48" y="48" width="904" height="604" fill="none" stroke="#e2d6c1" stroke-width="1"/><text x="500" y="120" text-anchor="middle" font-family="Georgia,serif" font-size="54" font-weight="700" letter-spacing="-3" fill="#10130f">OBI–<tspan fill="#a87918">ISM</tspan></text><text x="500" y="152" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="4" fill="#8b6a1c">LICENSED EDITION</text><text x="500" y="235" text-anchor="middle" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#10130f">Certificate of Licensed Reading</text><text x="500" y="285" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f584c">This certifies that</text><text x="500" y="340" text-anchor="middle" font-family="Georgia,serif" font-size="40" font-weight="700" fill="#10130f">${xml(name)}</text>${license.name && license.email ? `<text x="500" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#746c5f">${xml(license.email)}</text>` : ""}<text x="500" y="415" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f584c">is the licensed reader of the complete digital edition of</text><text x="500" y="450" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-style="italic" fill="#17140e">Building a Just Society Through Character</text><text x="250" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">EDITION</text><text x="250" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#10130f">${xml(license.edition || license.reference)}</text><text x="500" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">COPY REFERENCE</text><text x="500" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#10130f">${xml(license.reference || "—")}</text><text x="750" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">ACTIVATED</text><text x="750" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="18" fill="#10130f">${xml(issued)}</text><text x="500" y="625" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#10130f">OBI–<tspan fill="#a87918">ISM</tspan></text></svg>`;
+          const blob = new Blob([svg], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `OBI-ISM-certificate-${license.reference || "licensed"}.svg`;
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      async function saveReaderState(sectionId, patch) {
+        if (!sessionId || !currentDeviceToken || !sectionId) return null;
+        try {
+          const response = await apiFetch("/api/reader/state", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-obi-device-token": currentDeviceToken },
+            body: JSON.stringify({ session_id: sessionId, device_token: currentDeviceToken, section_id: sectionId, ...patch }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.state) return null;
+          readerState.set(data.state.section_id, data.state);
+          return data.state;
+        } catch { return null; }
+      }
+
+      function openNote(sectionId, note, onSave) {
+        if (!sectionId) return;
+        document.querySelector(".note-modal")?.remove();
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal note-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-note-close></div><section class="feedback-card note-card" role="dialog" aria-modal="true" aria-labelledby="note-title" tabindex="-1"><button class="feedback-close" type="button" data-note-close aria-label="Close note">×</button><p class="feedback-eyebrow">PRIVATE NOTE</p><h2 id="note-title">A note for this chapter.</h2><p class="feedback-intro">Only you can see this note. It stays with your licensed copy.</p><textarea id="note-text" maxlength="4000" rows="6" placeholder="What do you want to remember?"></textarea><div class="feedback-meta"><span id="note-count">0 / 4000</span><span id="note-message" class="feedback-message" role="status" aria-live="polite"></span></div><button class="feedback-submit" id="note-save" type="button">SAVE NOTE →</button></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".note-card");
+        const textarea = modal.querySelector("#note-text");
+        const count = modal.querySelector("#note-count");
+        const message = modal.querySelector("#note-message");
+        const save = modal.querySelector("#note-save");
+        textarea.value = note || "";
+        count.textContent = `${textarea.value.length} / 4000`;
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); };
+        modal.querySelectorAll("[data-note-close]").forEach((element) => element.addEventListener("click", close));
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        document.addEventListener("keydown", onKey);
+        textarea.addEventListener("input", () => { count.textContent = `${textarea.value.length} / 4000`; });
+        save.addEventListener("click", async () => {
+          save.disabled = true;
+          message.textContent = "Saving…";
+          const state = await saveReaderState(sectionId, { note: textarea.value });
+          if (!state) { message.textContent = "Could not save the note."; save.disabled = false; return; }
+          onSave(state.note || "");
+          document.removeEventListener("keydown", onKey);
+          close();
+          showReaderNotice("Note saved.");
+        });
+        card.focus();
+        textarea.focus();
+      }
+
       function openFeedback() {
         if (!sessionId || !currentDeviceToken) return;
         document.querySelector(".feedback-modal")?.remove();
