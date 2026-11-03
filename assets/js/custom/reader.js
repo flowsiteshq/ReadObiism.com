@@ -2,6 +2,48 @@
     (() => {
       const app = document.getElementById("app");
       const apiFetch = window.OBI_API.fetch;
+      const showReaderNotice = (text) => {
+        const note = document.createElement("p");
+        note.className = "reader-lock-note";
+        note.setAttribute("role", "status");
+        note.textContent = text;
+        document.body.append(note);
+        setTimeout(() => note.remove(), 4200);
+      };
+      const selectionInReading = () => {
+        const selection = window.getSelection();
+        const node = selection?.anchorNode;
+        const element = node?.nodeType === 1 ? node : node?.parentElement;
+        return Boolean(element?.closest?.(".reading"));
+      };
+      document.addEventListener("contextmenu", (event) => {
+        if (event.target.closest?.(".reading")) {
+          event.preventDefault();
+          showReaderNotice("This edition is licensed to you. Copying and screenshots are not permitted.");
+        }
+      });
+      document.addEventListener("copy", (event) => {
+        if (selectionInReading()) {
+          event.preventDefault();
+          showReaderNotice("Copying is disabled. This copy is licensed to you.");
+        }
+      });
+      document.addEventListener("cut", (event) => {
+        if (selectionInReading()) {
+          event.preventDefault();
+          showReaderNotice("Cutting is disabled for this edition.");
+        }
+      });
+      document.addEventListener("dragstart", (event) => {
+        if (event.target.closest?.(".reading")) {
+          event.preventDefault();
+          showReaderNotice("Dragging text out of this edition is disabled.");
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "PrintScreen") showReaderNotice("Screenshots are traceable to this licensed copy.");
+      });
+      window.addEventListener("beforeprint", () => showReaderNotice("Printing is disabled for this edition."));
       const params = new URLSearchParams(location.search);
       let sessionId = params.get("session_id");
       let currentDeviceToken = "";
@@ -82,8 +124,14 @@
         const mark = license.email
           ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(license.email)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
           : "";
+        const licenseField = license.email
+          ? `<div class="license-field" aria-hidden="true"><span>${escape(license.email)} · ${escape(license.reference)}</span></div>`
+          : "";
+        const licenseCard = license.email
+          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(license.email)}</strong><small>${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}<small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
+          : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div></nav><article class="reading" id="reading"></article></section>${mark}`;
+        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
         document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
