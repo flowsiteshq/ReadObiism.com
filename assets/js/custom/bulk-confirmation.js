@@ -151,11 +151,6 @@
         return;
       }
       if (!access.ok) throw new Error("Cannot reach the account service. Please try again later.");
-      if (!account.email_verified) {
-        message("Verify your account email before recovering this order.");
-        $("retry").hidden = false;
-        return;
-      }
       const response = await api("/api/bulk/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ order_id: order }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not verify this order.");

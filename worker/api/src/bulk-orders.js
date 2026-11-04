@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS bulk_orders (
   code_hash TEXT UNIQUE NOT NULL,
   code_last4 TEXT NOT NULL,
   buyer_email TEXT NOT NULL,
+  buyer_account_id TEXT,
+  receipt_email TEXT,
   quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 10000),
   currency TEXT NOT NULL CHECK(currency IN ('USD','NGN')),
   unit_amount_minor INTEGER NOT NULL,
@@ -72,7 +74,14 @@ export async function ensureBulkOrders(env) {
     await env.OBI_DB.prepare(statement).bind().run();
   }
   const columns = await env.OBI_DB.prepare('PRAGMA table_info(bulk_orders)').bind().all();
-  if (!(columns.results || []).some((column) => column.name === 'code_encrypted')) throw new Error('Bulk order schema requires the code_encrypted migration');
+  const columnNames = new Set((columns.results || []).map((column) => column.name));
+  if (!columnNames.has('code_encrypted')) throw new Error('Bulk order schema requires the code_encrypted migration');
+  if (!columnNames.has('buyer_account_id')) {
+    await env.OBI_DB.prepare('ALTER TABLE bulk_orders ADD COLUMN buyer_account_id TEXT').bind().run();
+  }
+  if (!columnNames.has('receipt_email')) {
+    await env.OBI_DB.prepare('ALTER TABLE bulk_orders ADD COLUMN receipt_email TEXT').bind().run();
+  }
   ensuredBulkOrders.add(env.OBI_DB);
 }
 
@@ -108,9 +117,14 @@ function computePrice(baseUnit, discount) {
   return { unit, discount: { percentage: pct, note: discount.note.trim() } };
 }
 
-export async function createBulkOrderCheckout(env, buyerEmail, quantity, provider, discount = null, actor = null) {
+export async function createBulkOrderCheckout(env, buyerEmail, quantity, provider, discount = null, actor = null, options = {}) {
   const email = typeof buyerEmail === 'string' ? buyerEmail.trim().toLowerCase() : '';
+  const receiptEmail = typeof options.receiptEmail === 'string' ? options.receiptEmail.trim().toLowerCase() : email;
+  const buyerAccountId = typeof options.buyerAccountId === 'string' ? options.buyerAccountId : null;
   if (!validEmail(email) || email.length > 254) return { status: 400, body: { error: 'Enter a valid buyer email.' } };
+  if (!validEmail(receiptEmail) || receiptEmail.length > 254 || /@phone\.obiism\.local$/i.test(receiptEmail)) {
+    return { status: 400, body: { error: 'Enter a real email address for your payment receipt.' } };
+  }
   if (!validQuantity(quantity)) return { status: 400, body: { error: 'Enter a quantity between 1 and 10000.' } };
   if (provider !== 'stripe' && provider !== 'paystack') return { status: 400, body: { error: 'Choose Stripe (USD) or Paystack (NGN).' } };
 
@@ -127,8 +141,8 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
     const total = price.unit * quantity;
     const now = new Date().toISOString();
     await env.OBI_DB.batch([
-      env.OBI_DB.prepare(`INSERT INTO bulk_orders (id,code_hash,code_last4,buyer_email,quantity,currency,unit_amount_minor,total_minor,provider,provider_reference,status,discount_percentage,discount_note,discount_approved_by,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, await hashCode(generateCode()), 'XXXX', email, quantity, 'NGN', price.unit, total, 'paystack', reference, 'pending', price.discount?.percentage || null, price.discount?.note || null, actor, now, now),
+      env.OBI_DB.prepare(`INSERT INTO bulk_orders (id,code_hash,code_last4,buyer_email,buyer_account_id,receipt_email,quantity,currency,unit_amount_minor,total_minor,provider,provider_reference,status,discount_percentage,discount_note,discount_approved_by,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, await hashCode(generateCode()), 'XXXX', email, buyerAccountId, receiptEmail, quantity, 'NGN', price.unit, total, 'paystack', reference, 'pending', price.discount?.percentage || null, price.discount?.note || null, actor, now, now),
       env.OBI_DB.prepare('INSERT INTO bulk_order_events (id,order_id,event_type,actor,details,created_at) VALUES (?,?,?,?,?,?)').bind('boe_' + randomHex(12), id, 'created', actor, JSON.stringify({ quantity, currency: 'NGN', total }), now),
     ]);
     try {
@@ -138,7 +152,7 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
       const resp = await fetch(api + '/transaction/initialize', {
         method: 'POST',
         headers: { authorization: 'Bearer ' + env.PAYSTACK_SECRET_KEY, 'content-type': 'application/json' },
-        body: JSON.stringify({ email, amount: total, currency: 'NGN', reference, callback_url: callback, metadata: { bulk_order: '1', bulk_order_id: id, quantity, product_sku: EDITION_SKU } }),
+        body: JSON.stringify({ email: receiptEmail, amount: total, currency: 'NGN', reference, callback_url: callback, metadata: { bulk_order: '1', bulk_order_id: id, quantity, product_sku: EDITION_SKU, purchaser_email: email, receipt_email: receiptEmail, ...(buyerAccountId ? { buyer_account_id: buyerAccountId } : {}) } }),
       });
       const result = await resp.json().catch(() => ({}));
       const checkout = result?.data?.authorization_url;
@@ -158,20 +172,23 @@ export async function createBulkOrderCheckout(env, buyerEmail, quantity, provide
     const now = new Date().toISOString();
     const total = price.unit * quantity;
     await env.OBI_DB.batch([
-      env.OBI_DB.prepare(`INSERT INTO bulk_orders (id,code_hash,code_last4,buyer_email,quantity,currency,unit_amount_minor,total_minor,provider,status,discount_percentage,discount_note,discount_approved_by,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, await hashCode(generateCode()), 'XXXX', email, quantity, 'USD', price.unit, total, 'stripe', 'pending', price.discount?.percentage || null, price.discount?.note || null, actor, now, now),
+      env.OBI_DB.prepare(`INSERT INTO bulk_orders (id,code_hash,code_last4,buyer_email,buyer_account_id,receipt_email,quantity,currency,unit_amount_minor,total_minor,provider,status,discount_percentage,discount_note,discount_approved_by,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, await hashCode(generateCode()), 'XXXX', email, buyerAccountId, receiptEmail, quantity, 'USD', price.unit, total, 'stripe', 'pending', price.discount?.percentage || null, price.discount?.note || null, actor, now, now),
       env.OBI_DB.prepare('INSERT INTO bulk_order_events (id,order_id,event_type,actor,details,created_at) VALUES (?,?,?,?,?,?)').bind('boe_' + randomHex(12), id, 'created', actor, JSON.stringify({ quantity, currency: 'USD', total }), now),
     ]);
     try {
       const origin = env.OBI_PUBLIC_APP_URL || 'https://readobiism.com';
       const form = new URLSearchParams({
         mode: 'payment',
-        customer_email: email,
+        customer_email: receiptEmail,
         success_url: `${origin}/bulk-confirmation?order=${encodeURIComponent(id)}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/bulk?cancelled=1`,
         'client_reference_id': id,
         'metadata[bulk_order]': '1',
         'metadata[bulk_order_id]': id,
+        'metadata[purchaser_email]': email,
+        'metadata[receipt_email]': receiptEmail,
+        ...(buyerAccountId ? { 'metadata[buyer_account_id]': buyerAccountId } : {}),
         'metadata[quantity]': String(quantity),
         'metadata[product_sku]': EDITION_SKU,
         'line_items[0][quantity]': String(quantity),
@@ -257,7 +274,8 @@ export async function verifyBulkOrderPayment(env, orderId) {
         const tx = result?.data;
         if (!resp.ok || !result.status || !tx) return { status: 502, body: { error: 'Could not verify payment.' } };
         if (tx.status !== 'success') return { status: 200, body: { order_id: order.id, status: 'pending' } };
-        if (tx.domain !== (env.PAYSTACK_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test') || tx.reference !== order.provider_reference || String(tx.currency).toUpperCase() !== order.currency || Number(tx.amount) !== order.total_minor || String(tx.customer?.email||'').toLowerCase() !== order.buyer_email) {
+        const expectedReceipt = String(order.receipt_email || order.buyer_email || '').toLowerCase();
+        if (tx.domain !== (env.PAYSTACK_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test') || tx.reference !== order.provider_reference || String(tx.currency).toUpperCase() !== order.currency || Number(tx.amount) !== order.total_minor || String(tx.customer?.email||'').toLowerCase() !== expectedReceipt) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         if (tx.metadata?.bulk_order_id !== order.id || Number(tx.metadata?.quantity) !== order.quantity || tx.metadata?.product_sku !== EDITION_SKU) {
@@ -281,7 +299,8 @@ export async function verifyBulkOrderPayment(env, orderId) {
         if (session.id !== sid || session.livemode !== env.OBI_STRIPE_SECRET_KEY.startsWith('sk_live_')) return { status: 400, body: { error: 'Payment does not match order.' } };
         if (session.livemode === true && env.OBI_STRIPE_LIVE_MODE !== '1') return { status: 400, body: { error: 'Live payment not allowed in this environment.' } };
         if (session.livemode !== true && env.OBI_STRIPE_REQUIRE_LIVE === '1') return { status: 400, body: { error: 'Live payment required.' } };
-        if (String(session.currency||'').toUpperCase() !== order.currency || Number(session.amount_total) !== order.total_minor || String(session.customer_email||'').toLowerCase() !== order.buyer_email || session.client_reference_id !== order.id || session.metadata?.bulk_order_id !== order.id || Number(session.metadata?.quantity) !== order.quantity || session.metadata?.product_sku !== EDITION_SKU) {
+        const expectedReceipt = String(order.receipt_email || order.buyer_email || '').toLowerCase();
+        if (String(session.currency||'').toUpperCase() !== order.currency || Number(session.amount_total) !== order.total_minor || String(session.customer_email||'').toLowerCase() !== expectedReceipt || session.client_reference_id !== order.id || session.metadata?.bulk_order_id !== order.id || Number(session.metadata?.quantity) !== order.quantity || session.metadata?.product_sku !== EDITION_SKU) {
           return { status: 400, body: { error: 'Payment does not match order.' } };
         }
         const code = await issueCode(env, order);

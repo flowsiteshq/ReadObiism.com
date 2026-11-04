@@ -238,6 +238,9 @@ const normalizeGiftCode = (value) =>
   typeof value === "string" ? value.trim().toUpperCase().replace(/\s+/g, "") : "";
 const validGiftCode = (value) => GIFTS.test(normalizeGiftCode(value));
 const validEmail = (value) => typeof value === "string" && /^\S+@\S+\.\S+$/.test(value);
+// Phone accounts use a synthetic internal address. That address is an
+// account key, not a mailbox, so it can never be used as a payment receipt.
+const validReceiptEmail = (value) => validEmail(value) && !/@phone\.obiism\.local$/i.test(value);
 
 const publicOrigin = (env) =>
   env.OBI_PUBLIC_APP_URL === "https://readobiism.com" ? env.OBI_PUBLIC_APP_URL : "https://readobiism.com";
@@ -657,8 +660,15 @@ async function checkout(request, env) {
     ? readerName.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80)
     : "";
   const signedIn = await accountFromRequest(request, env);
-  const checkoutEmail = signedIn?.email || email;
-  if (typeof checkoutEmail !== "string" || !/^\S+@\S+\.\S+$/.test(checkoutEmail)) return reply({ error: "A valid email address is required" }, request, { status: 400 });
+  const suppliedReceiptEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const receiptEmail = suppliedReceiptEmail || signedIn?.email || "";
+  if (!validReceiptEmail(receiptEmail)) {
+    return reply({ error: "Enter a real email address for your payment receipt." }, request, { status: 400 });
+  }
+  // The receipt address is deliberately separate from the login identity.
+  // A phone account keeps its internal address for ownership; the buyer's
+  // real email is used only by the payment provider and for contact.
+  const purchaserEmail = signedIn?.email || receiptEmail;
   if (!validDeviceToken(deviceToken)) return reply({ error: "A secure reader device is required" }, request, { status: 400 });
   const gift = body.gift === true ? {
     code: normalizeGiftCode(body.gift_code),
@@ -676,13 +686,13 @@ async function checkout(request, env) {
     if (!validGiftCode(gift.code)) return reply({ error: "A valid gift code is required." }, request, { status: 400 });
     if (gift.recipientName.length < 2) return reply({ error: "Enter your friend's name." }, request, { status: 400 });
     if (!validEmail(gift.recipientEmail)) return reply({ error: "Enter a valid email address for your friend." }, request, { status: 400 });
-    if (gift.recipientEmail === checkoutEmail.trim().toLowerCase()) return reply({ error: "Use a different email address for your friend." }, request, { status: 400 });
+    if (gift.recipientEmail === receiptEmail) return reply({ error: "Use a different email address for your friend." }, request, { status: 400 });
     const used = await env.OBI_DB.prepare("SELECT status FROM gift_orders WHERE code=?").bind(gift.code).first();
     if (used) return reply({ error: "That gift code is already in use. Please try again." }, request, { status: 409 });
   }
 
   if (String(currency).toUpperCase() === "NGN") {
-    return paystackCheckout(request, env, checkoutEmail.trim().toLowerCase(), deviceToken, gift, pricing, cleanReaderName);
+    return paystackCheckout(request, env, receiptEmail, deviceToken, gift, pricing, cleanReaderName, purchaserEmail);
   }
 
   if (!env.OBI_STRIPE_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Checkout is not configured" }, request, { status: 503 });
@@ -691,11 +701,12 @@ async function checkout(request, env) {
   const deviceHash = await hashDeviceToken(deviceToken);
   const form = new URLSearchParams({
     mode: "payment",
-    customer_email: checkoutEmail.trim().toLowerCase(),
+    customer_email: receiptEmail,
     success_url: `${origin}/reader?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?purchase=cancelled`,
     "metadata[product_sku]": SKU,
-    "metadata[purchaser_email]": checkoutEmail.trim().toLowerCase(),
+    "metadata[purchaser_email]": purchaserEmail,
+    "metadata[receipt_email]": receiptEmail,
     "metadata[device_hash]": deviceHash,
     "metadata[price_minor]": String(usdMinor),
     "payment_intent_data[metadata][product_sku]": SKU,
@@ -738,7 +749,7 @@ async function checkout(request, env) {
  * Naira checkout via Paystack. We mint our own reader reference (`obi_…`) and
  * use it as the reader session key, so the reader/claim flow is provider-neutral.
  */
-async function paystackCheckout(request, env, email, deviceToken, gift = null, pricing = null, readerName = "") {
+async function paystackCheckout(request, env, email, deviceToken, gift = null, pricing = null, readerName = "", purchaserEmail = email) {
   if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) return reply({ error: "Naira checkout is not configured" }, request, { status: 503 });
   const ngnMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
 
@@ -763,7 +774,8 @@ async function paystackCheckout(request, env, email, deviceToken, gift = null, p
       callback_url: callback,
       metadata: {
         product_sku: SKU,
-        purchaser_email: email,
+        purchaser_email: purchaserEmail,
+        receipt_email: email,
         device_hash: deviceHash,
         provider: "paystack",
         price_minor: String(ngnMinor),
@@ -922,7 +934,7 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
   }
   const readerName = typeof metadata?.reader_name === "string" ? metadata.reader_name.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80) : "";
 
-  const email = String(tx.customer?.email || fallbackEmail || "").trim().toLowerCase();
+  const email = String(metadata?.purchaser_email || tx.customer?.email || fallbackEmail || "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) return reply({ error: "Missing purchaser email" }, request, { status: 400 });
 
   const gift = giftDetails(metadata);
@@ -953,7 +965,7 @@ async function recordCheckoutCompletion(event, env) {
   if (event?.type !== EVENT || !event.id?.startsWith("evt_") || !expected(session)) return { received: true, ignored: true };
   await ensure(env);
   const now = new Date().toISOString();
-  const email = String(session.customer_details?.email || session.customer_email || session.metadata?.purchaser_email || "").toLowerCase() || null;
+  const email = String(session.metadata?.purchaser_email || session.customer_details?.email || session.customer_email || "").toLowerCase() || null;
   const deviceHash = session.metadata.device_hash;
   const gift = giftDetails(session.metadata);
   const readerName = typeof session.metadata?.reader_name === "string"
@@ -1061,10 +1073,9 @@ async function bulkSeats(request, env) {
   const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
   const orderId = url.searchParams.get('order_id') || body.order_id;
   if (!/^bprod_[a-f0-9]{32}$/.test(orderId || '')) return reply({ error: "Invalid order." }, request, { status: 400 });
-  const order = await env.OBI_DB.prepare('SELECT id,buyer_email,status FROM bulk_orders WHERE id=?').bind(orderId).first();
-  if (!order || order.buyer_email !== account.email) return reply({ error: "Order not found." }, request, { status: 404 });
-  const verified = await env.OBI_DB.prepare('SELECT email_verified FROM obi_accounts WHERE id=?').bind(account.id).first().catch(() => null);
-  if (verified?.email_verified !== 1) return reply({ error: "Verify your account email first." }, request, { status: 403 });
+  const order = await env.OBI_DB.prepare('SELECT id,buyer_email,buyer_account_id,status FROM bulk_orders WHERE id=?').bind(orderId).first();
+  const ownsOrder = order && (order.buyer_account_id ? order.buyer_account_id === account.id : order.buyer_email === account.email);
+  if (!ownsOrder) return reply({ error: "Order not found." }, request, { status: 404 });
   if (order.status !== 'paid') return reply({ error: "Individual seat links are available after payment." }, request, { status: 409 });
   if (request.method === 'GET' && path === '/api/bulk/seats') {
     const data = await seatsForOrder(env, orderId);
@@ -1110,14 +1121,20 @@ async function createBulkOrder(request, env) {
   if (rateLimited) return rateLimited;
   const account = await accountFromRequest(request, env);
   if (!account) return reply({ error: "Sign in to your account first." }, request, { status: 401 });
-  const email = account.email;
+  const receiptEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!validReceiptEmail(receiptEmail)) {
+    return reply({ error: "Enter a real email address for your payment receipt." }, request, { status: 400 });
+  }
   const quantity = Number(body.quantity);
   const provider = String(body.provider || '').toLowerCase();
   if (!['paystack', 'stripe'].includes(provider)) return reply({ error: "Choose a supported payment gateway." }, request, { status: 400 });
   // Buyer-controlled discounts are never approvals. An authenticated admin
   // approval workflow must be implemented before discounts are accepted.
   if (body.discount != null) return reply({ error: "Bulk discounts require administrator approval." }, request, { status: 403 });
-  const result = await createBulkOrderCheckout(env, email, quantity, provider, null, account.email);
+  const result = await createBulkOrderCheckout(env, account.email, quantity, provider, null, account.email, {
+    receiptEmail,
+    buyerAccountId: account.id,
+  });
   return reply(result.body, request, { status: result.status });
 }
 
@@ -1127,10 +1144,9 @@ async function verifyBulkOrder(request, env) {
   const body = await request.json().catch(() => ({}));
   const id = body.order_id || body.id;
   if (!/^bprod_[a-f0-9]{32}$/.test(id || '')) return reply({ error: "Invalid order." }, request, { status: 400 });
-  const order = await env.OBI_DB.prepare('SELECT buyer_email FROM bulk_orders WHERE id=?').bind(id).first();
-  if (!order || order.buyer_email !== account.email) return reply({ error: "Order not found." }, request, { status: 404 });
-  const verified = await env.OBI_DB.prepare('SELECT email_verified FROM obi_accounts WHERE id=?').bind(account.id).first();
-  if (verified?.email_verified !== 1) return reply({ error: "Verify your account email first." }, request, { status: 403 });
+  const order = await env.OBI_DB.prepare('SELECT buyer_email,buyer_account_id FROM bulk_orders WHERE id=?').bind(id).first();
+  const ownsOrder = order && (order.buyer_account_id ? order.buyer_account_id === account.id : order.buyer_email === account.email);
+  if (!ownsOrder) return reply({ error: "Order not found." }, request, { status: 404 });
   const result = await verifyBulkOrderPayment(env, id);
   return reply(result.body, request, { status: result.status });
 }
@@ -1500,7 +1516,10 @@ async function reader(request, env) {
     LEFT JOIN obi_accounts a ON lower(a.email)=lower(p.purchaser_email)
     WHERE p.checkout_session_id=?`).bind(sessionId).first();
   const giftLicense = purchase?.gift_status === "redeemed" && purchase?.recipient_email;
-  const licenseEmail = giftLicense ? purchase.recipient_email : purchase?.purchaser_email || "";
+  const purchaserEmail = purchase?.purchaser_email || "";
+  const licenseEmail = giftLicense
+    ? purchase.recipient_email
+    : /@phone\.obiism\.local$/i.test(purchaserEmail) ? "" : purchaserEmail;
   const licensePhone = giftLicense ? "" : purchase?.account_phone || "";
   const licenseName = giftLicense ? purchase.recipient_name || "" : purchase?.reader_name || "";
   const editionYear = new Date(purchase?.granted_at || Date.now()).getUTCFullYear();
