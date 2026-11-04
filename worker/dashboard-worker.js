@@ -1121,7 +1121,11 @@ async function createBulkOrder(request, env) {
   if (rateLimited) return rateLimited;
   const account = await accountFromRequest(request, env);
   if (!account) return reply({ error: "Sign in to your account first." }, request, { status: 401 });
-  const receiptEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const suppliedReceiptEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  // Keep an already-cached bulk page working while the new receipt-email form
+  // rolls out. Phone accounts have no real mailbox, so they still must supply
+  // one explicitly.
+  const receiptEmail = suppliedReceiptEmail || (validReceiptEmail(account.email) ? account.email : "");
   if (!validReceiptEmail(receiptEmail)) {
     return reply({ error: "Enter a real email address for your payment receipt." }, request, { status: 400 });
   }
