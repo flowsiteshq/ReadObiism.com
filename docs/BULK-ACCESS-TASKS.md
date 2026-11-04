@@ -286,9 +286,10 @@ No new feature work is required for these, but production verification is.
   - **Why:** phone OTP, phone transfer, and phone reset cannot work without this.
   - **Owner:** account owner / operations.
 
-- [ ] **BULK-061 — Confirm payment-provider email requirements** · **P1** · **Blocked**
+- [x] **BULK-061 — Confirm payment-provider email requirements** · **P1**
+  - **Decision:** Paystack/Stripe require an email. The buyer must enter a real receipt email at checkout.
   - **Why:** determines whether a no-email buyer can ever complete checkout without a contact email.
-  - **Owner:** payments/product.
+  - **Done when:** the requirement is reflected in the checkout copy and the single/bulk forms.
 
 - [ ] **BULK-062 — Legal review of bulk and phone terms** · **P2**
   - **Why:** refund, revocation, privacy, and data-retention wording must be enforceable.
