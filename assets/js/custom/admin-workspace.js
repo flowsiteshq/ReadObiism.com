@@ -11,6 +11,7 @@
     devices: ['Devices', 'Review device activations linked to purchases.'],
     content: ['Book content', 'Browse the published section catalogue.'],
     transfers: ['Device transfers', 'Review recorded reader device transfers.'],
+    features: ['Features', 'Turn public product features on or off.'],
     payments: ['Payment settings', 'Manage your local payment configuration.'],
   };
   const views = {
@@ -29,7 +30,7 @@
   let pendingBulkVerification = /^bulk_[a-f0-9]{32}$/.test(callbackOrder || '') ? callbackOrder : '';
   if (pendingBulkVerification) history.replaceState(null, '', location.pathname + '#bulk');
   let section = 'overview', page = 1, total = 0, query = '', requestId = 0;
-  let bulkUnitPrices = {}, bulkGateways = {};
+  let bulkUnitPrices = {}, bulkGateways = {}, selectedBulkOrder = '', selectedBulkClaims = null;
   const charts = {};
   const localPaymentEditor = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
   $('local-payment-panel').hidden = !localPaymentEditor;
@@ -171,6 +172,63 @@
       return false;
     }
   }
+  async function loadFeatures() {
+    const list = $('feature-list');
+    if (!list) return false;
+    $('feature-message').textContent = 'Loading features…';
+    list.replaceChildren();
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/features', { credentials: 'same-origin', cache: 'no-store' });
+      if (response.status === 401) { location.replace('./login.html'); return false; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not load features.');
+      (data.features || []).forEach((feature) => {
+        const row = document.createElement('div');
+        row.className = 'feature-row';
+        const copy = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = feature.label || feature.key;
+        const description = document.createElement('p');
+        description.textContent = feature.description || '';
+        copy.append(title, description);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = Boolean(feature.enabled);
+        input.setAttribute('aria-label', `${feature.label || feature.key}: ${feature.enabled ? 'on' : 'off'}`);
+        input.addEventListener('change', async () => {
+          input.disabled = true;
+          const next = input.checked;
+          try {
+            const update = await window.OBI_API.fetch('/api/admin/features', {
+              method: 'POST', credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ key: feature.key, enabled: next }),
+            });
+            const body = await update.json().catch(() => ({}));
+            if (!update.ok) throw new Error(body.error || 'Could not update this feature.');
+            feature.enabled = next;
+            input.setAttribute('aria-label', `${feature.label || feature.key}: ${next ? 'on' : 'off'}`);
+            $('feature-message').textContent = `${feature.label || feature.key} is now ${next ? 'on' : 'off'}.`;
+            toast(`${feature.label || feature.key} ${next ? 'enabled' : 'disabled'}.`);
+          } catch (error) {
+            input.checked = !next;
+            $('feature-message').textContent = error.message;
+            toast(error.message, true);
+          } finally {
+            input.disabled = false;
+          }
+        });
+        row.append(copy, input);
+        list.append(row);
+      });
+      $('feature-message').textContent = '';
+      return true;
+    } catch (error) {
+      $('feature-message').textContent = error.message;
+      toast(error.message, true);
+      return false;
+    }
+  }
   async function loadProductionBulkOrders() {
     const body = $('production-bulk-body');
     if (!body) return false;
@@ -183,10 +241,14 @@
         let amount;
         try { amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: order.currency }).format(order.total_minor / 100); }
         catch { amount = String(order.total_minor / 100) + ' ' + (order.currency || ''); }
-        [order.buyer_email, order.id, order.quantity, order.seat_count ?? 0, order.claimed_seats ?? 0, amount, order.provider === 'stripe' ? 'Stripe' : 'Paystack', String(order.status || '').replaceAll('_', ' '), format('created_at', order.created_at, order), format('created_at', order.paid_at, order)].forEach((value) => {
+        [order.buyer_email, order.id, order.quantity, order.claim_count || order.claimed_seats || 0, amount, order.provider === 'stripe' ? 'Stripe' : 'Paystack', String(order.status || '').replaceAll('_', ' '), format('created_at', order.created_at, order), format('created_at', order.paid_at, order)].forEach((value) => {
           const td = document.createElement('td'); td.textContent = String(value); tr.append(td);
         });
-        body.append(tr);
+        const action = document.createElement('td');
+        const view = document.createElement('button');
+        view.type = 'button'; view.className = 'outline-button'; view.textContent = 'CLAIMS';
+        view.addEventListener('click', () => openBulkClaims(order.id));
+        action.append(view); tr.append(action); body.append(tr);
       });
       $('production-bulk-message').textContent = data.items?.length ? '' : 'No production bulk orders yet.';
       return true;
@@ -194,6 +256,67 @@
       $('production-bulk-message').textContent = error.message;
       toast(error.message, true);
       return false;
+    }
+  }
+  async function openBulkClaims(orderId) {
+    if (!/^bprod_[a-f0-9]{32}$/.test(orderId || '')) return;
+    selectedBulkOrder = orderId;
+    const panel = $('bulk-claims-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    $('bulk-claims-message').textContent = 'Loading claims…';
+    $('bulk-claims-body').replaceChildren();
+    try {
+      const data = await api('bulk-order?order_id=' + encodeURIComponent(orderId));
+      selectedBulkClaims = data;
+      const order = data.order || {};
+      $('bulk-claims-message').textContent = 'Claims and access controls for this order.';
+      $('bulk-claims-summary').textContent = `${order.receipt_email || order.buyer_email || 'Buyer'} · ${order.quantity || 0} copies · ${order.claimed || 0} claimed · ${order.remaining || 0} remaining · ${order.claims_open ? 'claims open' : 'claims closed'}.`;
+      $('bulk-claims-alerts').textContent = data.alerts?.length ? '⚠ ' + data.alerts.join(' · ') : 'No duplicate device or network pattern detected.';
+      $('bulk-claims-body').replaceChildren();
+      (data.claims || []).forEach((claim) => {
+        const tr = document.createElement('tr');
+        const contact = [claim.phone, claim.email && !String(claim.email).startsWith('phone_') ? claim.email : ''].filter(Boolean).join(' · ') || 'No contact';
+        const risk = claim.device_claims > 1 ? `${claim.device_claims} on device` : claim.ip_claims > 1 ? `${claim.ip_claims} on network` : 'OK';
+        [claim.email || claim.account_id, contact, claim.reference, claim.device, risk, format('created_at', claim.claimed_at, claim), claim.status].forEach((value) => {
+          const td = document.createElement('td'); td.textContent = String(value); tr.append(td);
+        });
+        $('bulk-claims-body').append(tr);
+      });
+      if (!data.claims?.length) {
+        const tr = document.createElement('tr'); const td = document.createElement('td');
+        td.colSpan = 7; td.textContent = 'No claims yet.'; tr.append(td); $('bulk-claims-body').append(tr);
+      }
+      const revoked = Boolean(order.revoked_at);
+      $('bulk-pause').disabled = revoked || !order.claims_open;
+      $('bulk-resume').disabled = revoked || Boolean(order.claims_open);
+      $('bulk-revoke').disabled = revoked;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      $('bulk-claims-message').textContent = error.message;
+      toast(error.message, true);
+    }
+  }
+  async function bulkOrderAction(action) {
+    if (!selectedBulkOrder) return;
+    if (action === 'revoke' && !confirm('Revoke this code? Existing readers will lose access and no new claims will be allowed.')) return;
+    const labels = { pause: 'Pausing claims…', resume: 'Resuming claims…', revoke: 'Revoking code…' };
+    $('bulk-claims-message').textContent = labels[action] || 'Updating order…';
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/bulk-order/action', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ order_id: selectedBulkOrder, action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) { location.replace('./login.html'); return; }
+      if (!response.ok) throw new Error(data.error || 'Could not update this order.');
+      await openBulkClaims(selectedBulkOrder);
+      await loadProductionBulkOrders();
+      toast(action === 'pause' ? 'New claims paused.' : action === 'resume' ? 'Claims resumed.' : 'Code revoked.');
+    } catch (error) {
+      $('bulk-claims-message').textContent = error.message;
+      toast(error.message, true);
     }
   }
   async function loadBulkOrders() {
@@ -306,7 +429,8 @@
     $('payment-settings').hidden = section !== 'payments';
     $('bulk-workspace').hidden = section !== 'bulk';
     $('forensics').hidden = section !== 'forensics';
-    $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || section === 'forensics' || !!views[section];
+    $('features').hidden = section !== 'features';
+    $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || section === 'forensics' || section === 'features' || !!views[section];
     if (section !== 'payments') { $('payment-form').reset(); $('pricing-form').reset(); $('payment-message').textContent = ''; $('pricing-message').textContent = ''; }
     $('feature-heading').textContent = title;
     $('feature-description').textContent = description;
@@ -323,6 +447,7 @@
       loadTable();
     }
     if (section === 'overview') loadOverview();
+    if (section === 'features') loadFeatures();
     if (section === 'payments') { loadPaymentStatus(); loadPricing(); }
     if (section === 'bulk') {
       loadProductionBulkOrders();
@@ -337,7 +462,7 @@
   $('previous').addEventListener('click', () => { if (page > 1) { page--; loadTable(); } });
   $('next').addEventListener('click', () => { if (page * 10 < total) { page++; loadTable(); } });
   $('refresh').addEventListener('click', async () => {
-    const loaded = section === 'overview' ? await loadOverview() : section === 'payments' ? (await Promise.all([loadPaymentStatus(), loadPricing()])).every(Boolean) : section === 'bulk' ? (await Promise.all([loadBulkOrders(), loadProductionBulkOrders()])).some(Boolean) : views[section] ? await loadTable() : false;
+    const loaded = section === 'overview' ? await loadOverview() : section === 'features' ? await loadFeatures() : section === 'payments' ? (await Promise.all([loadPaymentStatus(), loadPricing()])).every(Boolean) : section === 'bulk' ? (await Promise.all([loadBulkOrders(), loadProductionBulkOrders()])).some(Boolean) : views[section] ? await loadTable() : false;
     if (loaded) toast('Data refreshed.');
   });
   async function checkHealth() {
@@ -372,6 +497,9 @@
     try { await navigator.clipboard.writeText($('bulk-code').value); toast('Test code copied.'); }
     catch { $('bulk-code').select(); toast('Select and copy the test code.'); }
   });
+  $('bulk-pause').addEventListener('click', () => bulkOrderAction('pause'));
+  $('bulk-resume').addEventListener('click', () => bulkOrderAction('resume'));
+  $('bulk-revoke').addEventListener('click', () => bulkOrderAction('revoke'));
   function updateBulkTotal() {
     const provider = $('bulk-gateway').value;
     const currency = provider === 'stripe' ? 'USD' : 'NGN';

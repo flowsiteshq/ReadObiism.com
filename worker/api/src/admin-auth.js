@@ -2,6 +2,8 @@
 import { hashDeviceToken, same } from './security.js';
 import { adminData } from './admin-data.js';
 import { getPricing, savePricing, validatePricing } from './pricing-store.js';
+import { setBulkOrderClaimsState } from './bulk-orders.js';
+import { getAdminFeatureFlags, setFeatureFlag } from './feature-flags.js';
 import { decodeWatermarks, encodeWatermark } from './watermark.js';
 import { bulkLocalEnabled, createBulkLocal, ensureBulkLocal, startBulkPaystackTest, startBulkCheckoutTest, verifyBulkPaymentTest, NGN_PRICE_KOBO, USD_PRICE_CENTS } from './bulk-local.js';
 
@@ -71,6 +73,14 @@ export async function handleAdminAuth(request, env) {
       await env.OBI_DB.prepare('CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_email TEXT NOT NULL, action TEXT NOT NULL, path TEXT NOT NULL, ip TEXT, created_at TEXT NOT NULL)').run();
       await env.OBI_DB.prepare('INSERT INTO admin_audit_log (id,admin_email,action,path,ip,created_at) VALUES (?,?,?,?,?,?)').bind('aa_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b=>b.toString(16).padStart(2,'0')).join(''), sess.admin_email, request.method, path, request.headers.get('cf-connecting-ip') || 'unknown', new Date().toISOString()).run();
     } catch {}
+    if (path === '/api/admin/features') {
+      if (request.method === 'GET') return json({ features: await getAdminFeatureFlags(env) });
+      if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      if (!sameOrigin(request) || !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return json({ error: 'Request not allowed.' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const result = await setFeatureFlag(env, body.key, body.enabled === true, sess.admin_email);
+      return json(result.body, result.status);
+    }
     if (path === '/api/admin/pricing') {
       if (request.method === 'GET') return json({ pricing: await getPricing(env) });
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
@@ -101,6 +111,13 @@ export async function handleAdminAuth(request, env) {
         if (row) matches.push(row);
       }
       return json({ ids, matches });
+    }
+    if (path === '/api/admin/bulk-order/action') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      if (!sameOrigin(request) || !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return json({ error: 'Request not allowed.' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const result = await setBulkOrderClaimsState(env, body.order_id, body.action, sess.admin_email);
+      return json(result.body, result.status);
     }
     if (path === '/api/admin/audit' && request.method === 'GET') {
       try {

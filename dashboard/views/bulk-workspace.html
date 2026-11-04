@@ -3,7 +3,18 @@
           <div class="panel-heading"><div><h2 id="production-bulk-title">Production bulk orders</h2><p>Live group purchases. Shared codes are never shown here.</p></div><span class="tag">LIVE</span></div>
           <p class="support-copy">Buyers purchase at <a href="/bulk" class="text-link">the group purchase page</a> and receive one shared activation code after payment.</p>
           <p id="production-bulk-message" class="table-message" aria-live="polite">Loading…</p>
-          <div class="table-scroll"><table><thead><tr><th>Buyer</th><th>Order</th><th>Copies</th><th>Seats</th><th>Claimed</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th><th>Paid</th></tr></thead><tbody id="production-bulk-body"></tbody></table></div>
+          <div class="table-scroll"><table><thead><tr><th>Buyer</th><th>Order</th><th>Copies</th><th>Claimed</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th><th>Paid</th><th>Action</th></tr></thead><tbody id="production-bulk-body"></tbody></table></div>
+        </article>
+        <article class="panel bulk-orders-panel" id="bulk-claims-panel" hidden aria-labelledby="bulk-claims-title">
+          <div class="panel-heading"><div><h2 id="bulk-claims-title">Bulk access control</h2><p id="bulk-claims-message">Select a production order to review its claims.</p></div><span class="tag">SECURITY</span></div>
+          <p id="bulk-claims-summary" class="support-copy"></p>
+          <p id="bulk-claims-alerts" class="table-message" aria-live="polite"></p>
+          <div class="bulk-create-row">
+            <button class="outline-button" id="bulk-pause" type="button">PAUSE NEW CLAIMS</button>
+            <button class="outline-button" id="bulk-resume" type="button">RESUME CLAIMS</button>
+            <button class="outline-button" id="bulk-revoke" type="button">REVOKE CODE</button>
+          </div>
+          <div class="table-scroll"><table><thead><tr><th>Claimant</th><th>Contact</th><th>Reference</th><th>Device</th><th>Risk</th><th>Claimed</th><th>Status</th></tr></thead><tbody id="bulk-claims-body"></tbody></table></div>
         </article>
         <div class="notice"><strong>Local test tools</strong><span>The controls below are loopback-only and never take a live payment. Production orders appear above.</span></div>
         <div class="bulk-layout">

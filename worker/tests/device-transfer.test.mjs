@@ -57,7 +57,9 @@ async function seed(env) {
   db.raw.exec(`CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL, metadata_json TEXT);`);
+    CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL, metadata_json TEXT);
+    CREATE TABLE IF NOT EXISTS feature_flags (key TEXT PRIMARY KEY, enabled INTEGER NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT);`);
+  db.raw.prepare("INSERT OR REPLACE INTO feature_flags (key,enabled,updated_at,updated_by) VALUES ('device_transfer',1,?,?)").run(now, 'test');
   db.raw.prepare('INSERT INTO obi_accounts (id,email,password_hash,password_salt,email_verified,created_at,last_signed_in) VALUES (?,?,?,?,1,?,?)')
     .run('acct_transfer', 'reader@example.test', hash, salt, now, now);
   db.raw.prepare('INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)')
@@ -74,7 +76,11 @@ test('device transfer requires the account password and sends a code', async () 
   const env = { OBI_DB: db, RESEND_API_KEY: 're_fixture', ACCOUNT_FROM_EMAIL: 'OBI-ISM <no-reply@example.test>' };
   const seeded = await seed(env);
   const original = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({ id: 'email_test' });
+  let sentEmail = null;
+  globalThis.fetch = async (url, init) => {
+    sentEmail = JSON.parse(init.body);
+    return Response.json({ id: 'email_test' });
+  };
   try {
     const wrong = await worker.fetch(new Request('https://readobiism.com/api/reader/transfer/start', {
       method: 'POST',
@@ -92,6 +98,10 @@ test('device transfer requires the account password and sends a code', async () 
     assert.equal(response.status, 200, await response.clone().text());
     assert.match((await response.json()).challengeId, /^transfer_/);
     assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_challenges').get().n, 1);
+    assert.equal(sentEmail.subject, 'Confirm your OBI-ISM device move');
+    assert.match(sentEmail.html, /OBI-ISM/);
+    assert.match(sentEmail.html, /Confirm your new device/);
+    assert.match(sentEmail.text, /expires in 10 minutes/i);
   } finally {
     globalThis.fetch = original;
   }

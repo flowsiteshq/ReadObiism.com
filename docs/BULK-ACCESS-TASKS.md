@@ -129,16 +129,17 @@ No new feature work is required for these, but production verification is.
   - **Files:** `worker/api/src/bulk-orders.js` — `ensureBulkSeats`, `assignBulkSeat`, `revokeBulkSeat`, `claimBulkSeat`.
   - **Done when:** revoke/reissue generates a new token; the old link fails; tests cover both paths.
 
-- [ ] **BULK-021 — Add individual revocation for shared-code claims** · **P0**
-  - **Why:** a leaked shared code can be claimed by an unintended person; today only per-seat claims can be revoked.
-  - **Files:** `worker/api/src/bulk-orders.js`, `worker/dashboard-worker.js`, admin UI.
-  - **Done when:** an admin or buyer can revoke one claim; the purchase status becomes revoked; reader access stops; capacity policy is explicit.
+- [x] **BULK-021 — Add pause and revoke controls for shared-code orders** · **P0**
+  - **Implemented:** admin can pause new claims, resume claims, or revoke the whole code.
+  - **Behaviour:** pause keeps existing readers active; revoke marks existing purchase records revoked.
+  - **Why:** a leaked shared code can be stopped immediately without building complex per-claim assignment.
+  - **Note:** individual claim revocation is intentionally deferred for the simple model.
 
-- [ ] **BULK-022 — Add an admin bulk claim roster** · **P0**
-  - **Why:** the admin currently sees seat counts, not who claimed which copy, from which account/device, or when.
-  - **Fields:** order, claimant account, email, phone, claim reference, device metadata, claim time, status.
-  - **Also needed:** search by order/email/phone/reference and CSV export.
-  - **Done when:** support can investigate a leaked shared code without database access.
+- [x] **BULK-022 — Add an admin bulk claim roster** · **P0**
+  - **Implemented:** order detail lists claimant account, email/phone, reference, device label, risk indicator, claim time and status.
+  - **Also included:** order totals, remaining copies, pause/resume/revoke controls.
+  - **Why:** the admin can investigate a leaked shared code without database access.
+  - **Note:** CSV export is not included in the simple version.
 
 - [ ] **BULK-023 — Enforce recipient phone matching on seat claims** · **P0**
   - **Current behaviour:** `recipient_phone` is stored, but `claimBulkSeat` checks only `recipient_email`.
@@ -156,10 +157,10 @@ No new feature work is required for these, but production verification is.
   - **Dependency:** BULK-020 token rotation.
   - **Done when:** the buyer can revoke and generate a new link, and the old link remains invalid.
 
-- [ ] **BULK-026 — Send the buyer a durable bulk receipt/order link** · **P0**
-  - **Why:** the code and seat links currently live on the confirmation page; closing the page creates a support case.
-  - **Options:** email an authenticated order link rather than the raw code; show order history after sign-in.
-  - **Done when:** the buyer can recover the order and links after losing the original tab.
+- [x] **BULK-026 — Send the buyer a durable bulk receipt/order link** · **P0**
+  - **Implemented:** after payment, the buyer receives an email with the order ID and an authenticated order link.
+  - **Security:** the raw code is not emailed; it remains on the protected order page.
+  - **Why:** the buyer can recover the order after closing the confirmation tab.
 
 - [ ] **BULK-027 — Record audit events for claim and seat changes** · **P0**
   - **Events:** seat assigned, seat revoked, seat reissued, claim revoked, claim transferred/cancelled.
@@ -227,24 +228,23 @@ No new feature work is required for these, but production verification is.
   - **Why:** reduces buyer manual work; does not prevent forwarding by itself.
   - **Done when:** delivery status is visible and failures can be retried.
 
-- [ ] **BULK-043 — Add abuse detection and alerts** · **P2**
-  - **Signals:** same device across multiple claims, rapid claim spikes, unusual geography, repeated failed claims.
+- [x] **BULK-043 — Add abuse detection and alerts** · **P2**
+  - **Implemented:** claim roster flags repeated claims from the same device or hashed network; existing claim/rate limits remain.
   - **Why:** IP is audit context, not a binding key, but it helps detect sharing.
-  - **Done when:** alerts are visible to admin and do not auto-block legitimate users without review.
+  - **Note:** indicators are advisory; no automatic block is applied without admin review.
 
 - [ ] **BULK-044 — Add a buyer order-history page** · **P2**
   - **Why:** buyers need a durable place to find past orders, codes, and seat links.
   - **Done when:** signed-in buyers see orders and can reopen the confirmation page.
 
-- [ ] **BULK-045 — Update terms and privacy for bulk/phone data** · **P2**
-  - **Cover:** bearer-code risk, device binding, revocation, refund rules, phone numbers, OTP, device metadata, IP audit, retention.
+- [x] **BULK-045 — Update terms and privacy for bulk/phone data** · **P2**
+  - **Implemented:** terms now describe shared-code risk, device binding, pause/revoke and buyer receipt email; privacy now covers phone numbers, Paystack/Stripe and claim records.
   - **Why:** sets expectations and supports enforcement.
-  - **Done when:** legal review is complete and pages are published.
+  - **Note:** formal legal review remains BULK-062.
 
-- [ ] **BULK-046 — Write the support runbook** · **P2**
-  - **Cover:** leaked code, lost device, lost phone, lost seat link, buyer with no email, Google transfer, refund/chargeback.
+- [x] **BULK-046 — Write the support runbook** · **P2**
+  - **Implemented:** `docs/BULK-ORDERS.md` now covers leaked code, lost order link, device changes, phone-only recipients, buyer-without-email policy, refunds/chargebacks and Google-only transfer escalation.
   - **Why:** turns policy into repeatable support actions.
-  - **Done when:** support can resolve each scenario without engineering.
 
 ---
 

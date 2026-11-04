@@ -161,9 +161,12 @@
       }
       $("shared-code").value = data.code;
       $("code-panel").hidden = Boolean(data.seats?.length);
+      const paused = Number(data.claims_open) === 0;
       message(data.seats?.length
         ? `Payment confirmed. ${data.seats.length} individual seat links are ready below.`
-        : `Payment confirmed. Your code has ${data.quantity} editions.`);
+        : paused
+          ? `Payment confirmed, but new claims are paused for this code. Contact support before sharing it.`
+          : `Payment confirmed. Your code has ${data.quantity} editions.`);
       seats = data.seats || [];
       renderSeats(data);
     } catch (error) {
