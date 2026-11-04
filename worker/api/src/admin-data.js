@@ -1,5 +1,5 @@
 // Read-only administrative views. Never return password, session or device hashes.
-import { ensureBulkOrders } from './bulk-orders.js';
+import { bulkOrderClaims, ensureBulkOrders } from './bulk-orders.js';
 import { ensureDeviceSchema } from './device-schema.js';
 import { ensureFeedbackSchema } from './feedback-schema.js';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -31,6 +31,11 @@ export async function adminData(request, env) {
   }
   if (url.pathname === '/api/admin/bulk-orders') {
     await ensureBulkOrders(env);
+  }
+  if (url.pathname === '/api/admin/bulk-order') {
+    if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
+    const result = await bulkOrderClaims(env, url.searchParams.get('order_id') || '');
+    return json(result.body, result.status);
   }
   if (url.pathname === '/api/admin/transfers') {
     await ensureDeviceSchema(env);
@@ -72,7 +77,7 @@ export async function adminData(request, env) {
     query = "SELECT t.checkout_session_id,t.created_at,t.metadata_json AS metadata,a.email FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\' ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM device_transfer_audit t LEFT JOIN obi_accounts a ON a.id=t.account_id WHERE t.checkout_session_id LIKE ? ESCAPE '\\' OR a.email LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/bulk-orders') {
-    query = "SELECT id,COALESCE(NULLIF(receipt_email,''),buyer_email) AS buyer_email,quantity,currency,total_minor,provider,status,discount_percentage,created_at,paid_at,(SELECT COUNT(*) FROM bulk_seats WHERE order_id=bulk_orders.id) AS seat_count,(SELECT COUNT(*) FROM bulk_seats WHERE order_id=bulk_orders.id AND status='claimed') AS claimed_seats FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR receipt_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    query = "SELECT id,COALESCE(NULLIF(receipt_email,''),buyer_email) AS buyer_email,quantity,currency,total_minor,provider,CASE WHEN revoked_at IS NOT NULL THEN 'revoked' WHEN claims_open=0 THEN 'paused' ELSE status END AS status,discount_percentage,created_at,paid_at,(SELECT COUNT(*) FROM bulk_order_claims WHERE order_id=bulk_orders.id) AS claim_count,(SELECT COUNT(*) FROM bulk_seats WHERE order_id=bulk_orders.id) AS seat_count,(SELECT COUNT(*) FROM bulk_seats WHERE order_id=bulk_orders.id AND status='claimed') AS claimed_seats FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR receipt_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";
     count = "SELECT COUNT(*) AS total FROM bulk_orders WHERE buyer_email LIKE ? ESCAPE '\\' OR receipt_email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/feedback') {
     query = "SELECT id,purchaser_email,checkout_session_id,rating,comment,created_at,updated_at FROM book_feedback WHERE purchaser_email LIKE ? ESCAPE '\\' OR comment LIKE ? ESCAPE '\\' OR checkout_session_id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?";

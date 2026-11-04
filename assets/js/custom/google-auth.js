@@ -9,12 +9,12 @@
   const params = new URLSearchParams(location.search);
   const next = params.get("next");
   const seat = params.get("seat");
-  const destinations = { "bulk-redeem": "bulk-/redeem", bulk: "/bulk", "bulk-confirmation": "/bulk-confirmation" };
+  const destinations = { "bulk-redeem": "/bulk-redeem", bulk: "/bulk", "bulk-confirmation": "/bulk-confirmation" };
 
   function continueAfterSignIn(body) {
     if (body.token) localStorage.setItem("obi-ism.session-token", body.token);
     if (next === "bulk-redeem") {
-      location.assign("bulk-/redeem" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
+      location.assign("/bulk-redeem" + (seat ? "?seat=" + encodeURIComponent(seat) : ""));
       return;
     }
     if (Object.prototype.hasOwnProperty.call(destinations, next)) {
@@ -60,7 +60,10 @@
       const response = await api("/api/auth/config", { cache: "no-store" });
       if (!response.ok) return;
       const config = await response.json().catch(() => ({}));
-      if (!config.googleClientId) return;
+      if (!config.googleClientId || config.features?.google_signin === false) {
+        container.hidden = true;
+        return;
+      }
       container.hidden = false;
       await new Promise((resolve, reject) => {
         if (window.google?.accounts?.id) return resolve();

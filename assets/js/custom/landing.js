@@ -33,6 +33,7 @@
   const purchaseNote = document.querySelector(".purchase-note");
   const params = new URLSearchParams(location.search);
   let currency = "NGN";
+  let featureFlags = null;
   let purchaseMode = params.get("gift") === "1" ? "gift" : "self";
   const pricing = {
     NGN: { amount: 6995, label: "₦6,995" },
@@ -95,6 +96,19 @@
     const hero = document.getElementById("hero-price");
     if (hero) hero.textContent = `${pricing.USD.label} USD`;
     setCurrency(currency);
+  };
+  const applyFeatures = (data) => {
+    featureFlags = data?.features || data || {};
+    const single = featureFlags.single_purchase !== false;
+    const gift = featureFlags.gift_purchase !== false;
+    button.disabled = !single;
+    modeGift.disabled = !gift;
+    if (!gift && purchaseMode === "gift") setMode("self");
+    if (!single) {
+      updateStatus("Purchases are temporarily unavailable. Please check back soon.");
+    } else if (!gift && purchaseMode === "self") {
+      updateStatus();
+    }
   };
   const applyAccount = (data) => {
     const accountLink = document.getElementById("account-link");
@@ -164,6 +178,10 @@
   apiFetch("/api/pricing", { cache: "no-store" })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => { if (data) applyPricing(data); })
+    .catch(() => {});
+  apiFetch("/api/features", { cache: "no-store" })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => { if (data) applyFeatures(data); })
     .catch(() => {});
   apiFetch("/api/account/access", { cache: "no-store" })
     .then((response) => response.ok ? response.json() : null)
