@@ -65,7 +65,7 @@
     modeGift.setAttribute("aria-pressed", String(gift));
     giftFields.hidden = !gift;
     if (purchaseNote) purchaseNote.hidden = gift;
-    emailLabel.textContent = gift ? "YOUR EMAIL (FOR YOUR RECEIPT)" : "EMAIL FOR YOUR PRIVATE EDITION";
+    emailLabel.textContent = gift ? "YOUR EMAIL (FOR YOUR RECEIPT)" : "EMAIL FOR YOUR RECEIPT";
     setButtonLabel(gift ? "BUY AS A GIFT" : "BUY THE DIGITAL EDITION");
     updateStatus();
   };
@@ -103,6 +103,10 @@
     const note = document.getElementById("signed-in-note");
     if (!accountLink || !editionLink) return;
     const emailAddress = data.phone || data.email || "your account";
+    const accountEmail = String(data.email || "");
+    if (email && !email.value && !/^phone_[a-f0-9]+@phone\.obiism\.local$/i.test(accountEmail)) {
+      email.value = accountEmail;
+    }
     if (data.access) {
       accountLink.textContent = "MY BOOK";
       accountLink.href = "/reader";
