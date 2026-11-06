@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS gift_orders (code TEXT PRIMARY KEY, checkout_session_
 CREATE INDEX IF NOT EXISTS gift_orders_email_idx ON gift_orders(recipient_email);
 CREATE INDEX IF NOT EXISTS gift_orders_session_idx ON gift_orders(checkout_session_id);
 CREATE TABLE IF NOT EXISTS book_sections (position INTEGER PRIMARY KEY, section_id TEXT UNIQUE NOT NULL, label TEXT NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, paragraphs_json TEXT NOT NULL);
+CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(section_id, paragraph_index UNINDEXED, content, tokenize = 'unicode61');
 CREATE INDEX IF NOT EXISTS purchases_email_idx ON purchases(purchaser_email);
 CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0, phone TEXT, phone_verified INTEGER NOT NULL DEFAULT 0, google_sub TEXT, auth_provider TEXT NOT NULL DEFAULT 'password', created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
@@ -449,6 +450,62 @@ async function ensureAccountSchema(env) {
 }
 
 const repairedPurchaseSchemas = new WeakSet();
+async function reindexSearchIndex(env) {
+  await env.OBI_DB.prepare("DELETE FROM search_index").run();
+  const sections = await env.OBI_DB.prepare("SELECT section_id, paragraphs_json FROM book_sections").all();
+  let inserted = 0;
+  for (const row of sections.results || []) {
+    let paragraphs = [];
+    try { paragraphs = JSON.parse(row.paragraphs_json); } catch { continue; }
+    if (!Array.isArray(paragraphs)) continue;
+    for (let i = 0; i < paragraphs.length; i++) {
+      const text = String(paragraphs[i] || "").replace(/<[^>]*>/g, "").trim();
+      if (text.length === 0) continue;
+      await env.OBI_DB.prepare("INSERT INTO search_index (section_id, paragraph_index, content) VALUES (?, ?, ?)")
+        .bind(row.section_id, i, text).run();
+      inserted += 1;
+    }
+  }
+  return { inserted };
+}
+
+async function ensureSearchIndex(env) {
+  if (!env.OBI_DB) return;
+  try {
+    const count = await env.OBI_DB.prepare("SELECT COUNT(*) AS n FROM search_index").first();
+    if (Number(count?.n || 0) === 0) await reindexSearchIndex(env);
+  } catch {
+    await reindexSearchIndex(env);
+  }
+}
+
+async function searchContent(env, rawQuery, sessionId, limit = 50) {
+  const cleaned = (rawQuery || "").replace(/[^\w\s\u00C0-\u024F\u0400-\u04FF]/g, " ").trim();
+  if (cleaned.length === 0) return { query: rawQuery, matches: [] };
+  const terms = cleaned.split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return { query: rawQuery, matches: [] };
+  const ftsQuery = terms.map((t) => `"${t.replace(/"/g, "")}"`).join(" OR ");
+  const rows = await env.OBI_DB.prepare(
+    `SELECT i.section_id, s.label, s.title, i.paragraph_index,
+       snippet(search_index, 2, '<mark>', '</mark>', '…', 60) AS snippet
+     FROM search_index i
+     JOIN book_sections s ON s.section_id = i.section_id
+     WHERE search_index MATCH ?
+     ORDER BY rank
+     LIMIT ?`,
+  ).bind(ftsQuery, limit).all();
+  return {
+    query: rawQuery,
+    matches: (rows.results || []).map((row) => ({
+      section_id: row.section_id,
+      section_label: row.label || "",
+      section_title: row.title || "",
+      paragraph_index: Number(row.paragraph_index || 0),
+      snippet: row.snippet || "",
+    })),
+  };
+}
+
 async function ensurePurchaseSchema(env) {
   if (repairedPurchaseSchemas.has(env.OBI_DB)) return;
   const info = await env.OBI_DB.prepare("PRAGMA table_info(purchases)").bind().all();
@@ -2612,6 +2669,32 @@ async function readerFeedback(request, env) {
   );
 }
 
+async function readerSearch(request, env) {
+  const url = new URL(request.url);
+  const sessionId = url.searchParams.get("session_id");
+  const deviceToken = request.headers.get("x-obi-device-token") || url.searchParams.get("device_token");
+  if (!validSessionId(sessionId) || !validDeviceToken(deviceToken))
+    return reply({ error: "Reader access is required" }, request, { status: 403 });
+  await ensure(env);
+  await ensureSearchIndex(env);
+  if (!(await activePurchase(env, sessionId)))
+    return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  const q = String(url.searchParams.get("q") || "").trim();
+  if (q.length === 0)
+    return reply({ error: "Provide a search query via ?q=..." }, request, { status: 400 });
+  const ipLimited = await enforceLimit(request, env, "reader", "reader-ip", clientIp(request));
+  if (ipLimited) return ipLimited;
+  return reply(await searchContent(env, q, sessionId), request);
+}
+
+async function adminReindexSearch(request, env) {
+  const admin = await accountFromRequest(request, env);
+  if (!admin) return reply({ error: "Administrator sign-in required." }, request, { status: 401 });
+  await ensure(env);
+  const result = await reindexSearchIndex(env);
+  return reply({ reindexed: true, inserted: result.inserted }, request);
+}
+
 async function reader(request, env) {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id");
@@ -2733,6 +2816,8 @@ export {
   recordCheckoutCompletion,
   consumeLimit,
   RATE_LIMITS,
+  reindexSearchIndex,
+  searchContent,
 };
 
 export default {
@@ -2873,6 +2958,9 @@ async function handleRequest(request, env) {
   if (path === "/api/reader/feedback" && (request.method === "GET" || request.method === "POST"))
     return readerFeedback(request, env);
   if (path === "/api/reader" && request.method === "GET") return reader(request, env);
+  if (path === "/api/reader/search" && request.method === "GET") return readerSearch(request, env);
+  if (path === "/api/admin/search/reindex" && request.method === "POST")
+    return adminReindexSearch(request, env);
   if (path === "/api/access" && request.method === "GET") {
     const sessionId = new URL(request.url).searchParams.get("session_id");
     if (!validSessionId(sessionId)) return reply({ access: false }, request, { status: 400 });

@@ -136,8 +136,12 @@
           ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && contact ? `<small>${escape(contact)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE →</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
           : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
+        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="search-button" id="search-open" type="button">🔍 &nbsp; SEARCH</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><input type="text" id="search-input" placeholder="Search the book..." autocomplete="off"><button type="button" id="search-close" aria-label="Close search">✕</button></div><div class="search-results" id="search-results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
         document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
+        document.getElementById("search-open")?.addEventListener("click", openSearch);
+        document.getElementById("search-close")?.addEventListener("click", closeSearch);
+        document.getElementById("search-input")?.addEventListener("input", debounceSearch);
+        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") doSearch(); });
         document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
@@ -353,6 +357,74 @@
         });
         card.focus();
         textarea.focus();
+      }
+
+      let searchDebounceTimer = null;
+
+      function openSearch() {
+        const panel = document.getElementById("search-panel");
+        if (panel) panel.hidden = false;
+        document.getElementById("search-input")?.focus();
+      }
+
+      function closeSearch() {
+        const panel = document.getElementById("search-panel");
+        if (panel) panel.hidden = true;
+        const input = document.getElementById("search-input");
+        if (input) input.value = "";
+        const results = document.getElementById("search-results");
+        if (results) results.innerHTML = "";
+      }
+
+      function debounceSearch() {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+          const q = document.getElementById("search-input")?.value.trim() || "";
+          if (q.length < 2) {
+            const results = document.getElementById("search-results");
+            if (results) results.innerHTML = "";
+            return;
+          }
+          doSearch(q);
+        }, 300);
+      }
+
+      async function doSearch(q) {
+        const results = document.getElementById("search-results");
+        if (!results) return;
+        results.innerHTML = '<p class="search-state">Searching…</p>';
+        try {
+          const res = await apiFetch(`/api/reader/search?q=${encodeURIComponent(q)}&session_id=${encodeURIComponent(sessionId)}&device_token=${encodeURIComponent(currentDeviceToken)}`);
+          if (!res.ok) throw new Error("Search failed.");
+          const data = await res.json();
+          renderSearchResults(data);
+        } catch (err) {
+          results.innerHTML = `<p class="search-state search-error">${err.message || "Search unavailable."}</p>`;
+        }
+      }
+
+      function renderSearchResults(data) {
+        const results = document.getElementById("search-results");
+        if (!results) return;
+        const matches = data?.matches || [];
+        if (matches.length === 0) {
+          results.innerHTML = `<p class="search-state">No matches for "${escape(data?.query || "")}".</p>`;
+          return;
+        }
+        results.innerHTML = matches.map((m) => `
+          <button class="search-match" type="button" data-section="${escape(m.section_id)}" data-paragraph="${Number(m.paragraph_index || 0)}" aria-label="Go to ${escape(m.section_title || m.section_label || '')}">
+            <p class="search-match-title">${escape(m.section_title || m.section_label || 'Section')}</p>
+            <p class="search-match-snippet">${m.snippet || ''}</p>
+          </button>
+        `).join("");
+        results.querySelectorAll(".search-match").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const sectionId = btn.dataset.section;
+            const paragraphIndex = Number(btn.dataset.paragraph || 0);
+            closeSearch();
+            if (typeof loadSection === "function") loadSection(sectionId, { scrollToParagraph: paragraphIndex });
+          });
+        });
       }
 
       function openFeedback() {
