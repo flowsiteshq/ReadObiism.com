@@ -70,11 +70,17 @@
         const bytes = crypto.getRandomValues(new Uint8Array(48));
         return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
       };
-      const fail = (message, retry = false, signIn = false) => {
+      const fail = (message, retry = false, signIn = false, expired = false) => {
         app.className = "access-state";
-        app.innerHTML = `<div class="panel"><h1>Access <span style="color:#d5ac47">required</span></h1><p>${message}</p>${retry ? '<button class="retry" id="retry">RETRY ACCESS →</button>' : signIn ? '<button class="retry" id="return">SIGN IN →</button>' : '<button class="retry" id="return">RETURN TO OBI-ISM →</button>'}</div>`;
+        const heading = expired ? 'Access <span style="color:#d5ac47">expired</span>' : 'Access <span style="color:#d5ac47">required</span>';
+        const action = expired
+          ? '<button class="retry" id="renew">RENEW ACCESS →</button><p style="margin-top:14px"><a href="/login" style="color:#d5ac47">SIGN IN TO YOUR ACCOUNT</a></p>'
+          : retry ? '<button class="retry" id="retry">RETRY ACCESS →</button>' : signIn ? '<button class="retry" id="return">SIGN IN →</button>' : '<button class="retry" id="return">RETURN TO OBI-ISM →</button>';
+        app.innerHTML = `<div class="panel"><h1>${heading}</h1><p>${escape(message)}</p>${action}</div>`;
+        const renew = document.getElementById("renew");
         const button = document.getElementById(retry ? "retry" : "return");
-        button.addEventListener("click", () => retry ? start() : location.assign(signIn ? "/login" : "/"));
+        if (renew) renew.addEventListener("click", () => location.assign("/#edition"));
+        if (button) button.addEventListener("click", () => retry ? start() : location.assign(signIn ? "/login" : "/"));
       };
       const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
       const offerTransfer = (deviceToken) => {
@@ -132,11 +138,12 @@
         const licenseField = license.email
           ? `<div class="license-field" aria-hidden="true"><span>${escape(displayName)} · ${escape(license.edition || license.reference)}</span></div>`
           : "";
+        const expiresText = license.expires_at ? new Date(license.expires_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
         const licenseCard = license.email
-          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && contact ? `<small>${escape(contact)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE →</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
+          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && contact ? `<small>${escape(contact)}</small>` : ""}${license.edition_label ? `<small>${escape(license.edition_label)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}${expiresText ? `<small>Access until ${escape(expiresText)}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE →</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
           : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">☰ &nbsp; CHAPTERS</button><button class="search-button" id="search-open" type="button">SEARCH</button><button class="feedback-button" id="feedback-open" type="button">✦ &nbsp; FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-input-wrap"><input type="text" id="search-input" placeholder="Search the book..." autocomplete="off"><button type="button" id="search-close" aria-label="Close search">✕</button></div><div class="search-results" id="search-results"></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE ×</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
+        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel">SEARCH</button><button class="feedback-button" id="feedback-open" type="button">FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
         document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
         document.getElementById("search-open")?.addEventListener("click", openSearch);
         document.getElementById("search-close")?.addEventListener("click", closeSearch);
@@ -360,23 +367,22 @@
       }
 
       let searchDebounceTimer = null;
+      let jumpToSection = null;
 
       function openSearch() {
         const panel = document.getElementById("search-panel");
-        if (panel) {
-          panel.hidden = false;
-          panel.style.display = "block";
-        }
+        const openButton = document.getElementById("search-open");
+        if (panel) panel.hidden = false;
+        if (openButton) openButton.setAttribute("aria-expanded", "true");
         const input = document.getElementById("search-input");
         if (input) { input.focus(); input.select(); }
       }
 
       function closeSearch() {
         const panel = document.getElementById("search-panel");
-        if (panel) {
-          panel.hidden = true;
-          panel.style.display = "none";
-        }
+        const openButton = document.getElementById("search-open");
+        if (panel) panel.hidden = true;
+        if (openButton) openButton.setAttribute("aria-expanded", "false");
         const input = document.getElementById("search-input");
         if (input) input.value = "";
         const results = document.getElementById("search-results");
@@ -415,13 +421,13 @@
         if (!results) return;
         const matches = data?.matches || [];
         if (matches.length === 0) {
-          results.innerHTML = `<p class="search-state">No matches for "${escape(data?.query || "")}".</p>`;
+          results.innerHTML = `<p class="search-state">No matches found for “${escape(data?.query || "")}”.</p>`;
           return;
         }
         results.innerHTML = matches.map((m) => `
-          <button class="search-match" type="button" data-section="${escape(m.section_id)}" data-paragraph="${Number(m.paragraph_index || 0)}" aria-label="Go to ${escape(m.section_title || m.section_label || '')}">
-            <p class="search-match-title">${escape(m.section_title || m.section_label || 'Section')}</p>
-            <p class="search-match-snippet">${m.snippet || ''}</p>
+          <button class="search-match" type="button" data-section="${escape(m.section_id)}" data-paragraph="${Number(m.paragraph_index || 0)}">
+            <span class="search-match-title">${escape(m.section_title || m.section_label || 'Section')}</span>
+            <span class="search-match-snippet">${m.snippet || ''}</span>
           </button>
         `).join("");
         results.querySelectorAll(".search-match").forEach((btn) => {
@@ -429,7 +435,7 @@
             const sectionId = btn.dataset.section;
             const paragraphIndex = Number(btn.dataset.paragraph || 0);
             closeSearch();
-            if (typeof loadSection === "function") loadSection(sectionId, { scrollToParagraph: paragraphIndex });
+            if (typeof jumpToSection === "function") jumpToSection(sectionId, paragraphIndex);
           });
         });
       }
@@ -524,6 +530,7 @@
             claim = await claimOnce();
           }
           if (!claim.ok) {
+            if (claim.body && claim.body.code === "expired") return fail(claim.body.error || "Your annual access has expired. Renew to continue reading.", false, false, true);
             if (claim.status === 409 && !/gift/i.test(claim.body.error || "")) return offerTransfer(deviceToken);
             if (claim.status === 429) {
               const seconds = Number(claim.body.retryAfter);
@@ -534,7 +541,11 @@
           }
           if (location.hostname === "127.0.0.1" && location.port === "5514" && localStorage.getItem("obi-ism.local-pending-paystack") === sessionId) localStorage.removeItem("obi-ism.local-pending-paystack");
           const reader = await apiFetch(`/api/reader?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": deviceToken } });
-          if (!reader.ok) { const body = await reader.json().catch(() => ({})); return fail(body.error || "We could not load this protected edition.", reader.status === 403 || reader.status === 404); }
+          if (!reader.ok) {
+            const body = await reader.json().catch(() => ({}));
+            if (body && body.code === "expired") return fail(body.error || "Your annual access has expired. Renew to continue reading.", false, false, true);
+            return fail(body.error || "We could not load this protected edition.", reader.status === 403 || reader.status === 404);
+          }
           const edition = await reader.json();
           const loadSection = async (sectionId) => {
             const response = await apiFetch(`/api/reader?session_id=${encodeURIComponent(sessionId)}&section_id=${encodeURIComponent(sectionId)}`, { cache: "no-store", headers: { "x-obi-device-token": deviceToken } });
