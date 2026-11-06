@@ -2759,14 +2759,20 @@ async function readerSearch(request, env) {
   const deviceToken = request.headers.get("x-obi-device-token") || url.searchParams.get("device_token");
   if (!validSessionId(sessionId) || !validDeviceToken(deviceToken))
     return reply({ error: "Reader access is required" }, request, { status: 403 });
-  await ensure(env);
-  await ensureSearchIndex(env);
-  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
   const q = String(url.searchParams.get("q") || "").trim();
-  if (q.length === 0)
-    return reply({ error: "Provide a search query via ?q=..." }, request, { status: 400 });
+  if (q.length < 2 || q.length > 200)
+    return reply({ error: "Enter a search query between 2 and 200 characters." }, request, { status: 400 });
+  await ensure(env);
   const ipLimited = await enforceLimit(request, env, "reader", "reader-ip", clientIp(request));
   if (ipLimited) return ipLimited;
+  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
+  const deviceHash = await hashDeviceToken(deviceToken);
+  const device = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(sessionId).first();
+  if (!device || !same(device.device_hash, deviceHash))
+    return reply({ error: "Reader is not authorized on this device" }, request, { status: 403 });
+  const deviceLimited = await enforceLimit(request, env, "reader", "reader-device", deviceToken);
+  if (deviceLimited) return deviceLimited;
+  await ensureSearchIndex(env);
   return reply(await searchContent(env, q, sessionId), request);
 }
 
