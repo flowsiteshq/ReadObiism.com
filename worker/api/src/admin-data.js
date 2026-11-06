@@ -74,7 +74,10 @@ export async function adminData(request, env) {
     query = `SELECT a.id,a.email,a.created_at,a.last_signed_in,
        (SELECT COUNT(*) FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
         WHERE p.status='active' AND (p.expires_at IS NULL OR p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AND ((g.checkout_session_id IS NULL AND lower(p.purchaser_email)=lower(a.email))
-        OR (g.status='redeemed' AND lower(g.recipient_email)=lower(a.email)))) AS active_editions
+        OR (g.status='redeemed' AND lower(g.recipient_email)=lower(a.email)))) AS active_editions,
+       (SELECT MIN(p.expires_at) FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
+        WHERE p.status='active' AND p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now') AND ((g.checkout_session_id IS NULL AND lower(p.purchaser_email)=lower(a.email))
+        OR (g.status='redeemed' AND lower(g.recipient_email)=lower(a.email)))) AS next_expiry
       FROM obi_accounts a WHERE a.email LIKE ? ESCAPE '\\' OR a.id LIKE ? ESCAPE '\\' ORDER BY a.created_at DESC LIMIT ? OFFSET ?`;
     count = "SELECT COUNT(*) AS total FROM obi_accounts WHERE email LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\'";
   } else if (url.pathname === '/api/admin/purchases') {

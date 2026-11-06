@@ -1,0 +1,13 @@
+﻿import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { adminData } from '../api/src/admin-data.js';
+function database(){const raw=new DatabaseSync(':memory:');raw.exec(`CREATE TABLE obi_accounts(id TEXT PRIMARY KEY,email TEXT,created_at TEXT,last_signed_in TEXT);CREATE TABLE purchases(checkout_session_id TEXT PRIMARY KEY,purchaser_email TEXT,status TEXT,expires_at TEXT);CREATE TABLE gift_orders(checkout_session_id TEXT,recipient_email TEXT,status TEXT);`);return {raw,prepare(sql){let args=[];return {bind(...a){args=a;return this},first:async()=>raw.prepare(sql).get(...args)||null,all:async()=>({results:raw.prepare(sql).all(...args)})}}};}
+test('readers show the soonest active edition expiry, including redeemed gifts',async()=>{
+ const db=database(),now=Date.now(),soon=new Date(now+2*86400000).toISOString(),later=new Date(now+30*86400000).toISOString(),past=new Date(now-86400000).toISOString();
+ const acc=db.raw.prepare('INSERT INTO obi_accounts VALUES (?,?,?,?)');for(const email of ['buyer@example.test','gift@example.test','permanent@example.test','inactive@example.test','mixed@example.test']) acc.run(email,email,'2026-01-01','2026-01-01');
+ const purchase=db.raw.prepare('INSERT INTO purchases VALUES (?,?,?,?)');purchase.run('buyer','buyer@example.test','active',later);purchase.run('gift','buyer@example.test','active',soon);purchase.run('permanent','permanent@example.test','active',null);purchase.run('old','inactive@example.test','active',past);purchase.run('refunded','inactive@example.test','refunded',soon);purchase.run('mixed-permanent','mixed@example.test','active',null);purchase.run('mixed-timed','mixed@example.test','active',soon);
+ db.raw.prepare('INSERT INTO gift_orders VALUES (?,?,?)').run('gift','GIFT@example.test','redeemed');
+ const response=await adminData(new Request('https://readobiism.com/api/admin/readers'),{OBI_DB:db});assert.equal(response.status,200);const body=await response.json();const rows=Object.fromEntries(body.items.map(row=>[row.email,row]));
+ assert.equal(rows['buyer@example.test'].active_editions,1);assert.equal(rows['buyer@example.test'].next_expiry,later);assert.equal(rows['gift@example.test'].active_editions,1);assert.equal(rows['gift@example.test'].next_expiry,soon);assert.equal(rows['permanent@example.test'].active_editions,1);assert.equal(rows['permanent@example.test'].next_expiry,null);assert.equal(rows['inactive@example.test'].active_editions,0);assert.equal(rows['inactive@example.test'].next_expiry,null);assert.equal(rows['mixed@example.test'].active_editions,2);assert.equal(rows['mixed@example.test'].next_expiry,soon);
+});
