@@ -520,6 +520,29 @@ async function ensurePurchaseSchema(env) {
         throw error;
     }
   }
+  if (!names.has("expires_at")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE purchases ADD COLUMN expires_at TEXT").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error)))
+        throw error;
+    }
+    const days = await getAccessDays(env).catch(() => 365);
+    await env.OBI_DB.prepare(
+      "UPDATE purchases SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', granted_at, ?) WHERE expires_at IS NULL AND granted_at IS NOT NULL",
+    )
+      .bind(`+${days} days`)
+      .run()
+      .catch(() => null);
+  }
+  if (!names.has("edition_no")) {
+    try {
+      await env.OBI_DB.prepare("ALTER TABLE purchases ADD COLUMN edition_no INTEGER NOT NULL DEFAULT 1").bind().run();
+    } catch (error) {
+      if (!/duplicate column/i.test(String(error && error.message ? error.message : error)))
+        throw error;
+    }
+  }
   repairedPurchaseSchemas.add(env.OBI_DB);
 }
 
@@ -649,9 +672,25 @@ function authCookie(token) {
 // not send users to those rows or let them hide a valid provider reference.
 async function accountPurchase(env, email) {
   const row = await env.OBI_DB.prepare(
-    `SELECT p.checkout_session_id FROM purchases p
+    `SELECT p.checkout_session_id,p.expires_at FROM purchases p
     LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
-    WHERE p.status='active' AND (p.checkout_session_id GLOB 'obi_*' OR p.checkout_session_id GLOB 'cs_*')
+    WHERE p.status='active' AND (p.expires_at IS NULL OR p.expires_at > ?)
+      AND (p.checkout_session_id GLOB 'obi_*' OR p.checkout_session_id GLOB 'cs_*')
+      AND ((g.checkout_session_id IS NULL AND lower(p.purchaser_email)=lower(?))
+        OR (g.status='redeemed' AND lower(g.recipient_email)=lower(?)))
+    ORDER BY p.granted_at DESC LIMIT 1`,
+  )
+    .bind(new Date().toISOString(), email, email)
+    .first();
+  return row && validSessionId(row.checkout_session_id) ? row : null;
+}
+
+async function latestAccountPurchase(env, email) {
+  const row = await env.OBI_DB.prepare(
+    `SELECT p.checkout_session_id,p.expires_at,p.status FROM purchases p
+    LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
+    WHERE p.status='active'
+      AND (p.checkout_session_id GLOB 'obi_*' OR p.checkout_session_id GLOB 'cs_*')
       AND ((g.checkout_session_id IS NULL AND lower(p.purchaser_email)=lower(?))
         OR (g.status='redeemed' AND lower(g.recipient_email)=lower(?)))
     ORDER BY p.granted_at DESC LIMIT 1`,
@@ -1077,12 +1116,15 @@ async function accountAccess(request, env) {
   const account = await accountFromRequest(request, env);
   if (!account) return reply({ authenticated: false, access: false }, request, { status: 401 });
   const purchase = await accountPurchase(env, account.email);
+  const latest = purchase || (await latestAccountPurchase(env, account.email));
   const acc = await env.OBI_DB.prepare(
     "SELECT email_verified,phone,phone_verified FROM obi_accounts WHERE id=?",
   )
     .bind(account.id)
     .first()
     .catch(() => null);
+  const now = new Date().toISOString();
+  const expired = Boolean(latest?.expires_at && latest.expires_at <= now);
   return reply(
     {
       authenticated: true,
@@ -1091,7 +1133,9 @@ async function accountAccess(request, env) {
       email_verified: acc?.email_verified === 1,
       phone_verified: acc?.phone_verified === 1,
       access: Boolean(purchase),
-      sessionId: purchase?.checkout_session_id || null,
+      sessionId: latest?.checkout_session_id || null,
+      expiresAt: latest?.expires_at || null,
+      expired,
     },
     request,
   );
@@ -1531,9 +1575,11 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
     });
   }
   const now = new Date().toISOString();
+  const expiresAt = accessExpiry(await getAccessDays(env), new Date(now));
+  const editionNo = (await liveEdition(env))?.edition_no || 1;
   await env.OBI_DB.batch([
     env.OBI_DB.prepare(
-      "INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?,?)",
+      "INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
     ).bind(
       reference,
       String(tx.id ?? ""),
@@ -1544,6 +1590,8 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
       SKU,
       "active",
       now,
+      expiresAt,
+      editionNo,
     ),
     env.OBI_DB.prepare(
       "INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)",
@@ -1593,12 +1641,14 @@ async function recordCheckoutCompletion(event, env) {
   // A gift belongs to the recipient, not the buyer's browser. Leave the
   // device slot unbound until the recipient redeems the code.
   const deviceValue = gift ? "UNBOUND" : deviceHash;
+  const expiresAt = accessExpiry(await getAccessDays(env), new Date(now));
+  const editionNo = (await liveEdition(env))?.edition_no || 1;
   const result = await env.OBI_DB.batch([
     env.OBI_DB.prepare(
       "INSERT OR IGNORE INTO webhook_events (event_id,event_type,status,received_at) VALUES (?,?,?,?)",
     ).bind(event.id, EVENT, "processed", now),
     env.OBI_DB.prepare(
-      "INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?,?)",
+      "INSERT OR IGNORE INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
     ).bind(
       session.id,
       typeof session.payment_intent === "string" ? session.payment_intent : null,
@@ -1609,6 +1659,8 @@ async function recordCheckoutCompletion(event, env) {
       SKU,
       "active",
       now,
+      expiresAt,
+      editionNo,
     ),
     env.OBI_DB.prepare(
       "INSERT OR IGNORE INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)",
@@ -1697,10 +1749,19 @@ async function claimReader(request, env) {
       { status: 409 },
     );
   }
-  if (!purchased)
+  if (!purchased) {
+    const expired = await purchaseRecord(env, sessionId).catch(() => null);
+    if (expired && expired.expires_at && expired.expires_at <= new Date().toISOString()) {
+      return reply(
+        { error: "Your annual access has expired. Renew to continue reading.", code: "expired", expires_at: expired.expires_at },
+        request,
+        { status: 403 },
+      );
+    }
     return reply({ error: "Purchase is not ready yet. Please retry shortly." }, request, {
       status: 404,
     });
+  }
   const deviceHash = await hashDeviceToken(deviceToken);
   const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
   const existing = await env.OBI_DB.prepare(
@@ -2700,8 +2761,7 @@ async function readerSearch(request, env) {
     return reply({ error: "Reader access is required" }, request, { status: 403 });
   await ensure(env);
   await ensureSearchIndex(env);
-  if (!(await activePurchase(env, sessionId)))
-    return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
   const q = String(url.searchParams.get("q") || "").trim();
   if (q.length === 0)
     return reply({ error: "Provide a search query via ?q=..." }, request, { status: 400 });
@@ -2729,8 +2789,7 @@ async function reader(request, env) {
   await ensure(env);
   const ipLimited = await enforceLimit(request, env, "reader", "reader-ip", clientIp(request));
   if (ipLimited) return ipLimited;
-  if (!(await activePurchase(env, sessionId)))
-    return reply({ error: "Reader access is not active" }, request, { status: 403 });
+  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
   const deviceHash = await hashDeviceToken(deviceToken);
   const boundDevice = await env.OBI_DB.prepare(
     "SELECT device_hash,metadata_json FROM reader_devices WHERE checkout_session_id=?",
@@ -2784,10 +2843,12 @@ async function reader(request, env) {
       { status: 503 },
     );
   const purchase = await env.OBI_DB.prepare(
-    `SELECT p.rowid AS edition_no,p.purchaser_email,p.reader_name,p.granted_at,
+    `SELECT p.rowid AS copy_no,p.edition_no AS book_edition_no,p.expires_at,p.purchaser_email,p.reader_name,p.granted_at,
+      e.label AS edition_label,
       g.recipient_email,g.recipient_name,g.status AS gift_status,a.phone AS account_phone
     FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
     LEFT JOIN obi_accounts a ON lower(a.email)=lower(p.purchaser_email)
+    LEFT JOIN editions e ON e.edition_no=p.edition_no
     WHERE p.checkout_session_id=?`,
   )
     .bind(sessionId)
@@ -2802,11 +2863,14 @@ async function reader(request, env) {
   const licensePhone = giftLicense ? "" : purchase?.account_phone || "";
   const licenseName = giftLicense ? purchase.recipient_name || "" : purchase?.reader_name || "";
   const editionYear = new Date(purchase?.granted_at || Date.now()).getUTCFullYear();
-  const editionNo = Number(purchase?.edition_no);
+  const copyNo = Number(purchase?.copy_no);
+  const bookEditionNo = Number(purchase?.book_edition_no);
   const edition =
-    Number.isInteger(editionNo) && editionNo > 0
-      ? `OBI-${editionYear}-${String(editionNo).padStart(6, "0")}`
+    Number.isInteger(copyNo) && copyNo > 0
+      ? `OBI-${editionYear}-${String(copyNo).padStart(6, "0")}`
       : "";
+  const editionLabel =
+    purchase?.edition_label || (Number.isInteger(bookEditionNo) && bookEditionNo > 0 ? `Edition ${bookEditionNo}` : "");
   return reply(
     {
       title: "OBI-ISM",
@@ -2817,6 +2881,8 @@ async function reader(request, env) {
         phone: licensePhone,
         name: licenseName,
         edition,
+        edition_label: editionLabel,
+        expires_at: purchase?.expires_at || "",
         device: deviceLabel,
         reference: sessionId.slice(-8).toUpperCase(),
         granted_at: purchase?.granted_at || "",
