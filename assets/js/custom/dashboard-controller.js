@@ -14,7 +14,7 @@
     payments: ['Payment settings', 'Manage your local payment configuration.'],
   };
   const views = {
-    readers: { headers: ['Email', 'Account ID', 'Created', 'Last sign-in', 'Active editions'], fields: ['email', 'id', 'created_at', 'last_signed_in', 'active_editions'], description: 'Search by account email or ID.' },
+    readers: { headers: ['Email', 'Account ID', 'Created', 'Last sign-in', 'Active editions', 'Expires', 'Days left'], fields: ['email', 'id', 'created_at', 'last_signed_in', 'active_editions', 'next_expiry', 'days_left'], description: 'Search by account email or ID. Expires and days left show the soonest expiry among active editions.' },
     purchases: { headers: ['Email', 'Reference', 'Amount', 'Source', 'Status', 'Recorded'], fields: ['purchaser_email', 'checkout_session_id', 'amount', 'source', 'status', 'granted_at'], description: 'Search by purchaser email or payment reference. Local bulk tests are labelled separately.' },
     feedback: { headers: ['Reader', 'Purchase reference', 'Rating', 'Comment', 'Submitted', 'Updated'], fields: ['purchaser_email', 'checkout_session_id', 'rating', 'comment', 'created_at', 'updated_at'], description: 'Search reader email, purchase reference or comment. Only readers with active access can submit feedback.' },
     gifts: { headers: ['Buyer', 'Recipient', 'Code ending', 'Purchase reference', 'Status', 'Created', 'Redeemed'], fields: ['buyer_email', 'recipient_email', 'code_last4', 'checkout_session_id', 'status', 'created_at', 'redeemed_at'], description: 'Search buyer email, recipient email or purchase reference. Full gift codes are hidden.' },
@@ -277,7 +277,29 @@
       return true;
     } catch (error) { $('bulk-list-message').textContent = error.message; $('bulk-payments-empty').textContent = error.message; toast(error.message, true); return false; }
   }
+  function expiryBadgeStatus(item) {
+    if (Number(item.active_editions) < 1) return 'none';
+    if (item.next_expiry == null || item.next_expiry === '') return 'none';
+    const days = Math.ceil((Date.parse(item.next_expiry) - Date.now()) / 86400000);
+    if (days <= 0) return 'expired';
+    if (days <= 30) return 'soon';
+    if (days <= 90) return 'warn';
+    return 'ok';
+  }
   function format(field, value, record) {
+    if (field === 'next_expiry') {
+      if (Number(record.active_editions) < 1) return '—';
+      if (value == null || value === '') return 'No expiry';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+    }
+    if (field === 'days_left') {
+      if (Number(record.active_editions) < 1) return '—';
+      if (record.next_expiry == null || record.next_expiry === '') return 'No expiry';
+      const days = Math.ceil((Date.parse(record.next_expiry) - Date.now()) / 86400000);
+      if (days <= 0) return 'Expired';
+      return days === 1 ? '1 day left' : `${days} days left`;
+    }
     if (field === 'rating') {
       const labels = { 1: '😞 Not for me', 2: '😕 It was okay', 3: '🙂 Good', 4: '😊 Loved it', 5: '🤩 Transforming' };
       return labels[Number(value)] || '—';
@@ -318,6 +340,10 @@
             const badge = document.createElement('span'); badge.className = 'record-status';
             badge.dataset.status = String(item[field] || '').toLowerCase();
             badge.textContent = format(field, item[field], item); td.append(badge);
+          } else if (field === 'days_left') {
+            const status = expiryBadgeStatus(item);
+            if (status === 'none') td.textContent = format('days_left', null, item);
+            else { const badge = document.createElement('span'); badge.className = 'record-status'; badge.dataset.status = status; badge.textContent = format('days_left', null, item); td.append(badge); }
           } else td.textContent = format(field, item[field], item);
           tr.append(td);
         });

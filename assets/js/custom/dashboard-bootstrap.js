@@ -30,7 +30,7 @@
       script.src = src; script.onload = resolve; script.onerror = reject;
       document.body.append(script);
     });
-    await loadScript('../assets/js/custom/dashboard-controller.js?v=20261103-seats');
+    await loadScript('../assets/js/custom/dashboard-controller.js?v=20261106-reader-expiry');
     await loadScript('../assets/js/alg/obi-router.js');
   } catch {
     document.body.classList.remove('auth-pending');
