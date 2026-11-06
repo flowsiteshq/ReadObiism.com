@@ -475,22 +475,26 @@
     event.preventDefault();
     const ngn = Number($('price-ngn').value);
     const usd = Number($('price-usd').value);
+    const accessDays = Number($('access-days')?.value || 365);
     const usdMinor = Math.round(usd * 100);
-    if (!Number.isInteger(ngn) || ngn < 1 || ngn > 1000000) { $('pricing-message').textContent = 'Enter a whole Naira price from ₦1 to ₦1,000,000.'; return; }
-    if (!Number.isFinite(usd) || usd < 0.01 || usd > 10000 || Math.abs(usd * 100 - usdMinor) > 1e-6) { $('pricing-message').textContent = 'Enter a Dollar price from $0.01 to $10,000 with at most two decimals.'; return; }
+    if (!Number.isInteger(ngn) || ngn < 1 || ngn > 1000000) { $('pricing-message').textContent = 'Enter a naira amount from 1 to 1,000,000.'; return; }
+    if (!Number.isFinite(usd) || usd < 0.01 || usd > 10000 || Math.abs(usd * 100 - usdMinor) > 1e-6) { $('pricing-message').textContent = 'Enter a dollar amount from $0.01 to $10,000.00, using cents only.'; return; }
+    if (!Number.isInteger(accessDays) || accessDays < 1 || accessDays > 3650) { $('pricing-message').textContent = 'Enter an access duration from 1 to 3650 days.'; return; }
     $('save-pricing').disabled = true;
     $('pricing-message').textContent = 'Saving…';
     try {
-      const response = await window.OBI_API.fetch('/api/admin/pricing', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ngn, usd }) });
+      const response = await window.OBI_API.fetch('/api/admin/pricing', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ngn, usd, accessDays }) });
       if (response.status === 401) { location.replace('./login.html'); return; }
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Could not save prices.');
       const pricing = data.pricing || {};
       $('price-ngn').value = pricing.NGN?.amount ?? ngn;
       $('price-usd').value = pricing.USD?.amount ?? usd;
+      if ($('access-days')) $('access-days').value = pricing.accessDays ?? accessDays;
       updatePricingPreview();
-      $('pricing-message').textContent = 'Saved. The landing page will show these prices.';
+      $('pricing-message').textContent = 'Saved. The landing page will show these prices and new purchases use this access duration.';
       toast('Edition prices updated.');
+      if (typeof loadEditions === 'function') loadEditions();
     } catch (error) {
       $('pricing-message').textContent = error.message || 'Could not save prices.';
       toast('Could not save prices.', true);

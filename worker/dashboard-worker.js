@@ -17,7 +17,8 @@ import {
   NGN_PRICE_KOBO,
   EDITION_SKU as SKU,
 } from "./api/src/pricing.js";
-import { getPricing } from "./api/src/pricing-store.js";
+import { getPricing, getAccessDays, accessExpiry } from "./api/src/pricing-store.js";
+import { ensureEditions, liveEdition, editionByNumber } from "./api/src/edition-store.js";
 import { getFeatureFlags, isFeatureEnabled } from "./api/src/feature-flags.js";
 import {
   verificationEmail,
@@ -364,6 +365,7 @@ async function ensure(env) {
   await ensureFeedbackSchema(env);
   await ensurePurchaseSchema(env);
   await ensureReaderStateSchema(env);
+  await ensureEditions(env);
 }
 
 // Databases created before email verification shipped have an obi_accounts
@@ -540,10 +542,31 @@ function expected(session) {
 async function activePurchase(env, sessionId) {
   await ensure(env);
   return env.OBI_DB.prepare(
-    "SELECT checkout_session_id FROM purchases WHERE checkout_session_id=? AND status='active'",
+    "SELECT checkout_session_id,expires_at,edition_no FROM purchases WHERE checkout_session_id=? AND status='active' AND (expires_at IS NULL OR expires_at > ?)",
+  )
+    .bind(sessionId, new Date().toISOString())
+    .first();
+}
+
+async function purchaseRecord(env, sessionId) {
+  await ensure(env);
+  return env.OBI_DB.prepare(
+    "SELECT checkout_session_id,status,expires_at,edition_no FROM purchases WHERE checkout_session_id=?",
   )
     .bind(sessionId)
     .first();
+}
+
+async function accessDenied(env, request, sessionId) {
+  const purchase = await purchaseRecord(env, sessionId).catch(() => null);
+  if (purchase && purchase.expires_at && purchase.expires_at <= new Date().toISOString()) {
+    return reply(
+      { error: "Your annual access has expired. Renew to continue reading.", code: "expired", expires_at: purchase.expires_at },
+      request,
+      { status: 403 },
+    );
+  }
+  return reply({ error: "Reader access is not active" }, request, { status: 403 });
 }
 
 function bytesToBase64(bytes) {
