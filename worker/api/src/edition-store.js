@@ -52,7 +52,25 @@ async function addColumn(env, table, column, definition) {
  */
 export async function ensureEditions(env) {
   if (!env?.OBI_DB || ensured.has(env.OBI_DB)) return;
-  await env.OBI_DB.exec(editionSchema);
+  await env.OBI_DB.prepare(
+    `CREATE TABLE IF NOT EXISTS editions (
+      edition_no INTEGER PRIMARY KEY,
+      label TEXT NOT NULL,
+      source TEXT,
+      published_at TEXT NOT NULL,
+      retired_at TEXT,
+      is_live INTEGER NOT NULL DEFAULT 0,
+      section_count INTEGER NOT NULL DEFAULT 0,
+      paragraph_count INTEGER NOT NULL DEFAULT 0
+    )`,
+  ).run();
+  await env.OBI_DB.prepare(
+    `CREATE TABLE IF NOT EXISTS edition_archives (
+      edition_no INTEGER PRIMARY KEY,
+      sections_json TEXT NOT NULL,
+      archived_at TEXT NOT NULL
+    )`,
+  ).run();
   await addColumn(env, "book_sections", "edition_no", "INTEGER NOT NULL DEFAULT 1");
   await addColumn(env, "purchases", "edition_no", "INTEGER NOT NULL DEFAULT 1");
   const existing = await env.OBI_DB.prepare("SELECT COUNT(*) AS n FROM editions").bind().first();
