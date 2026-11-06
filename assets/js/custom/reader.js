@@ -148,7 +148,7 @@
         document.getElementById("search-open")?.addEventListener("click", openSearch);
         document.getElementById("search-close")?.addEventListener("click", closeSearch);
         document.getElementById("search-input")?.addEventListener("input", debounceSearch);
-        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") doSearch(); });
+        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") doSearch(e.currentTarget.value.trim()); });
         document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
@@ -194,7 +194,7 @@
           contents.querySelectorAll("button").forEach((button) => {
             const state = readerState.get(chapters[Number(button.dataset.chapter)]?.id);
             const flags = button.querySelector(".toc-flags");
-            if (flags) flags.textContent = `${state?.bookmark ? "★" : ""}${state?.note ? "✎" : ""}`;
+            if (flags) flags.textContent = `${state?.bookmark ? "SAVED " : ""}${state?.note ? "NOTE" : ""}`.trim();
           });
         };
         const updateProgress = () => {
@@ -212,7 +212,10 @@
             void saveReaderState(metadata.id, { progress });
           }
         };
-        const show = async (index, restoreProgress = 0) => {
+        const show = async (index, options = 0) => {
+          const opts = typeof options === "number" ? { restoreProgress: options } : (options || {});
+          const restoreProgress = Number(opts.restoreProgress || 0);
+          const scrollToParagraph = Number.isInteger(opts.scrollToParagraph) ? opts.scrollToParagraph : -1;
           current = Math.min(Math.max(index, 0), chapters.length - 1);
           const metadata = chapters[current];
           contents.innerHTML = chapters.map((item, itemIndex) => `<button data-chapter="${itemIndex}" aria-current="${itemIndex === current}"><small>${escape(item.label)}</small>${escape(item.title)}<span class="toc-flags" aria-hidden="true"></span></button>`).join("");
@@ -228,14 +231,14 @@
             if (chapters[current].id !== metadata.id) return;
             const state = readerState.get(chapter.id) || { section_id: chapter.id, bookmark: 0, note: "", progress: 0 };
             readerState.set(chapter.id, state);
-            reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><div class="chapter-tools"><button class="chapter-tool" id="bookmark-toggle" type="button" aria-pressed="false">☆ SAVE</button><button class="chapter-tool" id="note-toggle" type="button">✎ NOTE</button><span class="chapter-progress" id="chapter-progress">0%</span></div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>← PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT →</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
+            reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><div class="chapter-tools"><button class="chapter-tool" id="bookmark-toggle" type="button" aria-pressed="false">SAVE</button><button class="chapter-tool" id="note-toggle" type="button">NOTE</button><span class="chapter-progress" id="chapter-progress">0%</span></div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph, i) => `<p data-paragraph="${i}">${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
             const bookmarkToggle = document.getElementById("bookmark-toggle");
             const noteToggle = document.getElementById("note-toggle");
             const progressLabel = document.getElementById("chapter-progress");
             const syncTools = () => {
-              bookmarkToggle.textContent = state.bookmark ? "★ SAVED" : "☆ SAVE";
+              bookmarkToggle.textContent = state.bookmark ? "SAVED" : "SAVE";
               bookmarkToggle.setAttribute("aria-pressed", String(Boolean(state.bookmark)));
-              noteToggle.textContent = state.note ? "✎ NOTE •" : "✎ NOTE";
+              noteToggle.textContent = state.note ? "NOTE (EDIT)" : "NOTE";
               if (progressLabel) progressLabel.textContent = `${Math.round(Number(state.progress || 0) * 100)}%`;
             };
             syncTools();
@@ -251,16 +254,28 @@
             document.getElementById("next").addEventListener("click", () => void show(current + 1));
             document.title = `${chapter.title} — OBI-ISM`;
             updateProgress();
-            if (restoreProgress > 0) {
+            if (scrollToParagraph >= 0) {
+              requestAnimationFrame(() => {
+                const target = reading.querySelector(`p[data-paragraph="${scrollToParagraph}"]`);
+                if (target) { target.classList.add("search-hit"); target.scrollIntoView({ block: "center", behavior: "smooth" }); setTimeout(() => target.classList.remove("search-hit"), 2200); }
+                else window.scrollTo({ top: 0, behavior: "smooth" });
+              });
+            } else if (restoreProgress > 0) {
               requestAnimationFrame(() => {
                 const top = reading.getBoundingClientRect().top + window.scrollY;
                 window.scrollTo(0, top + restoreProgress * Math.max(0, reading.offsetHeight - window.innerHeight));
               });
+            } else {
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }
           } catch {
             if (chapters[current].id === metadata.id) reading.innerHTML = `<p class="chapter-label">${escape(metadata.label)}</p><h1>${escape(metadata.title)}</h1><p>We could not load this section. Reconnect and try again.</p><button id="retry-section">RETRY SECTION</button>`;
             document.getElementById("retry-section")?.addEventListener("click", () => void show(current));
           }
+        };
+        jumpToSection = (sectionId, paragraphIndex) => {
+          const idx = chapters.findIndex((c) => c.id === sectionId);
+          if (idx >= 0) void show(idx, { scrollToParagraph: paragraphIndex });
         };
         let lastProgressSave = 0;
         let scrollTick = false;
