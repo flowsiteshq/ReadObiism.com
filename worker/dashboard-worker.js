@@ -17,8 +17,7 @@ import {
   NGN_PRICE_KOBO,
   EDITION_SKU as SKU,
 } from "./api/src/pricing.js";
-import { getPricing, getAccessDays, accessExpiry } from "./api/src/pricing-store.js";
-import { ensureEditions, liveEdition, editionList } from "./api/src/edition-store.js";
+import { getPricing } from "./api/src/pricing-store.js";
 import { getFeatureFlags, isFeatureEnabled } from "./api/src/feature-flags.js";
 import {
   verificationEmail,
@@ -106,9 +105,7 @@ CREATE INDEX IF NOT EXISTS account_verification_challenges_account_idx ON accoun
 CREATE TABLE IF NOT EXISTS request_limits (bucket TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS abuse_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, limit_name TEXT NOT NULL, identity_hash TEXT NOT NULL, retry_after INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS abuse_events_created_idx ON abuse_events(created_at);
-CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT);
-CREATE TABLE IF NOT EXISTS editions (edition_no INTEGER PRIMARY KEY, label TEXT NOT NULL, source TEXT, published_at TEXT NOT NULL, retired_at TEXT, is_live INTEGER NOT NULL DEFAULT 0, section_count INTEGER NOT NULL DEFAULT 0, paragraph_count INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS edition_archives (edition_no INTEGER PRIMARY KEY, sections_json TEXT NOT NULL, archived_at TEXT NOT NULL);`;
+CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT);`;
 
 const encoder = new TextEncoder();
 const json = (data, init = {}) =>
@@ -367,7 +364,6 @@ async function ensure(env) {
   await ensureFeedbackSchema(env);
   await ensurePurchaseSchema(env);
   await ensureReaderStateSchema(env);
-  await ensureEditions(env);
 }
 
 // Databases created before email verification shipped have an obi_accounts
@@ -522,25 +518,6 @@ async function ensurePurchaseSchema(env) {
         throw error;
     }
   }
-  if (!names.has("expires_at")) {
-    try {
-      await env.OBI_DB.prepare("ALTER TABLE purchases ADD COLUMN expires_at TEXT").bind().run();
-    } catch (error) {
-      if (!/duplicate column/i.test(String(error && error.message ? error.message : error)))
-        throw error;
-    }
-  }
-  // Backfill purchases created before expiry was tracked.
-  try {
-    const days = await getAccessDays(env).catch(() => 365);
-    await env.OBI_DB.prepare(
-      "UPDATE purchases SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', granted_at, ?) WHERE expires_at IS NULL AND granted_at IS NOT NULL",
-    )
-      .bind(`+${days} days`)
-      .run();
-  } catch (error) {
-    // Best effort; a later request retries.
-  }
   repairedPurchaseSchemas.add(env.OBI_DB);
 }
 
@@ -563,31 +540,10 @@ function expected(session) {
 async function activePurchase(env, sessionId) {
   await ensure(env);
   return env.OBI_DB.prepare(
-    "SELECT checkout_session_id,expires_at,edition_no FROM purchases WHERE checkout_session_id=? AND status='active' AND (expires_at IS NULL OR expires_at > ?)",
-  )
-    .bind(sessionId, new Date().toISOString())
-    .first();
-}
-
-async function purchaseRecord(env, sessionId) {
-  await ensure(env);
-  return env.OBI_DB.prepare(
-    "SELECT checkout_session_id,status,expires_at,edition_no FROM purchases WHERE checkout_session_id=?",
+    "SELECT checkout_session_id FROM purchases WHERE checkout_session_id=? AND status='active'",
   )
     .bind(sessionId)
     .first();
-}
-
-async function accessDenied(env, request, sessionId) {
-  const purchase = await purchaseRecord(env, sessionId).catch(() => null);
-  if (purchase && purchase.expires_at && purchase.expires_at <= new Date().toISOString()) {
-    return reply(
-      { error: "Your annual access has expired. Renew to continue reading.", code: "expired", expires_at: purchase.expires_at },
-      request,
-      { status: 403 },
-    );
-  }
-  return reply({ error: "Reader access is not active" }, request, { status: 403 });
 }
 
 function bytesToBase64(bytes) {
@@ -2721,7 +2677,8 @@ async function readerSearch(request, env) {
     return reply({ error: "Reader access is required" }, request, { status: 403 });
   await ensure(env);
   await ensureSearchIndex(env);
-  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
+  if (!(await activePurchase(env, sessionId)))
+    return reply({ error: "Reader access is not active" }, request, { status: 403 });
   const q = String(url.searchParams.get("q") || "").trim();
   if (q.length === 0)
     return reply({ error: "Provide a search query via ?q=..." }, request, { status: 400 });
@@ -2747,7 +2704,10 @@ async function reader(request, env) {
   if (!validSessionId(sessionId) || !validDeviceToken(deviceToken))
     return reply({ error: "Reader access is required" }, request, { status: 403 });
   await ensure(env);
-  if (!(await activePurchase(env, sessionId))) return accessDenied(env, request, sessionId);
+  const ipLimited = await enforceLimit(request, env, "reader", "reader-ip", clientIp(request));
+  if (ipLimited) return ipLimited;
+  if (!(await activePurchase(env, sessionId)))
+    return reply({ error: "Reader access is not active" }, request, { status: 403 });
   const deviceHash = await hashDeviceToken(deviceToken);
   const boundDevice = await env.OBI_DB.prepare(
     "SELECT device_hash,metadata_json FROM reader_devices WHERE checkout_session_id=?",
@@ -2801,12 +2761,10 @@ async function reader(request, env) {
       { status: 503 },
     );
   const purchase = await env.OBI_DB.prepare(
-    `SELECT p.rowid AS copy_no,p.edition_no AS book_edition_no,p.expires_at,p.purchaser_email,p.reader_name,p.granted_at,
-      e.label AS edition_label,
+    `SELECT p.rowid AS edition_no,p.purchaser_email,p.reader_name,p.granted_at,
       g.recipient_email,g.recipient_name,g.status AS gift_status,a.phone AS account_phone
     FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
     LEFT JOIN obi_accounts a ON lower(a.email)=lower(p.purchaser_email)
-    LEFT JOIN editions e ON e.edition_no=p.edition_no
     WHERE p.checkout_session_id=?`,
   )
     .bind(sessionId)
@@ -2821,14 +2779,11 @@ async function reader(request, env) {
   const licensePhone = giftLicense ? "" : purchase?.account_phone || "";
   const licenseName = giftLicense ? purchase.recipient_name || "" : purchase?.reader_name || "";
   const editionYear = new Date(purchase?.granted_at || Date.now()).getUTCFullYear();
-  const copyNo = Number(purchase?.copy_no);
-  const bookEditionNo = Number(purchase?.book_edition_no);
+  const editionNo = Number(purchase?.edition_no);
   const edition =
-    Number.isInteger(copyNo) && copyNo > 0
-      ? `OBI-${editionYear}-${String(copyNo).padStart(6, "0")}`
+    Number.isInteger(editionNo) && editionNo > 0
+      ? `OBI-${editionYear}-${String(editionNo).padStart(6, "0")}`
       : "";
-  const editionLabel =
-    purchase?.edition_label || (Number.isInteger(bookEditionNo) && bookEditionNo > 0 ? `Edition ${bookEditionNo}` : "");
   return reply(
     {
       title: "OBI-ISM",
@@ -2839,8 +2794,6 @@ async function reader(request, env) {
         phone: licensePhone,
         name: licenseName,
         edition,
-        edition_label: editionLabel,
-        expires_at: purchase?.expires_at || "",
         device: deviceLabel,
         reference: sessionId.slice(-8).toUpperCase(),
         granted_at: purchase?.granted_at || "",
