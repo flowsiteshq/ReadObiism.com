@@ -33,3 +33,5 @@
     .signed-in-note{border:1px solid rgba(23,20,14,.28);background:rgba(255,255,255,.58);padding:14px 16px;margin:22px 0 0;color:#17140e;font-size:14px;line-height:1.6;border-radius:9px}
     .signed-in-note a{color:#17140e;font-weight:900;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
   
+.cover-showcase{display:flex;justify-content:center;margin:2rem 0}.cover-image{max-width:320px;width:100%;height:auto;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.25);transition:transform 0.3s ease}.cover-image:hover{transform:translateY(-6px)}.cover-caption{margin-top:1.5rem;font-size:0.95rem;opacity:0.8;font-style:italic;text-align:center}
+
