@@ -108,7 +108,7 @@
           <article class="panel payment-panel pricing-panel">
             <div class="panel-heading pricing-heading"><div><h2>Edition prices</h2><p>Shown on the landing page and used for new checkouts.</p></div><span class="tag">LIVE</span></div>
             <form id="pricing-form" class="pricing-form" autocomplete="off">
-              <div class="pricing-fields">
+                            <div class="pricing-fields">
                 <label class="pricing-field" for="price-ngn">
                   <span class="pricing-label">Naira price</span>
                   <span class="pricing-input-wrap"><span class="pricing-symbol" aria-hidden="true">₦</span><input id="price-ngn" type="number" min="1" max="1000000" step="1" inputmode="numeric" required></span>
@@ -118,6 +118,11 @@
                   <span class="pricing-label">Dollar price</span>
                   <span class="pricing-input-wrap"><span class="pricing-symbol" aria-hidden="true">$</span><input id="price-usd" type="number" min="0.01" max="10000" step="0.01" inputmode="decimal" required></span>
                   <span class="pricing-hint">USD · paid with Stripe</span>
+                </label>
+                <label class="pricing-field" for="access-days">
+                  <span class="pricing-label">Access duration</span>
+                  <span class="pricing-input-wrap"><input id="access-days" type="number" min="1" max="3650" step="1" inputmode="numeric" value="365" required><span class="pricing-symbol" aria-hidden="true">days</span></span>
+                  <span class="pricing-hint">Annual access by default (365 days). Applied to new purchases and renewals.</span>
                 </label>
               </div>
               <p class="pricing-preview" id="pricing-preview">Landing page: —</p>

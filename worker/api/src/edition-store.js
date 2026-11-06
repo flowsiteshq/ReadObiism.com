@@ -23,7 +23,18 @@ CREATE TABLE IF NOT EXISTS edition_archives (
 
 const ensured = new WeakSet();
 
+async function tableExists(env, table) {
+  const row = await env.OBI_DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+  )
+    .bind(table)
+    .first()
+    .catch(() => null);
+  return Boolean(row && row.name);
+}
+
 async function addColumn(env, table, column, definition) {
+  if (!(await tableExists(env, table))) return;
   const info = await env.OBI_DB.prepare(`PRAGMA table_info(${table})`).bind().all();
   const names = new Set((info.results || []).map((row) => row.name));
   if (names.has(column)) return;
@@ -44,30 +55,34 @@ export async function ensureEditions(env) {
   await env.OBI_DB.exec(editionSchema);
   await addColumn(env, "book_sections", "edition_no", "INTEGER NOT NULL DEFAULT 1");
   await addColumn(env, "purchases", "edition_no", "INTEGER NOT NULL DEFAULT 1");
-  const existing = await env.OBI_DB.prepare("SELECT COUNT(*) AS n FROM editions").first();
+  const existing = await env.OBI_DB.prepare("SELECT COUNT(*) AS n FROM editions").bind().first();
   if (Number(existing?.n || 0) === 0) {
-    const highest = await env.OBI_DB.prepare("SELECT MAX(edition_no) AS n FROM book_sections").first();
-    const editionNo = Number(highest?.n) > 0 ? Number(highest.n) : 1;
-    const counts = await env.OBI_DB.prepare(
-      `SELECT COUNT(*) AS sections,
-        COALESCE(SUM(json_array_length(paragraphs_json)), 0) AS paragraphs
-       FROM book_sections`,
-    )
-      .first()
-      .catch(() => null);
+    let editionNo = 1;
+    let sections = 0;
+    let paragraphs = 0;
+    if (await tableExists(env, "book_sections")) {
+      const highest = await env.OBI_DB.prepare("SELECT MAX(edition_no) AS n FROM book_sections")
+        .bind()
+        .first()
+        .catch(() => null);
+      if (Number(highest?.n) > 0) editionNo = Number(highest.n);
+      const counts = await env.OBI_DB.prepare(
+        `SELECT COUNT(*) AS sections,
+          COALESCE(SUM(json_array_length(paragraphs_json)), 0) AS paragraphs
+         FROM book_sections`,
+      )
+        .bind()
+        .first()
+        .catch(() => null);
+      sections = Number(counts?.sections || 0);
+      paragraphs = Number(counts?.paragraphs || 0);
+    }
     await env.OBI_DB.prepare(
       `INSERT OR IGNORE INTO editions
         (edition_no,label,source,published_at,retired_at,is_live,section_count,paragraph_count)
        VALUES (?,?,?,?,NULL,1,?,?)`,
     )
-      .bind(
-        editionNo,
-        `Edition ${editionNo}`,
-        "legacy",
-        new Date().toISOString(),
-        Number(counts?.sections || 0),
-        Number(counts?.paragraphs || 0),
-      )
+      .bind(editionNo, `Edition ${editionNo}`, "legacy", new Date().toISOString(), sections, paragraphs)
       .run();
   }
   ensured.add(env.OBI_DB);

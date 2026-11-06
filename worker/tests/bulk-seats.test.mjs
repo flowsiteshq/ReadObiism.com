@@ -40,7 +40,7 @@ const orderId = 'bprod_' + 'a'.repeat(32);
 
 async function seed(env) {
   await ensureBulkOrders(env);
-  env.OBI_DB.raw.exec(`CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY,payment_intent_id TEXT,purchaser_email TEXT,reader_name TEXT,amount_cents INTEGER NOT NULL,currency TEXT NOT NULL,product_sku TEXT NOT NULL,status TEXT NOT NULL,granted_at TEXT NOT NULL);
+  env.OBI_DB.raw.exec(`CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY,payment_intent_id TEXT,purchaser_email TEXT,reader_name TEXT,amount_cents INTEGER NOT NULL,currency TEXT NOT NULL,product_sku TEXT NOT NULL,status TEXT NOT NULL,granted_at TEXT NOT NULL,expires_at TEXT,edition_no INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY,device_hash TEXT NOT NULL,claimed_at TEXT NOT NULL,metadata_json TEXT);`);
   const now = new Date().toISOString();
   env.OBI_DB.raw.prepare(`INSERT INTO bulk_orders

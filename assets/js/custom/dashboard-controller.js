@@ -151,9 +151,10 @@
   const updatePricingPreview = () => {
     const ngn = Number($('price-ngn').value);
     const usd = Number($('price-usd').value);
+    const days = Number($('access-days')?.value || 365);
     const ngnText = Number.isFinite(ngn) && ngn > 0 ? formatPricingAmount(ngn, 'NGN') : '—';
     const usdText = Number.isFinite(usd) && usd > 0 ? formatPricingAmount(usd, 'USD') : '—';
-    $('pricing-preview').textContent = `Landing page: ${ngnText} NGN · ${usdText} USD`;
+    $('pricing-preview').textContent = `Landing page: ${ngnText} NGN · ${usdText} USD · ${Number.isFinite(days) && days > 0 ? days : 365} days access`;
   };
   async function loadPricing() {
     $('pricing-message').textContent = 'Loading prices…';
@@ -163,12 +164,45 @@
       const ngn = pricing.NGN || {}, usd = pricing.USD || {};
       $('price-ngn').value = ngn.amount ?? '';
       $('price-usd').value = usd.amount ?? '';
+      if ($('access-days')) $('access-days').value = pricing.accessDays ?? 365;
       updatePricingPreview();
       $('pricing-message').textContent = '';
       return true;
     } catch (error) {
       $('pricing-message').textContent = error.message;
       toast(error.message, true);
+      return false;
+    }
+  }
+  async function loadEditions() {
+    const status = $('editions-status');
+    const list = $('editions-list');
+    if (!status || !list) return false;
+    status.textContent = 'Loading edition and subscription status…';
+    list.replaceChildren();
+    try {
+      const data = await api('editions');
+      const subs = data.subscriptions || {};
+      status.textContent = `Active subscriptions: ${Number(subs.active || 0)} · expiring in 30 days: ${Number(subs.expiring || 0)} · expired: ${Number(subs.expired || 0)} · access duration: ${Number(data.accessDays || 365)} days.`;
+      (data.editions || []).forEach((edition) => {
+        const row = document.createElement('div');
+        row.className = 'payment-status-row';
+        const meta = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `${edition.label || `Edition ${edition.edition_no}`}${edition.is_live ? ' (live)' : ' (archived)'}`;
+        const detail = document.createElement('p');
+        const published = edition.published_at ? new Date(edition.published_at).toLocaleDateString() : '—';
+        detail.textContent = `${Number(edition.section_count || 0)} sections · ${Number(edition.paragraph_count || 0)} paragraphs · published ${published}${edition.source ? ` · ${edition.source}` : ''}`;
+        meta.append(title, detail);
+        const badge = document.createElement('span');
+        badge.className = `status ${edition.is_live ? 'on' : ''}`;
+        badge.textContent = edition.is_live ? 'Live' : 'Archived';
+        row.append(meta, badge);
+        list.append(row);
+      });
+      return true;
+    } catch (error) {
+      status.textContent = error.message || 'Could not load editions.';
       return false;
     }
   }
@@ -324,7 +358,7 @@
       loadTable();
     }
     if (section === 'overview') loadOverview();
-    if (section === 'payments') { loadPaymentStatus(); loadPricing(); }
+    if (section === 'payments') { loadPaymentStatus(); loadPricing(); loadEditions(); }
     if (section === 'bulk') {
       loadProductionBulkOrders();
       loadBulkOrders();
