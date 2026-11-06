@@ -363,13 +363,19 @@
 
       function openSearch() {
         const panel = document.getElementById("search-panel");
-        if (panel) panel.hidden = false;
+        if (panel) {
+          panel.hidden = false;
+          panel.classList.add("open");
+        }
         document.getElementById("search-input")?.focus();
       }
 
       function closeSearch() {
         const panel = document.getElementById("search-panel");
-        if (panel) panel.hidden = true;
+        if (panel) {
+          panel.hidden = true;
+          panel.classList.remove("open");
+        }
         const input = document.getElementById("search-input");
         if (input) input.value = "";
         const results = document.getElementById("search-results");
