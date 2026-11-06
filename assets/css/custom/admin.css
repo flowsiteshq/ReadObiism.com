@@ -86,6 +86,10 @@ td{color:#332d24}
 .record-status[data-status="active"],.record-status[data-status="bound"],.record-status[data-status="redeemed"]{background:#e6f3e9;color:#28613b}
 .record-status[data-status="awaiting activation"]{background:#fff1cf;color:#76530a}
 .record-status[data-status="revoked"]{background:#f9e9e6;color:#963e35}
+.record-status[data-status="ok"]{background:#e6f3e9;color:#28613b}
+.record-status[data-status="warn"]{background:#fff1cf;color:#76530a}
+.record-status[data-status="soon"]{background:#f9e9e6;color:#963e35}
+.record-status[data-status="expired"]{background:#f9e9e6;color:#963e35}
 .toast{background:#17140e;color:#f8efd8;border-left:3px solid var(--obi-gold)}
 .toast-error{background:#8b302a}
 @media(max-width:800px){.close-menu{display:block;color:#f4ead1}.sidebar-note{margin-top:auto}}
