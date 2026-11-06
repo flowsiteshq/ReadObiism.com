@@ -14,6 +14,11 @@
                   <span class="pricing-input-wrap"><span class="pricing-symbol" aria-hidden="true">$</span><input id="price-usd" type="number" min="0.01" max="10000" step="0.01" inputmode="decimal" required></span>
                   <span class="pricing-hint">USD · paid with Stripe</span>
                 </label>
+                <label class="pricing-field" for="access-days">
+                  <span class="pricing-label">Access duration</span>
+                  <span class="pricing-input-wrap"><input id="access-days" type="number" min="1" max="3650" step="1" inputmode="numeric" value="365" required><span class="pricing-symbol" aria-hidden="true">days</span></span>
+                  <span class="pricing-hint">Annual access by default (365 days). Applied to new purchases and renewals.</span>
+                </label>
               </div>
               <p class="pricing-preview" id="pricing-preview">Landing page: —</p>
               <div class="pricing-actions">
@@ -44,6 +49,11 @@
             </div>
             <p id="remote-payment-note" class="payment-note" hidden>Configure live Worker secrets in Cloudflare Workers &amp; Pages → your Worker → Settings → Variables and secrets. This dashboard does not write production secrets.</p>
           </article>
+          <article class="panel payment-panel" id="editions-panel">
+            <div class="panel-heading"><div><h2>Editions & subscriptions</h2><p>Live manuscript edition and reader access status.</p></div><span class="tag">MANUSCRIPT</span></div>
+            <div id="editions-status" class="payment-note">Loading edition and subscription status…</div>
+            <div id="editions-list"></div>
+          </article>
         </div>
-        <div class="notice payment-warning"><strong>Local Paystack test</strong><span>Paystack test checkout returns to the local preview. The Worker verifies the test payment directly with Paystack when the reader opens; local webhooks still require a public relay. Stripe local checkout is not yet connected.</span></div>
+        <div class="notice payment-warning"><strong>Access policy</strong><span>Paid access expires after the configured duration (365 days by default) and can be renewed. New manuscript uploads are published as a new live edition while older editions remain archived for admin reference.</span></div>
       </section>

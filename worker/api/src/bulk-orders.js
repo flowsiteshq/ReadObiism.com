@@ -2,7 +2,8 @@
 import { hashDeviceToken } from "./security.js";
 import { bulkReceiptEmail } from "./email-templates.js";
 import { EDITION_SKU } from "./pricing.js";
-import { getPricing } from "./pricing-store.js";
+import { getPricing, getAccessDays, accessExpiry } from "./pricing-store.js";
+import { liveEdition } from "./edition-store.js";
 
 export const bulkOrdersSchema = `
 CREATE TABLE IF NOT EXISTS bulk_orders (
@@ -712,6 +713,8 @@ export async function claimBulkOrder(env, account, codeInput, deviceHash) {
     };
   const reference = "obi_" + randomHex(16);
   const now = new Date().toISOString();
+  const expiresAt = accessExpiry(await getAccessDays(env), new Date(now));
+  const editionNo = (await liveEdition(env))?.edition_no || 1;
   const results = await env.OBI_DB.batch([
     env.OBI_DB.prepare(
       `INSERT OR IGNORE INTO bulk_order_claims (order_id,account_id,checkout_session_id,claimed_at)
@@ -719,9 +722,9 @@ export async function claimBulkOrder(env, account, codeInput, deviceHash) {
       AND (SELECT COUNT(*) FROM bulk_order_claims WHERE order_id=bulk_orders.id) < quantity`,
     ).bind(account.id, reference, now, order.id),
     env.OBI_DB.prepare(
-      `INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at)
-      SELECT checkout_session_id,?,?,0,?,?,'active',? FROM bulk_order_claims WHERE checkout_session_id=?`,
-    ).bind("bulk-order:" + order.id, account.email, order.currency, EDITION_SKU, now, reference),
+      `INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no)
+      SELECT checkout_session_id,?,?,0,?,?,'active',?,?,? FROM bulk_order_claims WHERE checkout_session_id=?`,
+    ).bind("bulk-order:" + order.id, account.email, order.currency, EDITION_SKU, now, expiresAt, editionNo, reference),
     env.OBI_DB.prepare(
       `INSERT INTO reader_devices (checkout_session_id,device_hash,claimed_at)
       SELECT checkout_session_id,?,? FROM bulk_order_claims WHERE checkout_session_id=?`,
@@ -975,13 +978,15 @@ export async function claimBulkSeat(env, account, tokenInput, deviceHash) {
   const reference = "obi_" + randomHex(16);
   const now = new Date().toISOString();
   const readerName = seat.recipient_label || null;
+  const expiresAt = accessExpiry(await getAccessDays(env), new Date(now));
+  const editionNo = (await liveEdition(env))?.edition_no || 1;
   const results = await env.OBI_DB.batch([
     env.OBI_DB.prepare(
       "UPDATE bulk_seats SET status='claimed',claimed_by_account=?,claim_reference=?,claimed_at=? WHERE id=? AND status='available'",
     ).bind(account.id, reference, now, seat.id),
     env.OBI_DB.prepare(
-      `INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at)
-      SELECT ?,?,?,?,0,?,?,'active',? FROM bulk_seats s JOIN bulk_orders o ON o.id=s.order_id
+      `INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,reader_name,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no)
+      SELECT ?,?,?,?,0,?,?,'active',?,?,? FROM bulk_seats s JOIN bulk_orders o ON o.id=s.order_id
       WHERE s.id=? AND s.status='claimed' AND s.claim_reference=?`,
     ).bind(
       reference,
@@ -991,6 +996,8 @@ export async function claimBulkSeat(env, account, tokenInput, deviceHash) {
       seat.currency,
       EDITION_SKU,
       now,
+      expiresAt,
+      editionNo,
       seat.id,
       reference,
     ),

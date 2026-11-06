@@ -56,7 +56,7 @@ async function seed(env) {
   const sessionId = 'cs_test_' + 'a'.repeat(24);
   db.raw.exec(`CREATE TABLE IF NOT EXISTS obi_accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, last_signed_in TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS purchases (checkout_session_id TEXT PRIMARY KEY, payment_intent_id TEXT, purchaser_email TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, product_sku TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL, expires_at TEXT, edition_no INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS reader_devices (checkout_session_id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, claimed_at TEXT NOT NULL, metadata_json TEXT);
     CREATE TABLE IF NOT EXISTS feature_flags (key TEXT PRIMARY KEY, enabled INTEGER NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT);`);
   db.raw.prepare("INSERT OR REPLACE INTO feature_flags (key,enabled,updated_at,updated_by) VALUES ('device_transfer',1,?,?)").run(now, 'test');
@@ -64,8 +64,8 @@ async function seed(env) {
     .run('acct_transfer', 'reader@example.test', hash, salt, now, now);
   db.raw.prepare('INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)')
     .run(sessionHash, 'acct_transfer', now, new Date(Date.now() + 86400000).toISOString());
-  db.raw.prepare('INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at) VALUES (?,?,?,?,?,?,?,?)')
-    .run(sessionId, null, 'reader@example.test', 699500, 'NGN', 'obi_ism_complete_edition', 'active', now);
+  db.raw.prepare('INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(sessionId, null, 'reader@example.test', 699500, 'NGN', 'obi_ism_complete_edition', 'active', now, new Date(Date.now() + 365 * 86400000).toISOString(), 1);
   db.raw.prepare('INSERT INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)')
     .run(sessionId, oldDeviceHash, now);
   return { sessionToken, sessionId, oldDeviceToken };

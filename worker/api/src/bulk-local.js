@@ -1,6 +1,8 @@
 // Isolated local prototype only. Provider test payments are verified server-side.
 import { hashDeviceToken } from './security.js';
 import { NGN_PRICE_KOBO, USD_PRICE_CENTS, EDITION_SKU } from './pricing.js';
+import { getAccessDays, accessExpiry } from './pricing-store.js';
+import { liveEdition } from './edition-store.js';
 export { NGN_PRICE_KOBO, USD_PRICE_CENTS };
 
 export const bulkLocalSchema = `
@@ -198,6 +200,8 @@ export async function redeemBulkLocal(env, account, codeInput, deviceHash) {
   const existing = await env.OBI_DB.prepare('SELECT checkout_session_id FROM bulk_local_redemptions WHERE order_id=? AND account_id=?').bind(order.id, account.id).first();
   if (existing) return { status: 200, body: { session_id: existing.checkout_session_id, alreadyRedeemed: true } };
   const reference = 'obi_' + randomHex(16), now = new Date().toISOString();
+  const expiresAt = accessExpiry(await getAccessDays(env), new Date(now));
+  const editionNo = (await liveEdition(env))?.edition_no || 1;
   // D1 batch statements are one transaction. The capacity predicate is checked
   // during the write, and later inserts depend on this specific claim existing.
   const results = await env.OBI_DB.batch([
@@ -205,9 +209,9 @@ export async function redeemBulkLocal(env, account, codeInput, deviceHash) {
       SELECT id,?,?,? FROM bulk_local_orders WHERE id=? AND status='local_test'
       AND (SELECT COUNT(*) FROM bulk_local_redemptions WHERE order_id=bulk_local_orders.id)<quantity`)
       .bind(account.id, reference, now, order.id),
-    env.OBI_DB.prepare(`INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at)
-      SELECT checkout_session_id,?,?,0,'NGN',?,'active',? FROM bulk_local_redemptions WHERE checkout_session_id=?`)
-      .bind('local-bulk-test:' + order.id, account.email, EDITION_SKU, now, reference),
+    env.OBI_DB.prepare(`INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no)
+      SELECT checkout_session_id,?,?,0,'NGN',?,'active',?,?,? FROM bulk_local_redemptions WHERE checkout_session_id=?`)
+      .bind('local-bulk-test:' + order.id, account.email, EDITION_SKU, now, expiresAt, editionNo, reference),
     env.OBI_DB.prepare(`INSERT INTO reader_devices (checkout_session_id,device_hash,claimed_at)
       SELECT checkout_session_id,?,? FROM bulk_local_redemptions WHERE checkout_session_id=?`)
       .bind(deviceHash, now, reference),
