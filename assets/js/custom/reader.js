@@ -365,16 +365,17 @@
         const panel = document.getElementById("search-panel");
         if (panel) {
           panel.hidden = false;
-          panel.classList.add("open");
+          panel.style.display = "block";
         }
-        document.getElementById("search-input")?.focus();
+        const input = document.getElementById("search-input");
+        if (input) { input.focus(); input.select(); }
       }
 
       function closeSearch() {
         const panel = document.getElementById("search-panel");
         if (panel) {
           panel.hidden = true;
-          panel.classList.remove("open");
+          panel.style.display = "none";
         }
         const input = document.getElementById("search-input");
         if (input) input.value = "";
