@@ -143,12 +143,12 @@
           ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && contact ? `<small>${escape(contact)}</small>` : ""}${license.edition_label ? `<small>${escape(license.edition_label)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}${expiresText ? `<small>Access until ${escape(expiresText)}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE →</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
           : "";
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel">SEARCH</button><button class="feedback-button" id="feedback-open" type="button">FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
+        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel">SEARCH</button><button class="feedback-button" id="feedback-open" type="button">FEEDBACK</button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." maxlength="200" autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" aria-live="polite" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}`;
         document.getElementById("feedback-open")?.addEventListener("click", openFeedback);
-        document.getElementById("search-open")?.addEventListener("click", openSearch);
+        document.getElementById("search-open")?.addEventListener("click", () => { if (document.getElementById("search-panel")?.hidden) openSearch(); else closeSearch(); });
         document.getElementById("search-close")?.addEventListener("click", closeSearch);
         document.getElementById("search-input")?.addEventListener("input", debounceSearch);
-        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") doSearch(e.currentTarget.value.trim()); });
+        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") { clearTimeout(searchDebounceTimer); void doSearch(e.currentTarget.value.trim()); } });
         document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
@@ -382,6 +382,7 @@
       }
 
       let searchDebounceTimer = null;
+      let searchRequestId = 0;
       let jumpToSection = null;
 
       function openSearch() {
@@ -396,8 +397,10 @@
       function closeSearch() {
         const panel = document.getElementById("search-panel");
         const openButton = document.getElementById("search-open");
+        clearTimeout(searchDebounceTimer);
+        searchRequestId += 1;
         if (panel) panel.hidden = true;
-        if (openButton) openButton.setAttribute("aria-expanded", "false");
+        if (openButton) { openButton.setAttribute("aria-expanded", "false"); openButton.focus(); }
         const input = document.getElementById("search-input");
         if (input) input.value = "";
         const results = document.getElementById("search-results");
@@ -405,6 +408,7 @@
       }
 
       function debounceSearch() {
+        searchRequestId += 1;
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(() => {
           const q = document.getElementById("search-input")?.value.trim() || "";
@@ -419,15 +423,22 @@
 
       async function doSearch(q) {
         const results = document.getElementById("search-results");
-        if (!results) return;
-        results.innerHTML = '<p class="search-state">Searching…</p>';
+        const panel = document.getElementById("search-panel");
+        if (!results || !panel || panel.hidden) return;
+        const requestId = ++searchRequestId;
+        if (q.length < 2) { results.innerHTML = ""; return; }
+        if (q.length > 200) { results.textContent = "Search must be 200 characters or fewer."; return; }
+        results.innerHTML = '<p class="search-state">Searching...</p>';
         try {
-          const res = await apiFetch(`/api/reader/search?q=${encodeURIComponent(q)}&session_id=${encodeURIComponent(sessionId)}&device_token=${encodeURIComponent(currentDeviceToken)}`);
-          if (!res.ok) throw new Error("Search failed.");
+          const res = await apiFetch(`/api/reader/search?q=${encodeURIComponent(q)}&session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Search is temporarily unavailable. Please try again.");
+          }
           const data = await res.json();
-          renderSearchResults(data);
+          if (requestId === searchRequestId && !panel.hidden) renderSearchResults(data);
         } catch (err) {
-          results.innerHTML = `<p class="search-state search-error">${err.message || "Search unavailable."}</p>`;
+          if (requestId === searchRequestId && !panel.hidden) results.innerHTML = `<p class="search-state search-error">${escape(err.message || "Search unavailable.")}</p>`;
         }
       }
 
@@ -442,7 +453,7 @@
         results.innerHTML = matches.map((m) => `
           <button class="search-match" type="button" data-section="${escape(m.section_id)}" data-paragraph="${Number(m.paragraph_index || 0)}">
             <span class="search-match-title">${escape(m.section_title || m.section_label || 'Section')}</span>
-            <span class="search-match-snippet">${m.snippet || ''}</span>
+            <span class="search-match-snippet">${escape(m.snippet || '').replaceAll("&lt;mark&gt;", "<mark>").replaceAll("&lt;/mark&gt;", "</mark>")}</span>
           </button>
         `).join("");
         results.querySelectorAll(".search-match").forEach((btn) => {
