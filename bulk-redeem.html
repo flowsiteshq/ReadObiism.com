@@ -10,12 +10,12 @@
     <h1>Open your edition.</h1><p class="intro">Sign in with your reader account, then enter the shared activation code.</p>
     
     <div id="auth-state" role="status" aria-live="polite">Checking your reader account…</div>
-    <div id="sign-in" hidden><a class="button secondary" href="/login?next=bulk-redeem">SIGN IN OR CREATE AN ACCOUNT →</a></div>
-    <div id="seat-panel" hidden><p class="note">This seat link activates one copy of the edition on this device. It can be used once.</p><button class="button primary" id="seat-claim" type="button">ACTIVATE MY SEAT →</button><p id="seat-message" role="status" aria-live="polite"></p></div>
+    <div id="sign-in" hidden><a class="button secondary" href="/login?next=bulk-redeem">SIGN IN OR CREATE AN ACCOUNT <svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></a></div>
+    <div id="seat-panel" hidden><p class="note">This seat link activates one copy of the edition on this device. It can be used once.</p><button class="button primary" id="seat-claim" type="button">ACTIVATE MY SEAT <svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></button><p id="seat-message" role="status" aria-live="polite"></p></div>
     <form id="bulk-form" hidden autocomplete="off">
       <label for="code">SHARED ACTIVATION CODE</label>
       <input id="code" name="code" autocomplete="off" spellcheck="false" placeholder="OBI-BULK-…" maxlength="57" required>
-      <button class="button primary" id="submit" type="submit">ACTIVATE EDITION →</button>
+      <button class="button primary" id="submit" type="submit">ACTIVATE EDITION <svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></button>
       <p id="message" role="status" aria-live="polite"></p>
     </form>
     <p class="fine">One activation per reader account. Each edition is bound to the browser that activates it.</p>

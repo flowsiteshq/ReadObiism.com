@@ -1,5 +1,6 @@
 (() => {
   const apiFetch = window.OBI_API.fetch;
+  const ARROW = '<svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>';
   let mode = "login";
   const form = document.getElementById("form");
   const submit = document.getElementById("submit");
@@ -26,7 +27,7 @@
     sub.textContent = creating
       ? "Create an account before purchase so your edition can be restored securely. Your password is stored as a one-way hash."
       : "Sign in to continue to your protected edition. Your account remembers your access; your original device remains the only authorized reader.";
-    submit.textContent = creating ? "CREATE ACCOUNT →" : "SIGN IN →";
+    submit.innerHTML = creating ? `CREATE ACCOUNT ${ARROW}` : `SIGN IN ${ARROW}`;
     password.autocomplete = creating ? "new-password" : "current-password";
     message.textContent = "";
   };
@@ -43,7 +44,7 @@
     if (!value) {
       message.textContent = "Enter your email or phone number.";
       submit.disabled = false;
-      submit.textContent = mode === "login" ? "SIGN IN →" : "CREATE ACCOUNT →";
+      submit.innerHTML = mode === "login" ? `SIGN IN ${ARROW}` : `CREATE ACCOUNT ${ARROW}`;
       return;
     }
     const isEmail = value.includes("@");
@@ -97,7 +98,7 @@
         : (error.message || "We could not complete that request.");
     } finally {
       submit.disabled = false;
-      submit.textContent = mode === "login" ? "SIGN IN →" : "CREATE ACCOUNT →";
+      submit.innerHTML = mode === "login" ? `SIGN IN ${ARROW}` : `CREATE ACCOUNT ${ARROW}`;
     }
   };
 
