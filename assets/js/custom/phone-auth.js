@@ -1,5 +1,6 @@
 (() => {
   const api = window.OBI_API.fetch;
+  const ARROW = '<svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>';
   const emailAuth = document.getElementById("email-auth");
   const phoneAuth = document.getElementById("phone-auth");
   const phoneJump = document.getElementById("show-phone");
@@ -20,7 +21,7 @@
     mode = nextMode;
     const create = mode === "register";
     phoneHeading.textContent = create ? "Create a phone account." : "Sign in with your phone.";
-    phoneSubmit.textContent = create ? "CREATE PHONE ACCOUNT →" : "SIGN IN WITH PHONE →";
+    phoneSubmit.innerHTML = create ? `CREATE PHONE ACCOUNT ${ARROW}` : `SIGN IN WITH PHONE ${ARROW}`;
     phoneSwitch.textContent = create ? "Already have a phone account? Sign in" : "Create a phone account";
     phonePassword.autocomplete = create ? "new-password" : "current-password";
     phoneMessage("");

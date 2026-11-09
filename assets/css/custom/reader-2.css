@@ -96,6 +96,7 @@
 /* Search — clean dropdown anchored below the reader bar (no dark overlay) */
 .search-button{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--gold);color:var(--gold);min-height:44px;padding:0 12px;cursor:pointer;font:800 10px/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.1em}
 .reader-btn-icon{flex:0 0 auto;display:block;pointer-events:none}
+.arrow-icon{vertical-align:-2px;flex:0 0 auto}
 .search-button:hover{background:rgba(213,172,71,.12)}
 .search-panel[hidden]{display:none !important}
 .search-panel{position:fixed;top:var(--reader-header-height,64px);left:0;right:0;z-index:45;padding:0 14px;pointer-events:none}

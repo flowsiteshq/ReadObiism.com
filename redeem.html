@@ -57,7 +57,7 @@
           <label for="email">EMAIL THE GIFT WAS SENT TO</label>
           <input id="email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="friend@example.com" required />
         </div>
-        <button class="submit" id="redeem-button" type="submit">UNLOCK THE GIFT <span class="arrow">→</span></button>
+        <button class="submit" id="redeem-button" type="submit">UNLOCK THE GIFT <span class="arrow"><svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></span></button>
         <p class="status" id="status" aria-live="polite"></p>
       </form>
       <p class="note">The code is single-use and binds to one device. If you open this page on a different browser later, the edition will be locked there.</p>
@@ -127,7 +127,7 @@
         } catch (error) {
           setStatus(error.message || "This gift could not be unlocked. Please try again.", true);
           button.disabled = false;
-          button.innerHTML = 'UNLOCK THE GIFT <span class="arrow">→</span>';
+          button.innerHTML = 'UNLOCK THE GIFT <span class="arrow"><svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></span>';
         }
       });
     })();

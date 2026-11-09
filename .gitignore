@@ -52,3 +52,6 @@
 
 # Private retained migration references
 .local-backup/
+
+# Generated D1 import SQL (regenerate with scripts/import-manuscript-to-d1.mjs)
+scripts/import-manuscript.sql

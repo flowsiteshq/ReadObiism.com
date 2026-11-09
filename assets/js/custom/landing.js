@@ -4,6 +4,7 @@
   const motionControl = document.getElementById("motion-control");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const saveData = Boolean(navigator.connection && navigator.connection.saveData);
+  const ARROW = '<svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>';
   const setMotionControl = (playing) => {
     motionControl.textContent = playing ? "PAUSE FILM" : "PLAY FILM";
     motionControl.setAttribute("aria-pressed", String(playing));
@@ -52,7 +53,7 @@
     }
   };
   const priceLabel = () => `${pricing[currency].label} ${currency}`;
-  const setButtonLabel = (text) => { button.innerHTML = `${text} <span class="arrow">→</span>`; };
+  const setButtonLabel = (text) => { button.innerHTML = `${text} <span class="arrow">${ARROW}</span>`; };
   const updateStatus = (override) => {
     if (override) { status.textContent = override; return; }
     status.textContent = purchaseMode === "gift"
@@ -125,11 +126,11 @@
       accountLink.textContent = "MY BOOK";
       accountLink.href = "/reader";
       accountLink.title = `Signed in as ${emailAddress}`;
-      editionLink.textContent = "BACK TO BOOK →";
+      editionLink.innerHTML = `BACK TO BOOK ${ARROW}`;
       editionLink.href = "/reader";
       if (heroBookLink) {
         heroBookLink.href = "/reader";
-        heroBookLink.innerHTML = 'CONTINUE READING <span class="arrow">→</span>';
+        heroBookLink.innerHTML = `CONTINUE READING <span class="arrow">${ARROW}</span>`;
       }
       if (note) {
         note.hidden = false;
@@ -138,7 +139,7 @@
         signedIn.textContent = `Signed in as ${emailAddress}. Your edition is ready. `;
         const link = document.createElement("a");
         link.href = "/reader";
-        link.textContent = "BACK TO BOOK →";
+        link.innerHTML = `BACK TO BOOK ${ARROW}`;
         note.append(signedIn, link);
       }
     } else {
