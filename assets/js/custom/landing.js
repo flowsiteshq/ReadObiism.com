@@ -17,6 +17,25 @@
     else { video.pause(); setMotionControl(false); }
   });
 
+  // 3D cover: hover turns it on desktop, tap/Enter turns it on touch and keyboard.
+  const coverFlip = document.getElementById("cover-flip");
+  if (coverFlip) {
+    const coverBack = coverFlip.querySelector(".cover-back");
+    const toggleCover = (force) => {
+      const flipped = typeof force === "boolean" ? force : !coverFlip.classList.contains("is-flipped");
+      coverFlip.classList.toggle("is-flipped", flipped);
+      coverFlip.setAttribute("aria-pressed", String(flipped));
+      if (coverBack) coverBack.setAttribute("aria-hidden", String(!flipped));
+    };
+    coverFlip.addEventListener("click", () => toggleCover());
+    coverFlip.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        toggleCover();
+      }
+    });
+  }
+
   const apiFetch = window.OBI_API.fetch;
   const button = document.getElementById("buy-edition");
   const email = document.getElementById("purchase-email");
