@@ -51,6 +51,7 @@
   const giftNoteToggle = document.getElementById("gift-note-toggle");
   const giftNoteField = document.getElementById("gift-note-field");
   const purchaseNote = document.querySelector(".purchase-note");
+  const subscriptionNote = document.getElementById("subscription-note");
   const params = new URLSearchParams(location.search);
   let currency = "NGN";
   let featureFlags = null;
@@ -121,6 +122,8 @@
     featureFlags = data?.features || data || {};
     const single = featureFlags.single_purchase !== false;
     const gift = featureFlags.gift_purchase !== false;
+    const annualSubscription = featureFlags.annual_subscription === true;
+    if (subscriptionNote) subscriptionNote.hidden = !annualSubscription;
     button.disabled = !single;
     modeGift.disabled = !gift;
     if (!gift && purchaseMode === "gift") setMode("self");
