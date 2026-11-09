@@ -86,11 +86,13 @@
       const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
       const offerTransfer = async (deviceToken) => {
         app.className = "access-state";
-        let transferEnabled = true;
+        // Fail closed: the transfer form (password, email code, cooldown) must
+        // never appear unless the server explicitly says transfers are enabled.
+        let transferEnabled = false;
         try {
           const flags = await apiFetch("/api/features", { cache: "no-store" });
-          if (flags.ok) transferEnabled = Boolean((await flags.json()).features?.device_transfer);
-        } catch { /* fall back to enabled */ }
+          if (flags.ok) transferEnabled = (await flags.json()).features?.device_transfer === true;
+        } catch { /* leave disabled */ }
         if (!transferEnabled) {
           app.innerHTML = `<div class="panel"><h1>Edition <span style="color:#d5ac47">already active</span></h1><p>Your edition is already active in another browser or device. Continue reading from your original device, or sign in to your account for help.</p><button class="retry" id="return" type="button">SIGN IN ${ARROW}</button></div>`;
           document.getElementById("return")?.addEventListener("click", () => location.assign("/login"));
