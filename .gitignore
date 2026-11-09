@@ -41,6 +41,16 @@
 **/manuscript/
 **/manuscripts/
 
+# Book content must never be committed to the repository
+lib/book-data.ts
+readobi-mobile/lib/book-data.ts
+scripts/import-manuscript.mjs
+scripts/import-manuscript-to-d1.mjs
+tests/book-data.test.ts
+worker/publish-edition-*.sql
+docs/OBI-ISM*.pdf
+docs/obiiism*cover.pdf
+
 # IDE and OS files
 **/.DS_Store
 **/Thumbs.db
