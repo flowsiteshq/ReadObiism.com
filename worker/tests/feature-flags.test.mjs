@@ -49,6 +49,7 @@ test('feature flags default device transfers off and can be toggled by an admin'
   assert.equal(publicBefore.status, 200);
   const before = await publicBefore.json();
   assert.equal(before.features.device_transfer, false);
+  assert.equal(before.features.annual_subscription, false);
   assert.equal(before.features.bulk_purchase, true);
 
   const login = await worker.fetch(request('/api/admin/login', {
@@ -63,6 +64,9 @@ test('feature flags default device transfers off and can be toggled by an admin'
   assert.equal(adminBefore.status, 200);
   const adminFeatures = (await adminBefore.json()).features;
   assert.equal(adminFeatures.find((feature) => feature.key === 'device_transfer').enabled, false);
+  const annualFeature = adminFeatures.find((feature) => feature.key === 'annual_subscription');
+  assert.ok(annualFeature);
+  assert.equal(annualFeature.enabled, false);
 
   const update = await worker.fetch(request('/api/admin/features', {
     method: 'POST',

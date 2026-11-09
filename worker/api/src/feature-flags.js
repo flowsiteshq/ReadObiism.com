@@ -4,6 +4,7 @@ export const FEATURE_DEFINITIONS = [
   { key: 'single_purchase', label: 'Single edition purchase', description: 'Allow new single-edition checkout sessions.' },
   { key: 'gift_purchase', label: 'Gift purchases', description: 'Allow buying an edition as a gift.' },
   { key: 'bulk_purchase', label: 'Bulk / group purchase', description: 'Allow new bulk orders and shared-code checkout.' },
+  { key: 'annual_subscription', label: 'Annual subscription', description: 'Allow annual subscription and renewal access for readers.' },
   { key: 'device_transfer', label: 'Transfer edition', description: 'Allow readers to move an edition to a new device.' },
   { key: 'google_signin', label: 'Google sign-in', description: 'Show and accept Google account sign-in.' },
   { key: 'phone_signin', label: 'Phone sign-up / sign-in', description: 'Allow phone number and password accounts.' },
@@ -11,9 +12,11 @@ export const FEATURE_DEFINITIONS = [
 ];
 
 const DEFAULTS = Object.fromEntries(FEATURE_DEFINITIONS.map((feature) => [feature.key, true]));
-// The owner asked for device transfers to be off by default. It can be
-// re-enabled from the admin feature panel without a deploy.
+// Device transfers are off by default. Annual subscriptions are also off by
+// default: the edition is sold as a one-time purchase. Either can be re-enabled
+// from the admin feature panel without a deploy.
 DEFAULTS.device_transfer = false;
+DEFAULTS.annual_subscription = false;
 
 const ensured = new WeakSet();
 
