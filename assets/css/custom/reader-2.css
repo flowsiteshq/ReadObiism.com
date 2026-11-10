@@ -54,8 +54,19 @@
 @media(max-width:600px){.feedback-card{padding:24px 18px;border-radius:18px}.feedback-emojis{gap:5px}.feedback-emoji{padding:10px 2px 8px;border-radius:11px}.feedback-emoji span{font-size:25px}.feedback-emoji small{font-size:7px}.feedback-button{padding:0 9px;font-size:9px}.feedback-meta{font-size:9px}.feedback-thanks>span{font-size:48px}}
 @media(max-width:600px){.reader-bar{gap:8px;padding:12px 14px}.reader-bar-actions{gap:8px}.brand{font-size:22px}.chapter-toggle{padding:0 9px}.feedback-button{padding:0 8px;font-size:8px}}
 @media(max-width:400px){.feedback-emojis{gap:3px}.feedback-emoji{padding:8px 1px 6px}.feedback-emoji span{font-size:22px}.feedback-emoji small{font-size:6px}}
-.license-field{position:fixed;inset:0;z-index:2;display:grid;place-items:center;overflow:hidden;pointer-events:none}
-.license-field span{transform:rotate(-28deg);color:rgba(16,19,15,.055);font:800 clamp(18px,3.2vw,34px)/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.reader-shell .reading,.reader-shell .reading *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.reader-shell .reading::selection,.reader-shell .reading *::selection{background:transparent}
+.license-field{position:fixed;inset:0;z-index:2;pointer-events:none;background-repeat:repeat;background-position:center;background-size:460px 180px}
+@media(max-width:600px){.license-field{background-size:320px 130px}}
+.reader-focus-shield{position:fixed;inset:0;z-index:10002;display:grid;place-items:center;padding:24px;background:var(--paper);color:var(--ink);text-align:center}
+.reader-focus-shield[hidden]{display:none}
+.reader-focus-card{width:min(100%,430px);padding:30px 18px;border-top:1px solid rgba(198,155,56,.65);border-bottom:1px solid rgba(198,155,56,.65)}
+.reader-focus-brand{margin:0 0 22px;color:var(--ink);font:700 28px/1 Georgia,serif;letter-spacing:-.06em}
+.reader-focus-brand span{color:var(--gold)}
+.reader-focus-eyebrow{margin:0 0 10px;color:#9a701a;font-size:9px;font-weight:900;letter-spacing:.2em}
+.reader-focus-card strong{display:block;font:700 clamp(24px,5vw,36px)/1.02 Georgia,serif;letter-spacing:-.04em}
+.reader-focus-card small{display:block;margin-top:14px;color:#6f6757;font-size:11px;line-height:1.5}
+@media print{.reader-focus-shield{display:none!important}}
 .toc-license{margin-top:28px;padding-top:18px;border-top:1px solid var(--rule)}
 .toc-license p{margin:0 0 7px;color:#9a701a;font-size:9px;font-weight:900;letter-spacing:.16em}
 .toc-license strong{display:block;font-size:12px;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}
