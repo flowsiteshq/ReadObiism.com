@@ -179,8 +179,7 @@
           }
           await sleep(1400);
         }
-        if (stored && stored.code) return render({ ...stored, status: "active" }, true);
-        showError(lastError || "Your gift is still being prepared. Retry this page in a moment.");
+        showError(lastError || "Your gift payment is still being confirmed. Please refresh this page in a moment. If the problem continues, contact gift support with your payment reference.");
       }
 
       void load();

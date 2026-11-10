@@ -1516,7 +1516,7 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
   )
     .bind(reference)
     .first();
-  if (existing) return reply({ received: true, duplicate: true }, request);
+  // Re-verify existing purchases: an interruption may have prevented saving the gift.
 
   // Never grant on the webhook payload alone — verify with Paystack.
   const verifyResponse = await fetch(
@@ -1569,6 +1569,9 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
     return reply({ error: "Missing purchaser email" }, request, { status: 400 });
 
   const gift = giftDetails(metadata);
+  if (String(metadata?.gift) === "1" && !gift) {
+    return reply({ error: "Gift payment metadata is incomplete. Contact support." }, request, { status: 400 });
+  }
   if (metadata?.product_sku !== SKU || !/^[a-f0-9]{64}$/.test(metadata?.device_hash || "")) {
     return reply({ error: "Payment metadata does not match the edition." }, request, {
       status: 400,
@@ -1598,11 +1601,18 @@ async function verifyAndRecordPaystack(request, env, reference, fallbackEmail = 
     ).bind(reference, gift ? "UNBOUND" : metadata.device_hash, now),
   ]);
   if (gift) {
-    await saveGiftOrder(env, gift, reference, email);
-    await sendGiftCodeEmail(env, gift);
+    if (existing) {
+      const currentGift = await env.OBI_DB.prepare("SELECT code FROM gift_orders WHERE checkout_session_id=?").bind(reference).first();
+      const device = await env.OBI_DB.prepare("SELECT device_hash FROM reader_devices WHERE checkout_session_id=?").bind(reference).first();
+      if (!currentGift && device?.device_hash !== "UNBOUND") {
+        return reply({ error: "Gift payment needs support review." }, request, { status: 409 });
+      }
+    }
+    const saved = await saveGiftOrder(env, gift, reference, email);
+    if (saved.stored) await sendGiftCodeEmail(env, gift);
   }
 
-  return reply({ received: true, ...(gift ? { gift: gift.code } : {}) }, request);
+  return reply({ received: true, ...(existing ? { duplicate: true } : {}), ...(gift ? { gift: gift.code } : {}) }, request);
 }
 
 async function recordCheckoutCompletion(event, env) {
@@ -2361,11 +2371,15 @@ async function giftStatus(request, env) {
   if (!validSessionId(sessionId))
     return reply({ error: "Invalid gift reference" }, request, { status: 400 });
   await ensure(env);
-  const gift = await env.OBI_DB.prepare(
+  const findGift = () => env.OBI_DB.prepare(
     "SELECT code, recipient_name, recipient_email, message, status, created_at, redeemed_at FROM gift_orders WHERE checkout_session_id=?",
-  )
-    .bind(sessionId)
-    .first();
+  ).bind(sessionId).first();
+  let gift = await findGift();
+  // Verify with Paystack when the buyer returns before the webhook arrives.
+  if (!gift && sessionId.startsWith("obi_") && env.PAYSTACK_SECRET_KEY) {
+    const verified = await verifyAndRecordPaystack(request, env, sessionId);
+    if (verified.ok) gift = await findGift();
+  }
   if (!gift) {
     return reply(
       { pending: true, error: "Your gift is still being prepared. Please retry in a moment." },
