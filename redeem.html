@@ -85,7 +85,7 @@
         status.classList.toggle("error", isError);
       };
       codeInput.addEventListener("input", () => {
-        const cleaned = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+        const cleaned = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
         const groups = [];
         if (cleaned.startsWith("OBI")) {
           groups.push("OBI");
@@ -112,7 +112,12 @@
         button.innerHTML = "UNLOCKING YOUR EDITION…";
         setStatus("Checking your gift code…");
         try {
-          const deviceToken = newDeviceToken();
+          const deviceKey = `obi-ism.gift-device.${code}`;
+          let deviceToken = localStorage.getItem(deviceKey);
+          if (!deviceToken) {
+            deviceToken = newDeviceToken();
+            localStorage.setItem(deviceKey, deviceToken);
+          }
           const response = await apiFetch("/api/gift/redeem", {
             method: "POST",
             headers: { "content-type": "application/json" },
