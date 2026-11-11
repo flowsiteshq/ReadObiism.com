@@ -19,7 +19,7 @@ npx wrangler login                 # one time per machine
 npx wrangler whoami
 $env:CLOUDFLARE_ACCOUNT_ID = 'ade40257c2476d8dab6d1c5ebf5e176a'
 npx wrangler deployments status    # confirm access to the production Worker
-npm test                           # 21 Worker tests
+npm test                           # 68 Worker tests
 ```
 
 Then:
@@ -282,7 +282,7 @@ Currently configured in production:
 | `OBI_ADMIN_PASSWORD` | admin UI password |
 | `PAYSTACK_SECRET_KEY` | Paystack checkout/verification |
 | `BULK_CODE_ENCRYPTION_KEY` | 64 hex characters; required for bulk code recovery |
-| `RESEND_API_KEY` | email delivery (verification/gift) |
+| `RESEND_API_KEY` | email delivery (verification/gift/password reset) |
 | `GIFT_FROM_EMAIL` | gift email sender |
 | `ACCOUNT_FROM_EMAIL` | account email sender |
 
@@ -314,8 +314,14 @@ Production does **not** send mail through cPanel SMTP. The old PHP backend used 
 - Gift-code delivery (`sendGiftCodeEmail`)
 - Account email verification (`POST /api/account/verify/request`)
 - Device-transfer verification (`POST /api/reader/transfer/start`)
+- Password reset (`POST /api/account/password/forgot`, `worker/api/src/password-reset.js`)
 
 Without the secrets, these paths return `503` ("Email verification is not configured" or "Could not send...").
+
+**Resend rejects reserved domains.** Sending to `example.com` (or any reserved test domain) fails with
+`422 Invalid 'to' field`. Use `delivered@resend.dev` for a delivery smoke test, and a real address for a
+full end-to-end test. The password-reset endpoint answers every address identically, so a rejected
+delivery never reveals whether an account exists.
 
 To enable:
 
@@ -365,7 +371,11 @@ To enable:
 
 - Verify SPF, DKIM, and DMARC to avoid spam filtering. Use a sending subdomain if the root domain already has mailboxes.
 - Do not commit the API key.
-- Password reset is **not implemented**; only gift delivery and email verification use email today.
+- Password reset is **implemented** and uses the same Resend sender. It adds a third transactional email to the quota:
+  - `POST /api/account/password/forgot` sends an 8-digit reset code (10-minute expiry, one-time use, 5-attempt cap). The response is identical whether or not the address has an account, so it cannot be used to enumerate readers. A failed delivery is logged, never returned.
+  - `POST /api/account/password/reset` sets the new password, revokes every existing account session, and opens a new session.
+  - `POST /api/account/password/change` changes the password for a signed-in reader and signs out their other sessions.
+  - `POST /api/admin/readers/password-reset` (admin only) either emails the reader or creates a temporary password that is shown once and revokes their sessions.
 - The free tier allows **100 emails/day**. A newsletter to more than 100 readers needs Pro or must be split across days; transactional emails share the same quota.
 - There is **no bulk-newsletter endpoint** in the Worker. The old `readobi-api/api/email/bulk-send.php` is PHP and is not deployed. Use Resend Broadcasts for marketing, or add a Worker campaign endpoint first.
 
@@ -473,6 +483,12 @@ node scripts/build-pages.mjs
 
 This creates `.pages-output/` (Git-ignored). The script copies root HTML and selected assets, plus `assets/`, `admin/`, `auth/`, `dashboard/`, and excludes dotfiles, maps, PHP, SQL, databases, keys, logs, and backups. As of this change it also includes `CNAME` and `.nojekyll`, so the artifact can be published without losing the custom domain.
 
+**Root `sw.js` is copied explicitly.** The service worker must be served from the site root so its scope
+covers the whole origin, but the extension filter deliberately skips root `.js` files. `build-pages.mjs`
+copies `sw.js` on its own. If you add another root-level script, copy it in the same way. The worker caches
+only static assets (icons, manifest, favicon); it never caches `/api/*`, licensed reader content,
+authenticated pages, or book data.
+
 Current sync state: the built artifact matches `origin/gh-pages` file-for-file.
 
 ### 10.1 Worker-only change (site unchanged)
@@ -506,11 +522,18 @@ Get-ChildItem ..\readobi-app-gh-pages -Force |
 Get-ChildItem .pages-output -Force |
   Copy-Item -Destination ..\readobi-app-gh-pages -Recurse -Force
 
+# Restore files that live only on gh-pages and are not in the repo.
+# assets/images/obi-ism-cover-000.jpg exists only in the published branch.
+git -C ..\readobi-app-gh-pages checkout HEAD -- assets/images/obi-ism-cover-000.jpg
+
 git -C ..\readobi-app-gh-pages add -A
 git -C ..\readobi-app-gh-pages commit -m "Publish website from main"
 git -C ..\readobi-app-gh-pages push origin HEAD:gh-pages
 git worktree remove ..\readobi-app-gh-pages
 ```
+
+Do not use `robocopy /MIR` or `Copy-Item` with `-Force` over the whole worktree: mirroring deletes the
+worktree's `.git` file and breaks the checkout.
 
 Verify after GitHub Pages finishes (usually under a minute):
 
@@ -663,7 +686,7 @@ A 429 means the rate limit is active; wait or clear the registration buckets.
 2. `git status` is clean; `git pull origin main`.
 3. Set `CLOUDFLARE_ACCOUNT_ID` to the Dojoflowus account.
 4. `npx wrangler whoami` and `npx wrangler deployments status`.
-5. `cd worker; npm test` (expect 21 passing tests).
+5. `cd worker; npm test` (expect 68 passing tests).
 6. Make the change; test locally.
 7. Commit and push `main`; confirm Workers Builds produced a new version.
 8. Verify `/api/health` and, for auth changes, a registration/login smoke test.
