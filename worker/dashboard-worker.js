@@ -557,10 +557,16 @@ async function ensurePurchaseSchema(env) {
 
 function expected(session) {
   const metadataMinor = Number(session?.metadata?.price_minor);
-  const amountMatches =
-    Number.isSafeInteger(metadataMinor) && metadataMinor > 0
-      ? session.amount_total === metadataMinor
-      : session.amount_total === PRICE;
+  const quoted = Number.isSafeInteger(metadataMinor) && metadataMinor > 0 ? metadataMinor : PRICE;
+  // Stripe's total can include tax. Never accept a discount, shipping charge,
+  // different subtotal, or an unexplained increase as the edition payment.
+  const details = session?.total_details;
+  const tax = details?.amount_tax;
+  const taxMatches = session?.amount_subtotal === quoted &&
+    Number.isSafeInteger(tax) && tax >= 0 &&
+    details?.amount_discount === 0 && details?.amount_shipping === 0 &&
+    session?.amount_total === quoted + tax;
+  const amountMatches = details && session?.amount_subtotal != null ? taxMatches : session?.amount_total === quoted;
   return (
     session?.id?.startsWith("cs_") &&
     session.payment_status === "paid" &&
@@ -1837,11 +1843,7 @@ async function recordCheckoutCompletion(event, env) {
           .trim()
           .slice(0, 80)
       : "";
-  const amountCents =
-    Number.isSafeInteger(Number(session?.metadata?.price_minor)) &&
-    Number(session?.metadata?.price_minor) > 0
-      ? Number(session?.metadata?.price_minor)
-      : PRICE;
+  const amountCents = session.amount_total;
   // A gift belongs to the recipient, not the buyer's browser. Leave the
   // device slot unbound until the recipient redeems the code.
   const deviceValue = gift ? "UNBOUND" : deviceHash;
@@ -1880,6 +1882,24 @@ async function recordCheckoutCompletion(event, env) {
     entitlement: result[1].meta.changes ? "granted" : "already_granted",
     ...(gift ? { gift: gift.code } : {}),
   };
+}
+
+// If the browser returns before a Stripe webhook arrives, query Stripe directly.
+// The Checkout Session and browser token must match the original purchase.
+async function recoverStripeCheckout(env, sessionId, deviceToken) {
+  if (!env.OBI_STRIPE_SECRET_KEY?.startsWith("sk_")) return false;
+  let response;
+  try {
+    response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      headers: { authorization: `Bearer ${env.OBI_STRIPE_SECRET_KEY}` },
+    });
+  } catch { return false; }
+  const session = await response.json().catch(() => null);
+  if (!response.ok || session?.id !== sessionId || session?.status !== "complete" || !expected(session)) return false;
+  if (!same(session.metadata.device_hash, await hashDeviceToken(deviceToken))) return false;
+  const event = { type: EVENT, id: `evt_recovery_${await hashDeviceToken(sessionId)}`, data: { object: session } };
+  const result = await recordCheckoutCompletion(event, env);
+  return !result.ignored;
 }
 
 async function webhook(request, env) {
@@ -1937,6 +1957,8 @@ async function claimReader(request, env) {
     // directly with Paystack and grant only after the server-side check.
     const verified = await verifyAndRecordPaystack(request, env, sessionId);
     if (verified.ok) purchased = await activePurchase(env, sessionId);
+  } else if (!purchased && sessionId.startsWith("cs_")) {
+    if (await recoverStripeCheckout(env, sessionId, deviceToken)) purchased = await activePurchase(env, sessionId);
   }
   const pendingGift = await env.OBI_DB.prepare(
     "SELECT status FROM gift_orders WHERE checkout_session_id=?",
