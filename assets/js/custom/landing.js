@@ -33,10 +33,17 @@
   const giftNoteField = document.getElementById("gift-note-field");
   const purchaseNote = document.querySelector(".purchase-note");
   const subscriptionNote = document.getElementById("subscription-note");
+  const warning = document.getElementById("purchase-warning");
+  const warningTitle = document.getElementById("purchase-warning-title");
+  const warningText = document.getElementById("purchase-warning-text");
+  const warningConfirm = document.getElementById("purchase-warning-confirm");
+  const warningCancel = document.getElementById("purchase-warning-cancel");
   const params = new URLSearchParams(location.search);
   let currency = "NGN";
   let featureFlags = null;
   let purchaseMode = params.get("gift") === "1" ? "gift" : "self";
+  let pendingCheckout = null;
+  let submitting = false;
   const pricing = {
     NGN: { amount: 6995, label: "₦6,995" },
     USD: { amount: 9.95, label: "$9.95" },
@@ -61,6 +68,24 @@
       ? `${priceLabel()} · One-time gift · One code for your friend.`
       : `${priceLabel()} · One-time payment · You will return directly to your protected reader.`;
   };
+  const purchasesEnabled = () => !featureFlags || featureFlags.single_purchase !== false;
+  const defaultButtonLabel = () => purchaseMode === "gift" ? "BUY AS A GIFT" : "BUY THE DIGITAL EDITION";
+  const resetButton = () => {
+    if (submitting) return;
+    button.disabled = !purchasesEnabled();
+    setButtonLabel(defaultButtonLabel());
+  };
+  const restoreStatus = () => {
+    if (!purchasesEnabled()) return;
+    updateStatus();
+  };
+  const hideWarning = (reset = true) => {
+    if (warning) warning.hidden = true;
+    if (warningConfirm) warningConfirm.disabled = false;
+    if (warningCancel) warningCancel.disabled = false;
+    pendingCheckout = null;
+    if (reset) resetButton();
+  };
   const setMode = (next) => {
     purchaseMode = next;
     const gift = next === "gift";
@@ -70,7 +95,8 @@
     if (purchaseNote) purchaseNote.hidden = gift;
     emailLabel.textContent = gift ? "YOUR EMAIL (FOR YOUR RECEIPT)" : "EMAIL FOR YOUR RECEIPT";
     setButtonLabel(gift ? "BUY AS A GIFT" : "BUY THE DIGITAL EDITION");
-    updateStatus();
+    hideWarning();
+    restoreStatus();
   };
   const setCurrency = (next) => {
     currency = next;
@@ -79,7 +105,8 @@
     document.getElementById("purchase-currency").textContent = naira ? "NGN" : "USD";
     document.getElementById("currency-ngn").setAttribute("aria-pressed", String(naira));
     document.getElementById("currency-usd").setAttribute("aria-pressed", String(!naira));
-    updateStatus();
+    hideWarning();
+    restoreStatus();
   };
   const applyPricing = (data) => {
     for (const code of ["NGN", "USD"]) {
@@ -105,7 +132,8 @@
     const gift = featureFlags.gift_purchase !== false;
     const annualSubscription = featureFlags.annual_subscription === true;
     if (subscriptionNote) subscriptionNote.hidden = !annualSubscription;
-    button.disabled = !single;
+    if (!single) button.disabled = true;
+    else if (!pendingCheckout) resetButton();
     modeGift.disabled = !gift;
     if (!gift && purchaseMode === "gift") setMode("self");
     if (!single) {
@@ -139,7 +167,7 @@
         note.hidden = false;
         note.replaceChildren();
         const signedIn = document.createElement("span");
-        signedIn.textContent = `Signed in as ${emailAddress}. Your edition is ready. `;
+        signedIn.textContent = `Signed in as ${emailAddress}. Your edition is ready. Buying again creates a separate fresh edition. `;
         const link = document.createElement("a");
         link.href = "/reader";
         link.innerHTML = `BACK TO BOOK ${ARROW}`;
@@ -159,6 +187,14 @@
   document.getElementById("currency-usd").addEventListener("click", () => setCurrency("USD"));
   modeSelf.addEventListener("click", () => setMode("self"));
   modeGift.addEventListener("click", () => setMode("gift"));
+  [email, readerName, giftName, giftEmail, giftMessage].forEach((input) => {
+    if (!input) return;
+    input.addEventListener("input", () => {
+      if (submitting) return;
+      hideWarning();
+      restoreStatus();
+    });
+  });
   giftNoteToggle.addEventListener("click", () => {
     const open = giftNoteField.hidden;
     giftNoteField.hidden = !open;
@@ -194,7 +230,12 @@
   if (params.get("purchase") === "cancelled") {
     updateStatus(params.get("gift") === "1" ? "Gift checkout was cancelled. No payment was made." : "Checkout was cancelled. No payment was made.");
   }
-  button.addEventListener("click", async () => {
+  const startCheckout = async (confirmDuplicate = false) => {
+    if (confirmDuplicate) {
+      if (warning) warning.hidden = true;
+      if (warningConfirm) warningConfirm.disabled = true;
+      if (warningCancel) warningCancel.disabled = true;
+    }
     const value = email.value.trim();
     if (!/^\S+@\S+\.\S+$/.test(value)) { updateStatus("Enter a valid email address to continue to secure checkout."); email.focus(); return; }
     let gift = null;
@@ -212,14 +253,37 @@
         gift_message: giftMessage ? giftMessage.value.trim().slice(0, 240) : "",
       };
     }
+    submitting = true;
     button.disabled = true;
-    const label = button.innerHTML;
     setButtonLabel(purchaseMode === "gift" ? "OPENING GIFT CHECKOUT…" : "OPENING SECURE CHECKOUT…");
     updateStatus(purchaseMode === "gift" ? "Creating your secure gift checkout…" : "Creating your secure checkout session…");
     try {
       const deviceToken = newDeviceToken();
-      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}) }) });
+      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}), ...(confirmDuplicate ? { confirm_duplicate: true } : {}) }) });
       const body = await response.json().catch(() => ({}));
+      if (response.status === 409 && body.requires_confirmation) {
+        submitting = false;
+        pendingCheckout = true;
+        if (warning && warningText && warningConfirm) {
+          warningText.textContent = body.warning || body.error || "This email already has an active edition. Continuing will buy a separate fresh edition.";
+          if (warningTitle) warningTitle.textContent = gift ? "Another gift edition" : "Another edition";
+          warningConfirm.textContent = gift ? "BUY A FRESH GIFT EDITION" : "BUY ANOTHER EDITION";
+          warningConfirm.disabled = false;
+          if (warningCancel) warningCancel.disabled = false;
+          warning.hidden = false;
+          button.disabled = true;
+          setButtonLabel("CONFIRM BELOW");
+          updateStatus(body.warning || body.error || "Confirm below to continue.");
+          warning.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
+          warningConfirm.focus({ preventScroll: true });
+        } else if (window.confirm(body.warning || body.error || "Buy another edition?")) {
+          return startCheckout(true);
+        } else {
+          hideWarning();
+          updateStatus("Checkout cancelled. No payment was made.");
+        }
+        return;
+      }
       if (!response.ok || !body.url || !/^(cs_[A-Za-z0-9_]{12,255}|obi_[a-z0-9]{16,64})$/.test(body.sessionId || "")) throw new Error(body.error || "Checkout could not be started.");
       if (gift) {
         localStorage.setItem(`obi-ism.gift.${body.sessionId}`, JSON.stringify({
@@ -236,9 +300,23 @@
       }
       location.assign(body.url);
     } catch (error) {
+      submitting = false;
+      hideWarning();
       updateStatus(error.message || "Checkout could not be started. Please try again.");
-      button.disabled = false;
-      button.innerHTML = label;
     }
-  });
+  };
+  button.addEventListener("click", () => startCheckout(false));
+  if (warningConfirm) {
+    warningConfirm.addEventListener("click", () => {
+      if (!pendingCheckout) return;
+      startCheckout(true);
+    });
+  }
+  if (warningCancel) {
+    warningCancel.addEventListener("click", () => {
+      submitting = false;
+      hideWarning();
+      restoreStatus();
+    });
+  }
 })();
