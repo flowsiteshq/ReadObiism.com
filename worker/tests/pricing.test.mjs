@@ -111,6 +111,10 @@ test('new checkouts quote the saved price', async () => {
   const db = database();
   const env = { OBI_DB: db, PAYSTACK_SECRET_KEY: 'sk_test_fixture' };
   await savePricing(env, { ngnMinor: 800000, usdMinor: 1150 }, 'admin@example.test');
+  const registration = await worker.fetch(request('/api/account/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({email:'buyer@example.test',password:'buyer-password-123'}) }), env);
+  assert.equal(registration.status, 200, await registration.clone().text());
+  const token = (await registration.json()).token;
+  assert.ok(token);
   const calls = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
@@ -120,7 +124,7 @@ test('new checkouts quote the saved price', async () => {
   try {
     const response = await worker.fetch(request('/api/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ email: 'buyer@example.test', device_token: 'a'.repeat(32), currency: 'NGN' }),
     }), env);
     assert.equal(response.status, 200, await response.clone().text());

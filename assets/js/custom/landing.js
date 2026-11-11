@@ -215,6 +215,23 @@
     return `OBI-${segment(0)}-${segment(4)}-${segment(8)}`;
   };
   setMode(purchaseMode);
+  if (params.get("checkout") === "continue") {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("obi-ism.checkout-draft") || "null");
+      sessionStorage.removeItem("obi-ism.checkout-draft");
+      if (saved) {
+        setMode(saved.mode === "gift" ? "gift" : "self");
+        setCurrency(saved.currency === "USD" ? "USD" : "NGN");
+        if (email) email.value = saved.email || "";
+        if (readerName) readerName.value = saved.readerName || "";
+        if (giftName) giftName.value = saved.giftName || "";
+        if (giftEmail) giftEmail.value = saved.giftEmail || "";
+        if (giftMessage) giftMessage.value = saved.giftMessage || "";
+        if (giftMessage?.value && giftNoteField?.hidden) giftNoteToggle.click();
+        updateStatus("Your account is ready. Review your details to continue checkout.");
+      }
+    } catch { /* Checkout still works without a saved draft. */ }
+  }
   apiFetch("/api/pricing", { cache: "no-store" })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => { if (data) applyPricing(data); })
@@ -230,7 +247,24 @@
   if (params.get("purchase") === "cancelled") {
     updateStatus(params.get("gift") === "1" ? "Gift checkout was cancelled. No payment was made." : "Checkout was cancelled. No payment was made.");
   }
+  const saveDraftAndSignIn = () => {
+    try {
+      sessionStorage.setItem("obi-ism.checkout-draft", JSON.stringify({ mode: purchaseMode, currency, email: email.value.trim(), readerName: readerName?.value || "", giftName: giftName?.value || "", giftEmail: giftEmail?.value || "", giftMessage: giftMessage?.value || "" }));
+    } catch { /* The customer can re-enter the form after signing in. */ }
+    location.assign("/login?next=checkout");
+  };
   const startCheckout = async (confirmDuplicate = false) => {
+    if (submitting) return;
+    submitting = true;
+    button.disabled = true;
+    try {
+      const account = await apiFetch("/api/account/access", { cache: "no-store" });
+      if (account.status === 401) { saveDraftAndSignIn(); return; }
+      if (!account.ok) throw new Error("We could not check your account. Please try again.");
+    } catch (error) {
+      submitting = false; resetButton(); updateStatus(error.message || "We could not check your account. Please try again."); return;
+    }
+    submitting = false; button.disabled = false;
     if (confirmDuplicate) {
       if (warning) warning.hidden = true;
       if (warningConfirm) warningConfirm.disabled = true;
@@ -261,6 +295,7 @@
       const deviceToken = newDeviceToken();
       const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}), ...(confirmDuplicate ? { confirm_duplicate: true } : {}) }) });
       const body = await response.json().catch(() => ({}));
+      if (response.status === 401 && body.code === "account_required") { saveDraftAndSignIn(); return; }
       if (response.status === 409 && body.requires_confirmation) {
         submitting = false;
         pendingCheckout = true;

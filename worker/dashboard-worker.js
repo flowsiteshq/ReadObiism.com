@@ -1332,6 +1332,7 @@ async function checkout(request, env) {
           .slice(0, 80)
       : "";
   const signedIn = await accountFromRequest(request, env);
+  if (!signedIn) return reply({ error: "Sign in or create an account before checkout.", code: "account_required" }, request, { status: 401 });
   const suppliedReceiptEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
   const receiptEmail = suppliedReceiptEmail || signedIn?.email || "";
   if (!validReceiptEmail(receiptEmail)) {
