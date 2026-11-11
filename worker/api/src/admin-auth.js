@@ -6,6 +6,8 @@ import { setBulkOrderClaimsState } from './bulk-orders.js';
 import { getAdminFeatureFlags, setFeatureFlag } from './feature-flags.js';
 import { decodeWatermarks, encodeWatermark } from './watermark.js';
 import { bulkLocalEnabled, createBulkLocal, ensureBulkLocal, startBulkPaystackTest, startBulkCheckoutTest, verifyBulkPaymentTest, NGN_PRICE_KOBO, USD_PRICE_CENTS } from './bulk-local.js';
+import { ensurePasswordResetSchema, isRecoveryEmail, sendPasswordReset } from './password-reset.js';
+import { createPassword, generatePassword } from './passwords.js';
 
 const cookieName = 'obi_admin_session';
 const ttlSeconds = 4 * 60 * 60;
@@ -73,6 +75,40 @@ export async function handleAdminAuth(request, env) {
       await env.OBI_DB.prepare('CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_email TEXT NOT NULL, action TEXT NOT NULL, path TEXT NOT NULL, ip TEXT, created_at TEXT NOT NULL)').run();
       await env.OBI_DB.prepare('INSERT INTO admin_audit_log (id,admin_email,action,path,ip,created_at) VALUES (?,?,?,?,?,?)').bind('aa_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b=>b.toString(16).padStart(2,'0')).join(''), sess.admin_email, request.method, path, request.headers.get('cf-connecting-ip') || 'unknown', new Date().toISOString()).run();
     } catch {}
+    if (path === '/api/admin/readers/password-reset') {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      if (!sameOrigin(request) || !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return json({ error: 'Request not allowed.' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const accountId = typeof body.account_id === 'string' ? body.account_id.trim() : '';
+      const mode = body.mode === 'temporary' ? 'temporary' : body.mode === 'email' ? 'email' : '';
+      if (!/^acct_[A-Za-z0-9]{12,64}$/.test(accountId) || !mode) return json({ error: 'Choose a valid reader and recovery method.' }, 400);
+      await ensurePasswordResetSchema(env);
+      const account = await env.OBI_DB.prepare('SELECT id,email,phone FROM obi_accounts WHERE id=?').bind(accountId).first();
+      if (!account) return json({ error: 'Reader account not found.' }, 404);
+      try {
+        await env.OBI_DB.prepare('INSERT INTO admin_audit_log (id,admin_email,action,path,ip,created_at) VALUES (?,?,?,?,?,?)')
+          .bind('aa_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join(''), sess.admin_email, `PASSWORD_RESET_${mode.toUpperCase()}`, `${path}?account_id=${encodeURIComponent(accountId)}`, request.headers.get('cf-connecting-ip') || 'unknown', new Date().toISOString())
+          .run();
+      } catch {}
+      if (mode === 'email') {
+        if (!isRecoveryEmail(account.email)) return json({ error: 'This account has no recovery email. Create a temporary password instead.' }, 400);
+        const result = await sendPasswordReset(env, account);
+        return json(result.body, result.status);
+      }
+      const temporaryPassword = generatePassword(18);
+      const { salt, hash } = await createPassword(temporaryPassword);
+      const now = new Date().toISOString();
+      await env.OBI_DB.batch([
+        env.OBI_DB.prepare('UPDATE obi_accounts SET password_hash=?,password_salt=?,last_signed_in=? WHERE id=?').bind(hash, salt, now, accountId),
+        env.OBI_DB.prepare('DELETE FROM obi_account_sessions WHERE account_id=?').bind(accountId),
+        env.OBI_DB.prepare('UPDATE account_password_resets SET consumed_at=? WHERE account_id=? AND consumed_at IS NULL').bind(now, accountId),
+      ]);
+      return json({
+        ok: true,
+        temporary_password: temporaryPassword,
+        message: 'Temporary password created. Existing reader sign-ins were revoked. Share it securely and ask the reader to change it at /security.',
+      });
+    }
     if (path === '/api/admin/features') {
       if (request.method === 'GET') return json({ features: await getAdminFeatureFlags(env) });
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);

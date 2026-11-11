@@ -15,7 +15,7 @@
     payments: ['Payment settings', 'Manage your local payment configuration.'],
   };
   const views = {
-    readers: { headers: ['Email', 'Account ID', 'Created', 'Last sign-in', 'Active editions', 'Expires', 'Days left'], fields: ['email', 'id', 'created_at', 'last_signed_in', 'active_editions', 'next_expiry', 'days_left'], description: 'Search by account email or ID. Expires and days left show the soonest expiry among active editions.' },
+    readers: { headers: ['Email', 'Account ID', 'Created', 'Last sign-in', 'Active editions', 'Expires', 'Days left', 'Action'], fields: ['email', 'id', 'created_at', 'last_signed_in', 'active_editions', 'next_expiry', 'days_left'], description: 'Search by account email or ID. Expires and days left show the soonest expiry among active editions. Reset sends a recovery email or creates a temporary password shown once.' },
     purchases: { headers: ['Email', 'Reference', 'Amount', 'Source', 'Status', 'Recorded'], fields: ['purchaser_email', 'checkout_session_id', 'amount', 'source', 'status', 'granted_at'], description: 'Search by purchaser email or payment reference. Local bulk tests are labelled separately.' },
     feedback: { headers: ['Reader', 'Purchase reference', 'Rating', 'Comment', 'Submitted', 'Updated'], fields: ['purchaser_email', 'checkout_session_id', 'rating', 'comment', 'created_at', 'updated_at'], description: 'Search reader email, purchase reference or comment. Only readers with active access can submit feedback.' },
     gifts: { headers: ['Buyer', 'Recipient', 'Code ending', 'Purchase reference', 'Status', 'Created', 'Redeemed'], fields: ['buyer_email', 'recipient_email', 'code_last4', 'checkout_session_id', 'status', 'created_at', 'redeemed_at'], description: 'Search buyer email, recipient email or purchase reference. Full gift codes are hidden.' },
@@ -30,7 +30,7 @@
   let pendingBulkVerification = /^bulk_[a-f0-9]{32}$/.test(callbackOrder || '') ? callbackOrder : '';
   if (pendingBulkVerification) history.replaceState(null, '', location.pathname + '#bulk');
   let section = 'overview', page = 1, total = 0, query = '', requestId = 0;
-  let bulkUnitPrices = {}, bulkGateways = {}, selectedBulkOrder = '', selectedBulkClaims = null;
+  let bulkUnitPrices = {}, bulkGateways = {}, selectedBulkOrder = '', selectedBulkClaims = null, selectedReader = null;
   const charts = {};
   const localPaymentEditor = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
   $('local-payment-panel').hidden = !localPaymentEditor;
@@ -444,6 +444,52 @@
     }
     return value == null || value === '' ? '—' : String(value);
   }
+  function openReaderReset(item) {
+    selectedReader = item;
+    const panel = $('reader-reset-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    $('reader-reset-result').hidden = true;
+    $('reader-reset-password').value = '';
+    $('reader-reset-message').textContent = 'Choose how to help this reader sign in again.';
+    const contact = item.phone || (item.recovery_email ? item.email : 'No recovery email');
+    const provider = item.auth_provider ? ` ? ${item.auth_provider}` : '';
+    $('reader-reset-summary').textContent = `${item.email || item.id} ? ${contact}${provider}`;
+    $('reader-reset-email').disabled = !item.recovery_email;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  async function resetReaderPassword(mode) {
+    if (!selectedReader) return;
+    if (mode === 'temporary' && !confirm('Create a temporary password? Existing reader sign-ins will be revoked.')) return;
+    $('reader-reset-message').textContent = mode === 'email' ? 'Sending reset email?' : 'Creating temporary password?';
+    $('reader-reset-email').disabled = true;
+    $('reader-reset-temporary').disabled = true;
+    try {
+      const response = await window.OBI_API.fetch('/api/admin/readers/password-reset', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ account_id: selectedReader.id, mode }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) { location.replace('./login.html'); return; }
+      if (!response.ok) throw new Error(data.error || 'Could not reset this reader password.');
+      if (mode === 'email') {
+        $('reader-reset-message').textContent = data.message || 'Reset email sent.';
+        toast('Reset email sent.');
+      } else {
+        $('reader-reset-message').textContent = data.message || 'Temporary password created.';
+        $('reader-reset-password').value = data.temporary_password || '';
+        $('reader-reset-result').hidden = !data.temporary_password;
+        toast('Temporary password created.');
+      }
+    } catch (error) {
+      $('reader-reset-message').textContent = error.message;
+      toast(error.message, true);
+    } finally {
+      $('reader-reset-email').disabled = !selectedReader?.recovery_email;
+      $('reader-reset-temporary').disabled = false;
+    }
+  }
   async function loadTable() {
     const current = ++requestId, view = views[section], selected = section;
     $('table-message').textContent = 'Loading records…';
@@ -471,6 +517,14 @@
           } else td.textContent = format(field, item[field], item);
           tr.append(td);
         });
+        if (section === 'readers') {
+          const action = document.createElement('td');
+          action.className = 'reader-action';
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'outline-button'; button.textContent = 'RESET';
+          button.addEventListener('click', () => openReaderReset(item));
+          action.append(button); tr.append(action);
+        }
         $('table-body').append(tr);
       });
       $('table-message').textContent = data.items.length ? '' : 'No records found.';
@@ -494,6 +548,7 @@
     $('features').hidden = section !== 'features';
     $('feature').hidden = section === 'overview' || section === 'payments' || section === 'bulk' || section === 'forensics' || section === 'features' || !!views[section];
     if (section !== 'payments') { $('payment-form').reset(); $('pricing-form').reset(); $('payment-message').textContent = ''; $('pricing-message').textContent = ''; }
+    if (section !== 'readers' && $('reader-reset-panel')) { $('reader-reset-panel').hidden = true; selectedReader = null; }
     $('feature-heading').textContent = title;
     $('feature-description').textContent = description;
     document.querySelectorAll('[data-section]').forEach((link) => {
@@ -562,6 +617,13 @@
   $('bulk-pause').addEventListener('click', () => bulkOrderAction('pause'));
   $('bulk-resume').addEventListener('click', () => bulkOrderAction('resume'));
   $('bulk-revoke').addEventListener('click', () => bulkOrderAction('revoke'));
+  $('reader-reset-close')?.addEventListener('click', () => { $('reader-reset-panel').hidden = true; selectedReader = null; });
+  $('reader-reset-email')?.addEventListener('click', () => resetReaderPassword('email'));
+  $('reader-reset-temporary')?.addEventListener('click', () => resetReaderPassword('temporary'));
+  $('reader-reset-copy')?.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('reader-reset-password').value || ''); toast('Temporary password copied.'); }
+    catch { $('reader-reset-password').select(); toast('Select and copy the temporary password.'); }
+  });
   function updateBulkTotal() {
     const provider = $('bulk-gateway').value;
     const currency = provider === 'stripe' ? 'USD' : 'NGN';

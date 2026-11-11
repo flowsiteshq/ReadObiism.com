@@ -12,8 +12,9 @@ for(const legacy of [true,false]) test(`registration works with ${legacy?'existi
  const db=database(legacy),env={OBI_DB:db};const request=new Request('https://readobiism.com/api/account/register',{method:'POST',headers:{'content-type':'application/json',origin:'https://readobiism.com','cf-connecting-ip':'127.0.0.1'},body:JSON.stringify({email:'registration@example.test',password:'example-password-123'})});const response=await worker.fetch(request,env);assert.equal(response.status,200,await response.clone().text());const data=await response.json();assert.equal(data.account.email,'registration@example.test');assert.equal(db.raw.prepare('SELECT count(*) n FROM obi_accounts').get().n,1);assert.equal(db.raw.prepare('SELECT count(*) n FROM obi_account_sessions').get().n,1);assert.equal(db.raw.prepare("SELECT count(*) n FROM pragma_table_info('obi_accounts') WHERE name='email_verified'").get().n,1);
 });
 test('password hashing stays within the Workers PBKDF2 limit',()=>{
- const source=readFileSync(new URL('../dashboard-worker.js',import.meta.url),'utf8');
- const match=source.match(/PBKDF2_ITERATIONS = (\d+)/);
+ const workerSource=readFileSync(new URL('../dashboard-worker.js',import.meta.url),'utf8');
+ const sharedSource=readFileSync(new URL('../api/src/passwords.js',import.meta.url),'utf8');
+ const match=(workerSource + '\n' + sharedSource).match(/PBKDF2_ITERATIONS = (\d+)/);
  assert.ok(match,'PBKDF2_ITERATIONS constant is missing');
  assert.ok(Number(match[1])<=100000,`PBKDF2 iterations ${match[1]} exceed the Workers limit of 100000`);
 });

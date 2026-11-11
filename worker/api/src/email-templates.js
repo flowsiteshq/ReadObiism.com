@@ -182,6 +182,45 @@ export function verificationEmail({ code, link, email }) {
   return { subject, html, text };
 }
 
+export function passwordResetEmail({ code, link, email }) {
+  const subject = "Reset your OBI-ISM password";
+  const text = [
+    "OBI-ISM",
+    "IDEAS / INTEGRITY / IMPACT",
+    "",
+    "Reset your password.",
+    "",
+    `Use this code to choose a new password for your OBI-ISM reader account (${email}):`,
+    "",
+    code,
+    "",
+    "This code expires in 10 minutes and can be used once.",
+    "",
+    `Open the reset page: ${link}`,
+    "",
+    "If you did not request a password reset, you can ignore this email. Your current password will remain unchanged.",
+    "",
+    "OBI-ISM - Building a Just Society Through Character",
+    "This is a transactional email about your reader account.",
+  ].join("\n");
+  const html = emailShell({
+    subject,
+    preheader: "Your OBI-ISM password reset code is inside. It expires in 10 minutes.",
+    badge: "SECURITY",
+    eyebrow: "PASSWORD RESET",
+    title: "Choose a new password.",
+    intro: "Use the code below to reset the password on your OBI-ISM reader account. For your security, the code expires in 10 minutes and can be used once.",
+    codeLabel: "YOUR 8-DIGIT CODE",
+    code,
+    codeNote: "Expires in 10 minutes",
+    ctaLabel: "RESET MY PASSWORD",
+    ctaUrl: link,
+    footerNote: "This is a transactional email about your reader account.",
+    footerReason: `Requested for ${escapeHtml(email)}. If you did not request this reset, you can safely ignore this email. Your current password will remain unchanged.`,
+  });
+  return { subject, html, text };
+}
+
 export function giftCodeEmail({ code, link, recipientName, recipientEmail, message }) {
   const safeName = escapeHtml(recipientName);
   const safeEmail = escapeHtml(recipientEmail);

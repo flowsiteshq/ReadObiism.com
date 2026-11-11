@@ -71,7 +71,9 @@ export async function adminData(request, env) {
   const pattern = `%${search.replace(/[\\%_]/g, '\\$&')}%`;
   let query, count;
   if (url.pathname === '/api/admin/readers') {
-    query = `SELECT a.id,a.email,a.created_at,a.last_signed_in,
+    query = `SELECT a.id,a.email,a.phone,a.auth_provider,
+       CASE WHEN a.email LIKE '%@phone.obiism.local' THEN 0 ELSE 1 END AS recovery_email,
+       a.created_at,a.last_signed_in,
        (SELECT COUNT(*) FROM purchases p LEFT JOIN gift_orders g ON g.checkout_session_id=p.checkout_session_id
         WHERE p.status='active' AND (p.expires_at IS NULL OR p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AND ((g.checkout_session_id IS NULL AND lower(p.purchaser_email)=lower(a.email))
         OR (g.status='redeemed' AND lower(g.recipient_email)=lower(a.email)))) AS active_editions,

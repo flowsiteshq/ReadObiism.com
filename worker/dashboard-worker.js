@@ -30,6 +30,8 @@ import { ensureDeviceSchema } from "./api/src/device-schema.js";
 import { ensureFeedbackSchema } from "./api/src/feedback-schema.js";
 import { encodeWatermark } from "./api/src/watermark.js";
 import { ensureReaderStateSchema } from "./api/src/reader-state-schema.js";
+import { ensurePasswordResetSchema, sendPasswordReset } from "./api/src/password-reset.js";
+import { bytesToBase64, passwordDigest, passwordSalt } from "./api/src/passwords.js";
 
 // OBI-ISM production payment and entitlement worker.
 // The full edition is compiled into this Worker at deployment time; it is never included in public site files.
@@ -67,6 +69,10 @@ const RATE_LIMITS = {
   "claim-device-local-test": { limit: 100, windowSeconds: 3600 },
   "login-ip": { limit: 25, windowSeconds: 900 },
   "login-account": { limit: 10, windowSeconds: 900 },
+  "password-reset-ip": { limit: 10, windowSeconds: 900 },
+  "password-reset-account": { limit: 5, windowSeconds: 3600 },
+  "password-reset-confirm-ip": { limit: 20, windowSeconds: 900 },
+  "password-change-ip": { limit: 10, windowSeconds: 900 },
   "google-ip": { limit: 20, windowSeconds: 900 },
   "google-account": { limit: 10, windowSeconds: 900 },
   "register-ip": { limit: 6, windowSeconds: 3600 },
@@ -103,6 +109,8 @@ CREATE TABLE IF NOT EXISTS obi_account_sessions (token_hash TEXT PRIMARY KEY, ac
 CREATE INDEX IF NOT EXISTS account_sessions_account_idx ON obi_account_sessions(account_id);
 CREATE TABLE IF NOT EXISTS account_verification_challenges (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, code_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT);
 CREATE INDEX IF NOT EXISTS account_verification_challenges_account_idx ON account_verification_challenges(account_id, created_at);
+CREATE TABLE IF NOT EXISTS account_password_resets (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, code_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT);
+CREATE INDEX IF NOT EXISTS account_password_resets_account_idx ON account_password_resets(account_id, created_at);
 CREATE TABLE IF NOT EXISTS request_limits (bucket TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS abuse_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, limit_name TEXT NOT NULL, identity_hash TEXT NOT NULL, retry_after INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS abuse_events_created_idx ON abuse_events(created_at);
@@ -365,6 +373,7 @@ async function ensure(env) {
   await ensureFeedbackSchema(env);
   await ensurePurchaseSchema(env);
   await ensureReaderStateSchema(env);
+  await ensurePasswordResetSchema(env);
   await ensureEditions(env);
 }
 
@@ -592,33 +601,6 @@ async function accessDenied(env, request, sessionId) {
   return reply({ error: "Reader access is not active" }, request, { status: 403 });
 }
 
-function bytesToBase64(bytes) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function base64ToBytes(value) {
-  const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-// Cloudflare Workers rejects PBKDF2 iteration counts above 100000:
-// "NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported".
-const PBKDF2_ITERATIONS = 100000;
-
-async function passwordDigest(password, salt) {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, [
-    "deriveBits",
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: base64ToBytes(salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
-    key,
-    256,
-  );
-  return bytesToBase64(new Uint8Array(bits));
-}
-
 async function randomToken(bytes = 32) {
   const value = crypto.getRandomValues(new Uint8Array(bytes));
   return bytesToBase64(value)
@@ -792,7 +774,7 @@ async function registerAccount(request, env) {
       { status: 409 },
     );
   const id = `acct_${await randomToken(18)}`;
-  const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const salt = passwordSalt();
   const digest = await passwordDigest(password, salt);
   const now = new Date();
   const token = await randomToken();
@@ -877,6 +859,188 @@ async function loginAccount(request, env) {
   );
 }
 
+function localPasswordResetTest(request, env) {
+  const url = new URL(request.url);
+  return (
+    env.OBI_LOCAL_TRANSFER_TEST === "1" &&
+    url.protocol === "http:" &&
+    ["127.0.0.1", "localhost"].includes(url.hostname)
+  );
+}
+
+async function forgotPassword(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!validEmail(email) || email.length > 254)
+    return reply({ error: "Enter a valid email address." }, request, { status: 400 });
+  await ensure(env);
+  const rateLimited =
+    (await enforceLimit(request, env, "password-reset", "password-reset-ip", clientIp(request))) ||
+    (await enforceLimit(request, env, "password-reset", "password-reset-account", email));
+  if (rateLimited) return rateLimited;
+
+  const account = await env.OBI_DB.prepare("SELECT id,email FROM obi_accounts WHERE email=?")
+    .bind(email)
+    .first();
+  if (!account) {
+    return reply({
+      message:
+        "If an account exists for that email, a reset code has been sent. Check your inbox and spam folder.",
+    }, request);
+  }
+
+  let result;
+  try {
+    result = await sendPasswordReset(env, account, { localTest: localPasswordResetTest(request, env) });
+  } catch (error) {
+    console.error("Password reset email failed", error);
+    return reply(
+      { error: "Could not send the reset code. Please try again." },
+      request,
+      { status: 503 },
+    );
+  }
+  if (result.status >= 400) return reply(result.body, request, { status: result.status });
+  return reply(
+    {
+      message:
+        "If an account exists for that email, a reset code has been sent. Check your inbox and spam folder.",
+      ...(result.body?.testCode ? { testCode: result.body.testCode } : {}),
+    },
+    request,
+  );
+}
+
+async function resetPassword(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const code = String(body.code || "").replace(/\D/g, "").slice(0, 8);
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!validEmail(email) || email.length > 254 || code.length !== 8)
+    return reply({ error: "Invalid or expired reset code." }, request, { status: 400 });
+  if (password.length < 8 || password.length > 128)
+    return reply({ error: "Enter a new password of at least 8 characters." }, request, {
+      status: 400,
+    });
+  await ensure(env);
+  const rateLimited =
+    (await enforceLimit(
+      request,
+      env,
+      "password-reset",
+      "password-reset-confirm-ip",
+      clientIp(request),
+    )) ||
+    (await enforceLimit(request, env, "password-reset", "password-reset-account", email));
+  if (rateLimited) return rateLimited;
+
+  const account = await env.OBI_DB.prepare("SELECT id,email FROM obi_accounts WHERE email=?")
+    .bind(email)
+    .first();
+  if (!account) return reply({ error: "Invalid or expired reset code." }, request, { status: 400 });
+  const challenge = await env.OBI_DB.prepare(
+    "SELECT * FROM account_password_resets WHERE account_id=? AND consumed_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1",
+  )
+    .bind(account.id, new Date().toISOString())
+    .first();
+  if (!challenge)
+    return reply({ error: "Invalid or expired reset code." }, request, { status: 400 });
+  if (challenge.attempts >= 5)
+    return reply({ error: "Too many attempts. Request a new reset code." }, request, {
+      status: 429,
+    });
+  if (!(await same(challenge.code_hash, await hashDeviceToken(`${challenge.id}:${code}`)))) {
+    await env.OBI_DB.prepare(
+      "UPDATE account_password_resets SET attempts=attempts+1 WHERE id=?",
+    )
+      .bind(challenge.id)
+      .run();
+    return reply({ error: "Invalid or expired reset code." }, request, { status: 400 });
+  }
+
+  const salt = passwordSalt();
+  const digest = await passwordDigest(password, salt);
+  const now = new Date();
+  const token = await randomToken();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare(
+      "UPDATE account_password_resets SET consumed_at=? WHERE account_id=? AND consumed_at IS NULL",
+    ).bind(now.toISOString(), account.id),
+    env.OBI_DB.prepare(
+      "UPDATE obi_accounts SET password_hash=?,password_salt=?,email_verified=1,last_signed_in=? WHERE id=?",
+    ).bind(digest, salt, now.toISOString(), account.id),
+    env.OBI_DB.prepare("DELETE FROM obi_account_sessions WHERE account_id=?").bind(account.id),
+    env.OBI_DB.prepare(
+      "INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)",
+    ).bind(
+      await hashDeviceToken(token),
+      account.id,
+      now.toISOString(),
+      new Date(now.getTime() + 2592000000).toISOString(),
+    ),
+  ]);
+  const purchase = await accountPurchase(env, account.email);
+  return reply(
+    {
+      ok: true,
+      account: { email: account.email },
+      access: Boolean(purchase),
+      sessionId: purchase?.checkout_session_id ?? null,
+      ...(usesBearerAuth(request) ? { token } : {}),
+    },
+    request,
+    { headers: { "set-cookie": authCookie(token) } },
+  );
+}
+
+async function changeAccountPassword(request, env) {
+  const account = await accountFromRequest(request, env);
+  if (!account) return reply({ error: "Sign in required" }, request, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const current = typeof body.current_password === "string" ? body.current_password : "";
+  const next = typeof body.new_password === "string" ? body.new_password : "";
+  if (next.length < 8 || next.length > 128)
+    return reply({ error: "Enter a new password of at least 8 characters." }, request, {
+      status: 400,
+    });
+  const rateLimited =
+    (await enforceLimit(
+      request,
+      env,
+      "password-change",
+      "password-change-ip",
+      clientIp(request),
+    )) ||
+    (await enforceLimit(request, env, "password-change", "password-reset-account", account.email));
+  if (rateLimited) return rateLimited;
+  const row = await env.OBI_DB.prepare(
+    "SELECT id,email,password_hash,password_salt FROM obi_accounts WHERE id=?",
+  )
+    .bind(account.id)
+    .first();
+  if (!row) return reply({ error: "Account not found" }, request, { status: 404 });
+  if (!(await passwordDigest(current, row.password_salt)).startsWith(row.password_hash))
+    return reply({ error: "Your current password is incorrect." }, request, { status: 401 });
+  if (current === next)
+    return reply({ error: "Choose a password that is different from your current one." }, request, {
+      status: 400,
+    });
+  const salt = passwordSalt();
+  const digest = await passwordDigest(next, salt);
+  const token = bearerToken(request) || cookieValue(request, "obiism_session");
+  const currentHash = token ? await hashDeviceToken(token) : "";
+  const now = new Date().toISOString();
+  await env.OBI_DB.batch([
+    env.OBI_DB.prepare(
+      "UPDATE obi_accounts SET password_hash=?,password_salt=?,last_signed_in=? WHERE id=?",
+    ).bind(digest, salt, now, account.id),
+    env.OBI_DB.prepare(
+      "DELETE FROM obi_account_sessions WHERE account_id=? AND token_hash<>?",
+    ).bind(account.id, currentHash),
+  ]);
+  return reply({ ok: true }, request);
+}
+
 async function googleLogin(request, env) {
   const body = await request.json().catch(() => ({}));
   if (!(await isFeatureEnabled(env, "google_signin"))) {
@@ -942,7 +1106,7 @@ async function googleLogin(request, env) {
       .run();
   } else {
     const id = `acct_${await randomToken(18)}`;
-    const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+    const salt = passwordSalt();
     const digest = await passwordDigest(await randomToken(48), salt);
     await env.OBI_DB.prepare(
       "INSERT INTO obi_accounts (id,email,password_hash,password_salt,email_verified,google_sub,auth_provider,created_at,last_signed_in) VALUES (?,?,?,?,1,?, 'google', ?, ?)",
@@ -1022,7 +1186,7 @@ async function registerPhoneAccount(request, env) {
     });
   const email = await phoneAccountEmail(phone);
   const id = `acct_${await randomToken(18)}`;
-  const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const salt = passwordSalt();
   const digest = await passwordDigest(password, salt);
   const now = new Date();
   const token = await randomToken();
@@ -3008,6 +3172,12 @@ async function handleRequest(request, env) {
     return registerPhoneAccount(request, env);
   if (path === "/api/account/phone/login" && request.method === "POST")
     return loginPhoneAccount(request, env);
+  if (path === "/api/account/password/forgot" && request.method === "POST")
+    return forgotPassword(request, env);
+  if (path === "/api/account/password/reset" && request.method === "POST")
+    return resetPassword(request, env);
+  if (path === "/api/account/password/change" && request.method === "POST")
+    return changeAccountPassword(request, env);
   if (path === "/api/account/access" && request.method === "GET")
     return accountAccess(request, env);
   if (path === "/api/account/verify/request" && request.method === "POST") {
