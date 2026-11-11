@@ -28,6 +28,10 @@ if (existsSync(join(root, '_redirects'))) {
 for (const name of ['CNAME', '.nojekyll']) {
   if (existsSync(join(root, name))) cpSync(join(root, name), join(output, name));
 }
+// The service worker must be served from the site root so its scope covers the
+// whole origin. It is a root JavaScript file, which the extension filter above
+// deliberately skips, so it is copied explicitly.
+if (existsSync(join(root, 'sw.js'))) cpSync(join(root, 'sw.js'), join(output, 'sw.js'));
 for (const dir of directories) {
   const source = join(root, dir);
   if (!existsSync(source)) continue;
