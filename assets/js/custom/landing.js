@@ -44,6 +44,7 @@
   let purchaseMode = params.get("gift") === "1" ? "gift" : "self";
   let pendingCheckout = null;
   let submitting = false;
+  let paystackQuote = null;
   const pricing = {
     NGN: { amount: 6995, label: "₦6,995" },
     USD: { amount: 9.95, label: "$9.95" },
@@ -60,7 +61,7 @@
       return `${code === "NGN" ? "₦" : "$"}${amount}`;
     }
   };
-  const priceLabel = () => `${pricing[currency].label} ${currency}`;
+  const priceLabel = () => currency === "NGN" && paystackQuote ? `${money(paystackQuote.total_minor)} NGN` : `${pricing[currency].label} ${currency}`;
   const setButtonLabel = (text) => { button.innerHTML = `${text} <span class="arrow">${ARROW}</span>`; };
   const updateStatus = (override) => {
     if (override) { status.textContent = override; return; }
@@ -72,7 +73,7 @@
   const defaultButtonLabel = () => purchaseMode === "gift" ? "BUY AS A GIFT" : "BUY THE DIGITAL EDITION";
   const resetButton = () => {
     if (submitting) return;
-    button.disabled = !purchasesEnabled();
+    button.disabled = !purchasesEnabled() || (currency === "NGN" && !paystackQuote);
     setButtonLabel(defaultButtonLabel());
   };
   const restoreStatus = () => {
@@ -101,6 +102,8 @@
   const setCurrency = (next) => {
     currency = next;
     const naira = next === "NGN";
+    const feeNotice = document.getElementById("paystack-fee");
+    if (feeNotice) feeNotice.hidden = !naira;
     document.getElementById("purchase-price").textContent = pricing[naira ? "NGN" : "USD"].label;
     document.getElementById("purchase-currency").textContent = naira ? "NGN" : "USD";
     document.getElementById("currency-ngn").setAttribute("aria-pressed", String(naira));
@@ -110,6 +113,7 @@
   };
   const applyPricing = (data) => {
     for (const code of ["NGN", "USD"]) {
+      if (code === "NGN" && paystackQuote) continue;
       const amount = Number(data?.[code]?.amount);
       if (Number.isFinite(amount) && amount > 0) {
         pricing[code] = {
@@ -236,6 +240,26 @@
       }
     } catch { /* Checkout still works without a saved draft. */ }
   }
+  const money = (minor) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
+  const refreshPaystackQuote = async () => {
+    paystackQuote = null;
+    const note = document.getElementById("paystack-fee");
+    if (note) note.textContent = "Calculating Paystack checkout total...";
+    resetButton();
+    try {
+      const response = await apiFetch("/api/paystack/quote?quantity=1", { cache: "no-store" });
+      const quote = await response.json();
+      if (!response.ok || !Number.isSafeInteger(quote.total_minor) || !Number.isSafeInteger(quote.subtotal_minor) || !Number.isSafeInteger(quote.fee_minor)) throw new Error("Price unavailable");
+      paystackQuote = quote;
+      if (note) note.textContent = `Edition ${money(quote.subtotal_minor)} + processing charge ${money(quote.fee_minor)} = total ${money(quote.total_minor)} NGN.`;
+      pricing.NGN = { amount: quote.unit_minor / 100, label: money(quote.unit_minor) };
+      document.getElementById("currency-ngn").textContent = `${pricing.NGN.label} NGN`;
+      document.getElementById("edition-ngn-price").textContent = `${pricing.NGN.label} NGN`;
+      if (currency === "NGN") { document.getElementById("purchase-price").textContent = pricing.NGN.label; if (!submitting && !pendingCheckout) updateStatus(); }
+    } catch { if (note) note.textContent = "Paystack total is unavailable. Refresh the page and try again."; }
+    resetButton();
+  };
+  void refreshPaystackQuote();
   apiFetch("/api/pricing", { cache: "no-store" })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => { if (data) applyPricing(data); })
@@ -259,6 +283,7 @@
   };
   const startCheckout = async (confirmDuplicate = false) => {
     if (submitting) return;
+    if (currency === "NGN" && !paystackQuote) { updateStatus("Paystack total is unavailable. Refresh the page and try again."); return; }
     submitting = true;
     button.disabled = true;
     try {
@@ -297,9 +322,12 @@
     updateStatus(purchaseMode === "gift" ? "Creating your secure gift checkout…" : "Creating your secure checkout session…");
     try {
       const deviceToken = newDeviceToken();
-      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}), ...(confirmDuplicate ? { confirm_duplicate: true } : {}) }) });
+      const response = await apiFetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: value, device_token: deviceToken, currency, reader_name: readerName ? readerName.value.trim() : "", ...(gift || {}), ...(currency === "NGN" ? { quoted_total_minor: paystackQuote.total_minor } : {}), ...(confirmDuplicate ? { confirm_duplicate: true } : {}) }) });
       const body = await response.json().catch(() => ({}));
       if (response.status === 401 && body.code === "account_required") { saveDraftAndSignIn(); return; }
+      if (response.status === 409 && body.code === "price_changed") {
+        submitting = false; hideWarning(); await refreshPaystackQuote(); updateStatus("The Paystack total changed. Review it before continuing."); return;
+      }
       if (response.status === 409 && body.requires_confirmation) {
         submitting = false;
         pendingCheckout = true;
