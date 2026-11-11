@@ -18,6 +18,7 @@
     bulk: "/bulk",
     "bulk-confirmation": "/bulk-confirmation",
     security: "/security",
+    checkout: "/?checkout=continue#edition",
   };
 
   const setMode = (next) => {
@@ -105,5 +106,5 @@
     }
   };
 
-  setMode("login");
+  setMode(params.get("next") === "checkout" ? "register" : "login");
 })();

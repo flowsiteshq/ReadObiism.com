@@ -14,7 +14,7 @@
   const params = new URLSearchParams(location.search);
   const next = params.get("next");
   const seat = params.get("seat");
-  const destinations = { "bulk-redeem": "bulk-/redeem", bulk: "/bulk", "bulk-confirmation": "/bulk-confirmation" };
+  const destinations = { checkout: "/?checkout=continue#edition", "bulk-redeem": "bulk-/redeem", bulk: "/bulk", "bulk-confirmation": "/bulk-confirmation" };
   let mode = "login";
 
   function setMode(nextMode) {
