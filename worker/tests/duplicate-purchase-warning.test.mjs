@@ -124,6 +124,7 @@ test('repeat self-purchase warns before Paystack and requires confirmation', asy
       email: 'buyer@example.test',
       device_token: 'd'.repeat(48),
       currency: 'NGN',
+      quoted_total_minor: 719993,
     }, registered.token), env);
     assert.equal(warning.status, 409, await warning.clone().text());
     const body = await warning.json();
@@ -139,6 +140,7 @@ test('repeat self-purchase warns before Paystack and requires confirmation', asy
       email: 'buyer@example.test',
       device_token: 'd'.repeat(48),
       currency: 'NGN',
+      quoted_total_minor: 719993,
       confirm_duplicate: true,
     }, registered.token), env);
     assert.equal(confirmed.status, 200, await confirmed.clone().text());
@@ -211,6 +213,7 @@ test('gift buyer is warned when the recipient already has an active edition', as
       email: 'buyer@example.test',
       device_token: 'e'.repeat(48),
       currency: 'NGN',
+      quoted_total_minor: 719993,
       gift: true,
       gift_code: 'OBI-7K2M-P9QX-4HWD',
       recipient_name: 'Friend',

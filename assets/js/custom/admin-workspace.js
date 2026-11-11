@@ -639,8 +639,12 @@
     $('bulk-discount-fields').hidden = !discounted;
     const validDiscount = !discounted || (Number.isInteger(percentage) && percentage >= 1 && percentage <= 99);
     const effectiveUnit = discounted && validDiscount ? Math.round(unit * (100 - percentage) / 100) : unit;
+    const subtotal = effectiveUnit * quantity;
+    const percentageFee = Math.round(subtotal * 3 / 200);
+    const localFee = Math.min(200000, percentageFee + (subtotal + percentageFee < 250000 ? 0 : 10000));
+    const total = subtotal + (provider === 'paystack' ? localFee : 0);
     $('bulk-test-total').textContent = unit && validDiscount && Number.isInteger(quantity) && quantity >= 1 && quantity <= 1000
-      ? 'Price per copy: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(effectiveUnit / 100) + ' · Test total: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(effectiveUnit * quantity / 100)
+      ? 'Price per copy: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(effectiveUnit / 100) + ' | Processing charge: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format((provider === 'paystack' ? localFee : 0) / 100) + ' | Test total: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(total / 100)
       : '';
   }
   $('bulk-paid-quantity').addEventListener('input', updateBulkTotal);

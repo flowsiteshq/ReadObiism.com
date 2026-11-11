@@ -125,14 +125,16 @@ test('new checkouts quote the saved price', async () => {
     const response = await worker.fetch(request('/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email: 'buyer@example.test', device_token: 'a'.repeat(32), currency: 'NGN' }),
+      body: JSON.stringify({ email: 'buyer@example.test', device_token: 'a'.repeat(32), currency: 'NGN', quoted_total_minor: 822000 }),
     }), env);
     assert.equal(response.status, 200, await response.clone().text());
     const body = await response.json();
-    assert.equal(body.amount, 8000);
+    assert.equal(body.amount, 8220);
     const payment = JSON.parse(calls[0].body);
-    assert.equal(payment.amount, 800000);
-    assert.equal(payment.metadata.price_minor, '800000');
+    assert.equal(payment.amount, 822000);
+    assert.equal(payment.metadata.price_minor, '822000');
+    assert.equal(payment.metadata.subtotal_minor, '800000');
+    assert.equal(payment.metadata.processing_fee_minor, '22000');
   } finally {
     globalThis.fetch = original;
   }
@@ -146,4 +148,20 @@ test('getPricing does not leak a stale value after an invalid stored row', async
   const pricing = await getPricing(env);
   assert.equal(pricing.NGN.amount, 6995);
   assert.equal(pricing.USD.amount, 12);
+});
+
+test('Paystack quote is checked before starting checkout and old prices are rejected', async () => {
+  const db = database(), env = { OBI_DB: db, PAYSTACK_SECRET_KEY: 'sk_test_fixture' };
+  const reg = await worker.fetch(request('/api/account/register', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({email:'quote@example.test',password:'quote-password-123'}) }),env);
+  const token = (await reg.json()).token;
+  const quoteResponse = await worker.fetch(request('/api/paystack/quote?quantity=1'),env);
+  const quote = await quoteResponse.json();
+  assert.equal(quote.subtotal_minor,699500); assert.equal(quote.fee_minor,20493); assert.equal(quote.total_minor,719993);
+  const bulkQuote = await (await worker.fetch(request('/api/paystack/quote?quantity=20'),env)).json();
+  assert.equal(bulkQuote.subtotal_minor,13990000); assert.equal(bulkQuote.fee_minor,200000); assert.equal(bulkQuote.total_minor,14190000);
+  let providerCalls = 0; const previous = globalThis.fetch; globalThis.fetch = async()=>{providerCalls++; throw Error('Should not call provider');};
+  try {
+    const stale = await worker.fetch(request('/api/checkout',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({email:'quote@example.test',device_token:'x'.repeat(48),currency:'NGN',quoted_total_minor:699500})}),env);
+    assert.equal(stale.status,409); assert.equal((await stale.json()).code,'price_changed'); assert.equal(providerCalls,0);
+  } finally { globalThis.fetch=previous; }
 });

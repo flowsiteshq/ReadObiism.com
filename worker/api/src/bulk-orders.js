@@ -1,5 +1,6 @@
 // Production bulk orders (Stripe USD / Paystack NGN). Verified payments only.
 import { hashDeviceToken } from "./security.js";
+import { paystackQuote } from "./paystack-fees.js";
 import { bulkReceiptEmail } from "./email-templates.js";
 import { EDITION_SKU } from "./pricing.js";
 import { getPricing, getAccessDays, accessExpiry } from "./pricing-store.js";
@@ -201,7 +202,9 @@ export async function createBulkOrderCheckout(
       };
     const id = "bprod_" + randomHex(16);
     const reference = "bpo_" + randomHex(16);
-    const total = price.unit * quantity;
+    const quote = paystackQuote(price.unit, quantity);
+    const total = quote.total_minor;
+    if (options.quotedTotalMinor != null && options.quotedTotalMinor !== total) return { status: 409, body: { error: "The Paystack total changed. Refresh the page and review the updated price before continuing.", code: "price_changed", quote } };
     const now = new Date().toISOString();
     await env.OBI_DB.batch([
       env.OBI_DB.prepare(
@@ -261,6 +264,8 @@ export async function createBulkOrderCheckout(
             product_sku: EDITION_SKU,
             purchaser_email: email,
             receipt_email: receiptEmail,
+            subtotal_minor: String(quote.subtotal_minor),
+            processing_fee_minor: String(quote.fee_minor),
             ...(buyerAccountId ? { buyer_account_id: buyerAccountId } : {}),
           },
         }),
@@ -282,6 +287,7 @@ export async function createBulkOrderCheckout(
           provider: "paystack",
           currency: "NGN",
           total_minor: total,
+          quote,
           quantity,
         },
       };

@@ -1,6 +1,7 @@
 import { validDeviceToken, validSessionId } from "./api/src/validation.js";
 import { hashDeviceToken, same } from "./api/src/security.js";
 import { handleAdminAuth } from "./api/src/admin-auth.js";
+import { paystackQuote } from "./api/src/paystack-fees.js";
 import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
 import {
   createBulkOrderCheckout,
@@ -1439,6 +1440,7 @@ async function checkout(request, env) {
       pricing,
       cleanReaderName,
       purchaserEmail,
+      body.quoted_total_minor,
     );
   }
 
@@ -1516,10 +1518,15 @@ async function paystackCheckout(
   pricing = null,
   readerName = "",
   purchaserEmail = email,
+  quotedTotal = null,
 ) {
   if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_"))
     return reply({ error: "Naira checkout is not configured" }, request, { status: 503 });
-  const ngnMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
+  const baseMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
+  const quote = paystackQuote(baseMinor);
+  if (!Number.isSafeInteger(quotedTotal) || quotedTotal !== quote.total_minor)
+    return reply({ error: "The Paystack total changed. Refresh the page and review the updated price before continuing.", code: "price_changed", quote }, request, { status: 409 });
+  const ngnMinor = quote.total_minor;
 
   const reference = paystackReference();
   const deviceHash = await hashDeviceToken(deviceToken);
@@ -1547,6 +1554,8 @@ async function paystackCheckout(
         device_hash: deviceHash,
         provider: "paystack",
         price_minor: String(ngnMinor),
+        subtotal_minor: String(quote.subtotal_minor),
+        processing_fee_minor: String(quote.fee_minor),
         ...(readerName ? { reader_name: readerName } : {}),
         ...(gift
           ? {
@@ -1575,6 +1584,7 @@ async function paystackCheckout(
       provider: "paystack",
       currency: "NGN",
       amount: ngnMinor / 100,
+      quote,
     },
     request,
   );
@@ -2195,6 +2205,13 @@ async function createBulkOrder(request, env) {
     return reply({ error: "Bulk discounts require administrator approval." }, request, {
       status: 403,
     });
+  if (provider === "paystack") {
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000)
+      return reply({ error: "Enter a quantity between 1 and 10000." }, request, { status: 400 });
+    const quote = paystackQuote((await getPricing(env)).NGN.minor, quantity);
+    if (!Number.isSafeInteger(body.quoted_total_minor) || body.quoted_total_minor !== quote.total_minor)
+      return reply({ error: "The Paystack total changed. Refresh the page and review the updated price before continuing.", code: "price_changed", quote }, request, { status: 409 });
+  }
   const result = await createBulkOrderCheckout(
     env,
     account.email,
@@ -2205,6 +2222,7 @@ async function createBulkOrder(request, env) {
     {
       receiptEmail,
       buyerAccountId: account.id,
+      quotedTotalMinor: body.quoted_total_minor,
     },
   );
   return reply(result.body, request, { status: result.status });
@@ -3196,6 +3214,15 @@ async function handleRequest(request, env) {
     return reply({ features: await getFeatureFlags(env) }, request);
   if (path === "/api/pricing" && request.method === "GET")
     return reply(await getPricing(env), request);
+  if (path === "/api/paystack/quote" && request.method === "GET") {
+    const query = new URL(request.url).searchParams;
+    const quantity = Number(query.get("quantity") || 1);
+    const discount = Number(query.get("discount") || 0);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000 || !Number.isInteger(discount) || discount < 0 || discount > 99)
+      return reply({ error: "Invalid quantity or discount." }, request, { status: 400 });
+    const unit = Math.round((await getPricing(env)).NGN.minor * (100 - discount) / 100);
+    return reply(paystackQuote(unit, quantity), request);
+  }
   if (path === "/api/account/register" && request.method === "POST")
     return registerAccount(request, env);
   if (path === "/api/account/login" && request.method === "POST")

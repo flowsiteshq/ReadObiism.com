@@ -113,6 +113,7 @@ test('phone buyer can pay for a single edition with a real receipt email', async
         email: 'buyer@example.test',
         device_token: 'd'.repeat(48),
         currency: 'NGN',
+        quoted_total_minor: 719993,
       }),
     }), env);
     assert.equal(response.status, 200, await response.clone().text());
@@ -154,6 +155,13 @@ test('phone buyer uses a real receipt email without changing the login identity'
     });
   };
   try {
+    const stale = await worker.fetch(new Request('https://readobiism.com/api/bulk', {
+      method: 'POST', headers: { 'content-type':'application/json', origin:'https://readobiism.com', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email:'buyer@example.test', quantity:2, provider:'paystack', quoted_total_minor:1399000 }),
+    }),env);
+    assert.equal(stale.status,409,await stale.clone().text());
+    assert.equal((await stale.json()).code,'price_changed');
+    assert.equal(initializeBody,null,'provider must not be called for a stale quote');
     const response = await worker.fetch(new Request('https://readobiism.com/api/bulk', {
       method: 'POST',
       headers: {
@@ -161,7 +169,7 @@ test('phone buyer uses a real receipt email without changing the login identity'
         origin: 'https://readobiism.com',
         authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ email: 'buyer@example.test', quantity: 2, provider: 'paystack' }),
+      body: JSON.stringify({ email: 'buyer@example.test', quantity: 2, provider: 'paystack', quoted_total_minor: 1429985 }),
     }), env);
     assert.equal(response.status, 201, await response.clone().text());
   } finally {
@@ -185,6 +193,7 @@ test('phone buyer uses a real receipt email without changing the login identity'
         domain: 'test',
         reference: order.provider_reference,
         currency: 'NGN',
+        quoted_total_minor: 719993,
         amount: order.total_minor,
         customer: { email: 'buyer@example.test' },
         metadata: {
