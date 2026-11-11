@@ -2,12 +2,12 @@
   "name": "alg-frontend-boilerplate",
   "version": "2026.1.0",
   "description": "Universal 2026 Non-React Enterprise Frontend Engine for ALG Studio",
-  "main": "index.html",
   "scripts": {
     "dev": "npx -y live-server --port=3000 --open=index.html",
     "serve": "npx -y http-server -p 8080 .",
     "build": "echo \"[ALG Studio Build] Validating HTML/CSS/JS components... Done!\"",
-    "test": "echo \"[ALG Studio Test] No test suite specified. UI checks pass!\""
+    "test": "echo \"[ALG Studio Test] No test suite specified. UI checks pass!\"",
+    "start": "node scripts/build-pages.mjs && node scripts/serve-pages.mjs"
   },
   "keywords": [
     "alg-studio",
