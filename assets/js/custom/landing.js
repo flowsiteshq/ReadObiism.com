@@ -131,6 +131,10 @@
     const single = featureFlags.single_purchase !== false;
     const gift = featureFlags.gift_purchase !== false;
     const annualSubscription = featureFlags.annual_subscription === true;
+    const transferNotice = document.getElementById("device-transfer-notice");
+    if (transferNotice) transferNotice.textContent = featureFlags.device_transfer === true
+      ? "Each edition is for one reader and one browser or device at a time. Moving it to another device requires verification and is subject to limits."
+      : "Each edition is for one reader and one browser or device. Device transfers are currently disabled: you cannot move it to another browser or device, including another browser on the same device.";
     if (subscriptionNote) subscriptionNote.hidden = !annualSubscription;
     if (!single) button.disabled = true;
     else if (!pendingCheckout) resetButton();
