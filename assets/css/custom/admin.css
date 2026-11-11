@@ -157,6 +157,8 @@ td{color:#332d24}
 .bulk-code-result p{font-size:12px;color:#716650;line-height:1.5;margin-bottom:12px}
 .bulk-code-result input{flex:1;font-family:ui-monospace,monospace}
 .bulk-orders-panel{margin-top:18px}
+.reader-action{white-space:nowrap}
+.reader-reset-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:800px){.bulk-layout{grid-template-columns:1fr}}
 @media(max-width:480px){.bulk-code-result .bulk-create-row{align-items:stretch;flex-direction:column}}
 

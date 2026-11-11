@@ -67,6 +67,20 @@
           <div class="table-scroll"><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
           <div class="pagination"><span id="page-info"></span><div><button id="previous" class="outline-button" type="button">Previous</button> <button id="next" class="outline-button" type="button">Next</button></div></div>
         </article>
+        <article class="panel bulk-orders-panel" id="reader-reset-panel" hidden aria-labelledby="reader-reset-title">
+          <div class="panel-heading"><div><h2 id="reader-reset-title">Reset reader password</h2><p id="reader-reset-message">Choose how to help this reader sign in again.</p></div><span class="tag">SECURITY</span></div>
+          <p id="reader-reset-summary" class="support-copy"></p>
+          <div class="bulk-create-row reader-reset-actions">
+            <button class="outline-button" id="reader-reset-email" type="button">SEND RESET EMAIL</button>
+            <button class="outline-button" id="reader-reset-temporary" type="button">CREATE TEMPORARY PASSWORD</button>
+            <button class="outline-button" id="reader-reset-close" type="button">CLOSE</button>
+          </div>
+          <div class="bulk-code-result" id="reader-reset-result" hidden>
+            <strong>Temporary password (shown once)</strong>
+            <p>Share this securely with the reader. Existing reader sign-ins were revoked. Ask the reader to change it at <code>/security</code> after signing in.</p>
+            <div class="bulk-create-row"><input id="reader-reset-password" type="text" readonly> <button class="outline-button" id="reader-reset-copy" type="button">Copy</button></div>
+          </div>
+        </article>
       </section>
       <section id="bulk-workspace" class="section" hidden aria-labelledby="bulk-heading">
         <article class="panel bulk-orders-panel" aria-labelledby="production-bulk-title">

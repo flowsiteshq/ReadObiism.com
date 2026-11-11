@@ -11,11 +11,13 @@
   const create = document.getElementById("create-tab");
   const identifier = document.getElementById("identifier");
   const password = document.getElementById("password");
+  const forgot = document.getElementById("forgot-password");
   const params = new URLSearchParams(location.search);
   const destinations = {
     "bulk-redeem": "bulk-/redeem",
     bulk: "/bulk",
     "bulk-confirmation": "/bulk-confirmation",
+    security: "/security",
   };
 
   const setMode = (next) => {
@@ -29,6 +31,7 @@
       : "Sign in to continue to your protected edition. Your account remembers your access; your original device remains the only authorized reader.";
     submit.innerHTML = creating ? `CREATE ACCOUNT ${ARROW}` : `SIGN IN ${ARROW}`;
     password.autocomplete = creating ? "new-password" : "current-password";
+    if (forgot) forgot.hidden = creating;
     message.textContent = "";
   };
 

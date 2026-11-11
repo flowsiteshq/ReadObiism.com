@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>OBI-ISM - Account security</title>
+  <link rel="stylesheet" href="assets/css/custom/login-1.css">
+  <link rel="stylesheet" href="assets/css/custom/toast.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="intro">
+      <h1>OBI-<span>ISM</span></h1>
+      <p>Keep your reader account and private edition secure.</p>
+    </section>
+    <section class="panel">
+      <h2>Account security.</h2>
+      <p class="sub" id="security-state">Checking your account...</p>
+      <form id="security-form" hidden>
+        <label class="field">CURRENT PASSWORD<input id="current-password" type="password" autocomplete="current-password" required></label>
+        <label class="field">NEW PASSWORD<input id="new-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+        <label class="field">CONFIRM NEW PASSWORD<input id="confirm-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+        <button class="submit" id="submit" type="submit">CHANGE PASSWORD <svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg></button>
+        <p class="message" id="message" aria-live="polite"></p>
+      </form>
+      <a class="back" id="reader-link" href="/reader" hidden>RETURN TO YOUR EDITION</a>
+      <a class="back" href="/login?next=security">SIGN IN TO ANOTHER ACCOUNT</a>
+      <a class="back" href="/">RETURN TO OBI-ISM</a>
+    </section>
+  </main>
+  <script src="assets/js/custom/obi-api.js"></script>
+  <script src="assets/js/custom/toast.js"></script>
+  <script src="assets/js/custom/security.js?v=20261111-password-reset"></script>
+  <script src="assets/js/custom/clean-url.js"></script>
+</body>
+</html>

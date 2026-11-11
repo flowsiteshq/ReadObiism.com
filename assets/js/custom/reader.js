@@ -200,7 +200,7 @@
           : "";
         const focusShield = `<div class="reader-focus-shield" id="reader-focus-shield" hidden aria-hidden="true"><div class="reader-focus-card"><p class="reader-focus-brand">OBI–<span>ISM</span></p><p class="reader-focus-eyebrow">READING PAUSED</p><strong>Return to this window to continue.</strong><small>Screenshots are traceable to this licensed copy.</small></div></div>`;
         app.className = "reader-shell";
-        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><div class="reader-actions-group" id="reader-actions-group"><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span>SEARCH</span></button><button class="feedback-button" id="feedback-open" type="button"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span>FEEDBACK</span></button></div><button class="reader-menu-button" id="reader-menu-toggle" type="button" aria-expanded="false" aria-controls="reader-actions-group" aria-label="More reader actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." maxlength="200" autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" aria-live="polite" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}${focusShield}`;
+        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><div class="reader-actions-group" id="reader-actions-group"><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span>SEARCH</span></button><button class="feedback-button" id="feedback-open" type="button"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span>FEEDBACK</span></button><a class="feedback-button reader-security-link" href="/security" title="Account security"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>SECURITY</span></a></div><button class="reader-menu-button" id="reader-menu-toggle" type="button" aria-expanded="false" aria-controls="reader-actions-group" aria-label="More reader actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="reader-install-bar" id="reader-install-wrap"><button class="reader-install" id="reader-install" type="button" hidden>INSTALL APP</button><p class="reader-install-help" id="reader-install-help" hidden>On iPhone or iPad, open this page in Safari, tap Share, then choose <strong>Add to Home Screen</strong>.</p></div><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." maxlength="200" autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" aria-live="polite" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}${focusShield}`;
         const watermark = app.querySelector("[data-license-watermark]");
         if (watermark) {
           const watermarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="180"><text x="10" y="96" transform="rotate(-24 230 90)" fill="#10130f" fill-opacity=".06" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="800" letter-spacing="1">${escape(watermarkText)}</text></svg>`;
@@ -218,6 +218,7 @@
         document.getElementById("search-input")?.addEventListener("input", debounceSearch);
         document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") { clearTimeout(searchDebounceTimer); void doSearch(e.currentTarget.value.trim()); } });
         document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
+        setupReaderInstall();
         const contents = document.getElementById("contents");
         const reading = document.getElementById("reading");
         const sidebar = document.getElementById("chapter-sidebar");
@@ -602,6 +603,43 @@
         });
       }
 
+      let deferredInstallPrompt = null;
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        document.getElementById("reader-install")?.removeAttribute("hidden");
+      });
+      window.addEventListener("appinstalled", () => {
+        deferredInstallPrompt = null;
+        const install = document.getElementById("reader-install");
+        if (install) install.hidden = true;
+      });
+      function setupReaderInstall() {
+        const button = document.getElementById("reader-install");
+        const help = document.getElementById("reader-install-help");
+        if (!button) return;
+        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+        if (standalone) { button.hidden = true; return; }
+        if (ios || deferredInstallPrompt) button.hidden = false;
+        button.addEventListener("click", async () => {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            try { await deferredInstallPrompt.userChoice; } catch {}
+            deferredInstallPrompt = null;
+            return;
+          }
+          if (help) {
+            help.hidden = !help.hidden;
+            if (!help.hidden) help.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+      }
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
       async function start() {
         // No ?session_id in the URL? Recover it from the signed-in account so a
         // bookmark or a fresh visit still opens the purchased edition.
