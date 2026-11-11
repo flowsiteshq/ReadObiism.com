@@ -74,12 +74,42 @@ function addActivePurchase(db, email, sessionId = 'obi_' + 'a'.repeat(32)) {
 
 test('forgot password does not enumerate unknown accounts', async () => {
   const db = database();
-  const env = { OBI_DB: db };
+  const env = { OBI_DB: db, RESEND_API_KEY: 're_test', ACCOUNT_FROM_EMAIL: 'OBI <no-reply@example.test>' };
   const res = await worker.fetch(jsonReq('http://127.0.0.1:8799/api/account/password/forgot', { email: 'missing@example.test' }), env);
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.match(body.message, /if an account exists/i);
   assert.equal(body.testCode, undefined);
+});
+
+test('an unconfigured mail service reports the same answer for every address', async () => {
+  const db = database();
+  const env = { OBI_DB: db };
+  const account = await seedAccount(db, { email: 'reader@example.test', password: 'old-password-123' });
+  const unknown = await worker.fetch(jsonReq('https://readobiism.com/api/account/password/forgot', { email: 'missing@example.test' }), env);
+  const known = await worker.fetch(jsonReq('https://readobiism.com/api/account/password/forgot', { email: account.email }), env);
+  assert.equal(unknown.status, known.status);
+  assert.equal(unknown.status, 503);
+  assert.deepEqual(await unknown.json(), await known.json());
+});
+
+test('a failed delivery never reveals that the account exists', async () => {
+  const db = database();
+  const env = { OBI_DB: db, RESEND_API_KEY: 're_test', ACCOUNT_FROM_EMAIL: 'OBI <no-reply@example.test>' };
+  const account = await seedAccount(db, { email: 'reader@example.test', password: 'old-password-123' });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{"message":"domain not verified"}', { status: 403 });
+  try {
+    const known = await worker.fetch(jsonReq('https://readobiism.com/api/account/password/forgot', { email: account.email }), env);
+    assert.equal(known.status, 200);
+    const knownBody = await known.json();
+    assert.match(knownBody.message, /if an account exists/i);
+    const unknown = await worker.fetch(jsonReq('https://readobiism.com/api/account/password/forgot', { email: 'missing@example.test' }), env);
+    assert.equal(unknown.status, 200);
+    assert.deepEqual(await unknown.json(), knownBody);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('forgot and reset password work in local test mode, revoke sessions, and sign in', async () => {

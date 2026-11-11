@@ -105,8 +105,12 @@ export async function sendPasswordReset(env, account, { localTest = false } = {}
         tags: [{ name: "type", value: "password-reset" }],
       }),
     });
-    if (!sent.ok) throw new Error("Email provider rejected request");
-  } catch {
+    if (!sent.ok) {
+      const detail = await sent.text().catch(() => "");
+      throw new Error(`Email provider rejected request (${sent.status}): ${detail.slice(0, 300)}`);
+    }
+  } catch (error) {
+    console.error("Password reset email delivery failed", error);
     await env.OBI_DB.prepare(
       "UPDATE account_password_resets SET consumed_at=? WHERE id=?",
     )

@@ -879,32 +879,43 @@ async function forgotPassword(request, env) {
     (await enforceLimit(request, env, "password-reset", "password-reset-account", email));
   if (rateLimited) return rateLimited;
 
-  const account = await env.OBI_DB.prepare("SELECT id,email FROM obi_accounts WHERE email=?")
-    .bind(email)
-    .first();
-  if (!account) {
-    return reply({
-      message:
-        "If an account exists for that email, a reset code has been sent. Check your inbox and spam folder.",
-    }, request);
-  }
-
-  let result;
-  try {
-    result = await sendPasswordReset(env, account, { localTest: localPasswordResetTest(request, env) });
-  } catch (error) {
-    console.error("Password reset email failed", error);
+  // The response must be identical whether or not the address has an account,
+  // so a failure for one reader can never be used to enumerate accounts. Only
+  // a service-wide misconfiguration is reported, and it is checked before the
+  // account is looked up.
+  const generic = {
+    message:
+      "If an account exists for that email, a reset code has been sent. Check your inbox and spam folder.",
+  };
+  const localTest = localPasswordResetTest(request, env);
+  const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
+  const emailConfigured = env.RESEND_API_KEY?.startsWith("re_") && Boolean(from);
+  if (!emailConfigured && !localTest)
     return reply(
-      { error: "Could not send the reset code. Please try again." },
+      { error: "Password recovery is not available right now. Please contact support." },
       request,
       { status: 503 },
     );
+
+  const account = await env.OBI_DB.prepare("SELECT id,email FROM obi_accounts WHERE email=?")
+    .bind(email)
+    .first();
+  if (!account) return reply(generic, request);
+
+  let result;
+  try {
+    result = await sendPasswordReset(env, account, { localTest });
+  } catch (error) {
+    console.error("Password reset request failed", error);
+    return reply(generic, request);
   }
-  if (result.status >= 400) return reply(result.body, request, { status: result.status });
+  if (result.status >= 400) {
+    console.error("Password reset request rejected", result.status, result.body);
+    return reply(generic, request);
+  }
   return reply(
     {
-      message:
-        "If an account exists for that email, a reset code has been sent. Check your inbox and spam folder.",
+      ...generic,
       ...(result.body?.testCode ? { testCode: result.body.testCode } : {}),
     },
     request,
