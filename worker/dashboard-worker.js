@@ -1229,6 +1229,24 @@ async function checkout(request, env) {
       });
   }
 
+  const activeEdition = await accountPurchase(env, gift ? gift.recipientEmail : purchaserEmail);
+  if (activeEdition && body.confirm_duplicate !== true) {
+    const accessDays = await getAccessDays(env).catch(() => 365);
+    const warning = gift
+      ? `This person already has an active edition. Continuing will charge you again for a separate new edition for them with a fresh ${accessDays}-day term. Their current edition will not be extended or replaced.`
+      : `You already have an active edition. Continuing will charge you again for another edition with a fresh ${accessDays}-day term. Your current edition will not be extended or replaced.`;
+    return reply(
+      {
+        error: warning,
+        warning,
+        code: "existing_edition",
+        requires_confirmation: true,
+      },
+      request,
+      { status: 409 },
+    );
+  }
+
   if (String(currency).toUpperCase() === "NGN") {
     return paystackCheckout(
       request,
