@@ -61,7 +61,7 @@
       return `${code === "NGN" ? "₦" : "$"}${amount}`;
     }
   };
-  const priceLabel = () => currency === "NGN" && paystackQuote ? `${money(paystackQuote.total_minor)} NGN` : `${pricing[currency].label} ${currency}`;
+  const priceLabel = () => `${pricing[currency].label} ${currency}`;
   const setButtonLabel = (text) => { button.innerHTML = `${text} <span class="arrow">${ARROW}</span>`; };
   const updateStatus = (override) => {
     if (override) { status.textContent = override; return; }
@@ -102,8 +102,7 @@
   const setCurrency = (next) => {
     currency = next;
     const naira = next === "NGN";
-    const feeNotice = document.getElementById("paystack-fee");
-    if (feeNotice) feeNotice.hidden = !naira;
+
     document.getElementById("purchase-price").textContent = pricing[naira ? "NGN" : "USD"].label;
     document.getElementById("purchase-currency").textContent = naira ? "NGN" : "USD";
     document.getElementById("currency-ngn").setAttribute("aria-pressed", String(naira));
@@ -243,20 +242,19 @@
   const money = (minor) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
   const refreshPaystackQuote = async () => {
     paystackQuote = null;
-    const note = document.getElementById("paystack-fee");
-    if (note) note.textContent = "Calculating Paystack checkout total...";
+
     resetButton();
     try {
       const response = await apiFetch("/api/paystack/quote?quantity=1", { cache: "no-store" });
       const quote = await response.json();
       if (!response.ok || !Number.isSafeInteger(quote.total_minor) || !Number.isSafeInteger(quote.subtotal_minor) || !Number.isSafeInteger(quote.fee_minor)) throw new Error("Price unavailable");
       paystackQuote = quote;
-      if (note) note.textContent = `Edition ${money(quote.subtotal_minor)} + processing charge ${money(quote.fee_minor)} = total ${money(quote.total_minor)} NGN.`;
+
       pricing.NGN = { amount: quote.unit_minor / 100, label: money(quote.unit_minor) };
       document.getElementById("currency-ngn").textContent = `${pricing.NGN.label} NGN`;
       document.getElementById("edition-ngn-price").textContent = `${pricing.NGN.label} NGN`;
       if (currency === "NGN") { document.getElementById("purchase-price").textContent = pricing.NGN.label; if (!submitting && !pendingCheckout) updateStatus(); }
-    } catch { if (note) note.textContent = "Paystack total is unavailable. Refresh the page and try again."; }
+    } catch { if (currency === "NGN") updateStatus("Paystack checkout is unavailable. Refresh the page and try again."); }
     resetButton();
   };
   void refreshPaystackQuote();
@@ -281,7 +279,7 @@
     } catch { /* The customer can re-enter the form after signing in. */ }
     location.assign("/login?next=checkout");
   };
-  const startCheckout = async (confirmDuplicate = false) => {
+  const startCheckout = async (confirmDuplicate = false, reviewedTotal = null) => {
     if (submitting) return;
     if (currency === "NGN" && !paystackQuote) { updateStatus("Paystack total is unavailable. Refresh the page and try again."); return; }
     submitting = true;
@@ -294,7 +292,7 @@
       submitting = false; resetButton(); updateStatus(error.message || "We could not check your account. Please try again."); return;
     }
     submitting = false; button.disabled = false;
-    if (confirmDuplicate) {
+    if (confirmDuplicate || reviewedTotal !== null) {
       if (warning) warning.hidden = true;
       if (warningConfirm) warningConfirm.disabled = true;
       if (warningCancel) warningCancel.disabled = true;
@@ -316,6 +314,24 @@
         gift_message: giftMessage ? giftMessage.value.trim().slice(0, 240) : "",
       };
     }
+    if (currency === "NGN" && reviewedTotal !== paystackQuote.total_minor) {
+      const summary = paystackQuote.fee_minor > 0 ? `Edition ${money(paystackQuote.subtotal_minor)} + Paystack charge ${money(paystackQuote.fee_minor)} = total ${money(paystackQuote.total_minor)} NGN.` : `Total: ${money(paystackQuote.total_minor)} NGN.`;
+      pendingCheckout = { kind: "review", confirmedDuplicate: confirmDuplicate, total: paystackQuote.total_minor };
+      if (warning && warningText && warningConfirm) {
+        if (warningTitle) warningTitle.textContent = "Review payment";
+        warningText.textContent = summary;
+        warningConfirm.textContent = "CONTINUE TO PAYSTACK";
+        warningConfirm.disabled = false;
+        if (warningCancel) warningCancel.disabled = false;
+        warning.hidden = false;
+        button.disabled = true;
+        setButtonLabel("REVIEW BELOW");
+        warning.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
+        warningConfirm.focus({ preventScroll: true });
+      } else if (window.confirm(summary)) return startCheckout(confirmDuplicate, paystackQuote.total_minor);
+      else { hideWarning(); updateStatus("Checkout cancelled. No payment was made."); }
+      return;
+    }
     submitting = true;
     button.disabled = true;
     setButtonLabel(purchaseMode === "gift" ? "OPENING GIFT CHECKOUT…" : "OPENING SECURE CHECKOUT…");
@@ -330,7 +346,7 @@
       }
       if (response.status === 409 && body.requires_confirmation) {
         submitting = false;
-        pendingCheckout = true;
+        pendingCheckout = { kind: "duplicate", total: reviewedTotal };
         if (warning && warningText && warningConfirm) {
           warningText.textContent = body.warning || body.error || "This email already has an active edition. Continuing will buy a separate fresh edition.";
           if (warningTitle) warningTitle.textContent = gift ? "Another gift edition" : "Another edition";
@@ -344,7 +360,7 @@
           warning.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
           warningConfirm.focus({ preventScroll: true });
         } else if (window.confirm(body.warning || body.error || "Buy another edition?")) {
-          return startCheckout(true);
+          return startCheckout(true, reviewedTotal);
         } else {
           hideWarning();
           updateStatus("Checkout cancelled. No payment was made.");
@@ -376,7 +392,9 @@
   if (warningConfirm) {
     warningConfirm.addEventListener("click", () => {
       if (!pendingCheckout) return;
-      startCheckout(true);
+      const next = pendingCheckout;
+      if (next.kind === "review") startCheckout(next.confirmedDuplicate, next.total);
+      else if (next.kind === "duplicate") startCheckout(true, next.total);
     });
   }
   if (warningCancel) {
