@@ -13,3 +13,5 @@ test('waives the flat fee below N2500 and caps fees at N2000 per transaction', (
   assert.throws(()=>paystackQuote(0));
   assert.throws(()=>paystackQuote(699500,10001));
 });
+
+test('switching the fee off retains the base subtotal for single and bulk',()=>{ assert.equal(paystackQuote(699500,1,false).total_minor,699500); assert.equal(paystackQuote(699500,20,false).total_minor,13990000); });

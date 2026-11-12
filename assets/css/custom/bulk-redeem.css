@@ -27,3 +27,5 @@ select{width:100%;padding:15px;border:1px solid #cfc5b3;border-radius:12px;font:
 .seat-card button:disabled{opacity:.45;cursor:not-allowed}
 .seat-card .text-button{border:0;background:transparent;color:#8b302a;padding:10px 4px}
 @media(max-width:600px){.seat-panel-heading{align-items:flex-start;flex-direction:column}.seat-assign{grid-template-columns:1fr}.seat-link-row{flex-direction:column}}
+
+.payment-review{margin-top:18px;padding:16px;border:1px solid #d7c28d;border-radius:14px;background:#fff9e7;color:#3f3627}.payment-review strong{font:700 18px Georgia,serif}.payment-review p{font-size:13px;line-height:1.6}.payment-review .button{margin-top:10px}.payment-review .review-back{border:1px solid #cfc5b3;background:transparent;color:#3f3627}

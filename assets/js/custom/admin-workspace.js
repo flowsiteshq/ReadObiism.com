@@ -31,6 +31,7 @@
   if (pendingBulkVerification) history.replaceState(null, '', location.pathname + '#bulk');
   let section = 'overview', page = 1, total = 0, query = '', requestId = 0;
   let bulkUnitPrices = {}, bulkGateways = {}, selectedBulkOrder = '', selectedBulkClaims = null, selectedReader = null;
+  let paystackFeeEnabled = true;
   const charts = {};
   const localPaymentEditor = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
   $('local-payment-panel').hidden = !localPaymentEditor;
@@ -372,6 +373,7 @@
       const data = await response.json();
       bulkUnitPrices = data.unitPrices || {};
       bulkGateways = data.gateways || {};
+      paystackFeeEnabled = data.paystackFeeEnabled !== false;
       updateBulkTotal();
       $('bulk-create-button').disabled = false;
       data.items.forEach((order) => {
@@ -642,9 +644,9 @@
     const subtotal = effectiveUnit * quantity;
     const percentageFee = Math.round(subtotal * 3 / 200);
     const localFee = Math.min(200000, percentageFee + (subtotal + percentageFee < 250000 ? 0 : 10000));
-    const total = subtotal + (provider === 'paystack' ? localFee : 0);
+    const total = subtotal + (provider === 'paystack' && paystackFeeEnabled ? localFee : 0);
     $('bulk-test-total').textContent = unit && validDiscount && Number.isInteger(quantity) && quantity >= 1 && quantity <= 1000
-      ? 'Price per copy: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(effectiveUnit / 100) + ' | Processing charge: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format((provider === 'paystack' ? localFee : 0) / 100) + ' | Test total: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(total / 100)
+      ? 'Price per copy: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(effectiveUnit / 100) + (provider === 'paystack' ? ' | Paystack charge: ' : ' | Processing charge: ') + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format((provider === 'paystack' && paystackFeeEnabled ? localFee : 0) / 100) + ' | Test total: ' + new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(total / 100)
       : '';
   }
   $('bulk-paid-quantity').addEventListener('input', updateBulkTotal);

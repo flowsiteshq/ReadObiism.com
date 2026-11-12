@@ -1441,6 +1441,7 @@ async function checkout(request, env) {
       cleanReaderName,
       purchaserEmail,
       body.quoted_total_minor,
+      features.paystack_processing_charge,
     );
   }
 
@@ -1519,11 +1520,12 @@ async function paystackCheckout(
   readerName = "",
   purchaserEmail = email,
   quotedTotal = null,
+  processingChargeEnabled = true,
 ) {
   if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_"))
     return reply({ error: "Naira checkout is not configured" }, request, { status: 503 });
   const baseMinor = pricing?.NGN?.minor || NAIRA_PRICE * 100;
-  const quote = paystackQuote(baseMinor);
+  const quote = paystackQuote(baseMinor, 1, processingChargeEnabled);
   if (!Number.isSafeInteger(quotedTotal) || quotedTotal !== quote.total_minor)
     return reply({ error: "The Paystack total changed. Refresh the page and review the updated price before continuing.", code: "price_changed", quote }, request, { status: 409 });
   const ngnMinor = quote.total_minor;
@@ -2208,7 +2210,7 @@ async function createBulkOrder(request, env) {
   if (provider === "paystack") {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000)
       return reply({ error: "Enter a quantity between 1 and 10000." }, request, { status: 400 });
-    const quote = paystackQuote((await getPricing(env)).NGN.minor, quantity);
+    const quote = paystackQuote((await getPricing(env)).NGN.minor, quantity, await isFeatureEnabled(env, "paystack_processing_charge"));
     if (!Number.isSafeInteger(body.quoted_total_minor) || body.quoted_total_minor !== quote.total_minor)
       return reply({ error: "The Paystack total changed. Refresh the page and review the updated price before continuing.", code: "price_changed", quote }, request, { status: 409 });
   }
@@ -3221,7 +3223,7 @@ async function handleRequest(request, env) {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000 || !Number.isInteger(discount) || discount < 0 || discount > 99)
       return reply({ error: "Invalid quantity or discount." }, request, { status: 400 });
     const unit = Math.round((await getPricing(env)).NGN.minor * (100 - discount) / 100);
-    return reply(paystackQuote(unit, quantity), request);
+    return reply(paystackQuote(unit, quantity, await isFeatureEnabled(env, "paystack_processing_charge")), request);
   }
   if (path === "/api/account/register" && request.method === "POST")
     return registerAccount(request, env);

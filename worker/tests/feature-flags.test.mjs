@@ -79,3 +79,17 @@ test('feature flags default device transfers off and can be toggled by an admin'
   const after = await publicAfter.json();
   assert.equal(after.features.device_transfer, true);
 });
+
+test('admin can disable the Paystack charge and stale quotes fail safely', async () => {
+  const db=database(), env={OBI_DB:db,OBI_ADMIN_EMAIL:'admin@example.test',OBI_ADMIN_PASSWORD:'a'.repeat(32),PAYSTACK_SECRET_KEY:'sk_test_fixture'};
+  const quote = () => worker.fetch(request('/api/paystack/quote?quantity=1'),env);
+  assert.equal((await (await quote()).json()).fee_minor,20493);
+  const login=await worker.fetch(request('/api/admin/login',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json'},body:JSON.stringify({email:env.OBI_ADMIN_EMAIL,password:env.OBI_ADMIN_PASSWORD})}),env);
+  const cookie=(login.headers.get('set-cookie')||'').split(';')[0];
+  const toggle=async(enabled)=>worker.fetch(request('/api/admin/features',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json',cookie},body:JSON.stringify({key:'paystack_processing_charge',enabled})}),env);
+  const off=await toggle(false);assert.equal(off.status,200,await off.clone().text());
+  const disabled=await (await quote()).json();assert.equal(disabled.fee_minor,0);assert.equal(disabled.total_minor,699500);
+  const bulk=await (await worker.fetch(request('/api/paystack/quote?quantity=20'),env)).json();assert.equal(bulk.fee_minor,0);assert.equal(bulk.total_minor,13990000);
+  const on=await toggle(true);assert.equal(on.status,200,await on.clone().text());
+  assert.equal((await (await quote()).json()).fee_minor,20493);
+});

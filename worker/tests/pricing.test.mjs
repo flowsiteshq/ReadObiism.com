@@ -165,3 +165,12 @@ test('Paystack quote is checked before starting checkout and old prices are reje
     assert.equal(stale.status,409); assert.equal((await stale.json()).code,'price_changed'); assert.equal(providerCalls,0);
   } finally { globalThis.fetch=previous; }
 });
+
+test('switching the charge after a quote rejects checkout without charging', async()=>{
+ const {setFeatureFlag}=await import('../api/src/feature-flags.js');const db=database(),env={OBI_DB:db,PAYSTACK_SECRET_KEY:'sk_test_fixture'};
+ const reg=await worker.fetch(request('/api/account/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'switch@example.test',password:'sample-password-123'})}),env);const token=(await reg.json()).token;
+ const oldQuote=await (await worker.fetch(request('/api/paystack/quote?quantity=1'),env)).json();
+ await setFeatureFlag(env,'paystack_processing_charge',false,'admin@example.test');
+ let calls=0;const old=globalThis.fetch;globalThis.fetch=async()=>{calls++;throw Error('provider called')};
+ try{const r=await worker.fetch(request('/api/checkout',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({email:'switch@example.test',device_token:'x'.repeat(48),currency:'NGN',quoted_total_minor:oldQuote.total_minor})}),env);assert.equal(r.status,409);const result=await r.json();assert.equal(result.code,'price_changed');assert.equal(result.quote.total_minor,699500);assert.equal(calls,0);}finally{globalThis.fetch=old;}
+});

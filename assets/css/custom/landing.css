@@ -40,6 +40,3 @@
 
 
 .device-notice{margin:4px 0 14px;padding:14px 16px;border:1px solid rgba(122,90,19,.45);border-radius:14px;background:#fff7e2;color:#3f3627;font-size:12px;line-height:1.5}.device-notice strong{display:block;color:#5c4210;font-size:12px;margin-bottom:5px}.device-notice p{margin:0 0 6px}.device-notice a{color:#6d4c0d;font-weight:700;text-decoration:underline;text-underline-offset:3px}
-
-.purchase-box #paystack-fee{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(122,90,19,.36);border-radius:12px;background:#fff7e2;color:#3f3627;font-size:12px;font-weight:700;line-height:1.5;text-align:left}
-.purchase-box #paystack-fee[hidden]{display:none}

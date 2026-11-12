@@ -1,6 +1,7 @@
 // Isolated local prototype only. Provider test payments are verified server-side.
 import { hashDeviceToken } from './security.js';
 import { paystackQuote } from './paystack-fees.js';
+import { isFeatureEnabled } from './feature-flags.js';
 import { NGN_PRICE_KOBO, USD_PRICE_CENTS, EDITION_SKU } from './pricing.js';
 import { getAccessDays, accessExpiry } from './pricing-store.js';
 import { liveEdition } from './edition-store.js';
@@ -51,7 +52,7 @@ export async function startBulkPaystackTest(env, adminEmail, emailInput, quantit
   if (!price) return { status: 400, body: { error: 'Enter a whole discount from 1 to 99%, an approval note and confirmation.' } };
   if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_test_') || !/^[a-f0-9]{64}$/.test(env.OBI_BULK_LOCAL_CODE_SECRET || '')) return { status: 503, body: { error: 'Local Paystack test settings are not configured.' } };
   await ensureBulkLocal(env);
-  const id = 'bulk_' + randomHex(16), reference = 'obi_' + randomHex(16), amount = paystackQuote(price.unit, quantity).total_minor, now = new Date().toISOString();
+  const id = 'bulk_' + randomHex(16), reference = 'obi_' + randomHex(16), amount = paystackQuote(price.unit, quantity, await isFeatureEnabled(env, 'paystack_processing_charge')).total_minor, now = new Date().toISOString();
   await env.OBI_DB.batch([
     env.OBI_DB.prepare('INSERT INTO bulk_local_payments (id,provider_reference,buyer_email,quantity,amount_kobo,status,created_by,created_at) VALUES (?,?,?,?,?,?,?,?)').bind(id, reference, email, quantity, amount, 'pending', adminEmail, now),
     env.OBI_DB.prepare('INSERT INTO bulk_local_payment_details (order_id,provider,currency,unit_amount_minor,total_minor) VALUES (?,?,?,?,?)').bind(id, 'paystack', 'NGN', price.unit, amount),

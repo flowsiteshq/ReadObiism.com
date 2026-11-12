@@ -8,12 +8,12 @@
     sessionStorage.removeItem('obi-ism.verification-email-sent');
     notify('Account created. Verification code sent — check your inbox.', 'success');
   }
-  let latestQuote = null, quoteSequence = 0, quoteTimer = null, submitting = false;
+  let latestQuote = null, quoteSequence = 0, quoteTimer = null, submitting = false, approvedTotal = null;
   const previewMode = ['127.0.0.1', 'localhost'].includes(location.hostname) && new URLSearchParams(location.search).get('preview') === '1';
   const formatNgn = minor => new Intl.NumberFormat('en-NG', { style:'currency', currency:'NGN', minimumFractionDigits:2, maximumFractionDigits:2 }).format(minor / 100);
   function estimate() {
     const count = Number($('quantity').value), ngn = $('gateway').value === 'paystack', seq = ++quoteSequence;
-    latestQuote = null; clearTimeout(quoteTimer);
+    latestQuote = null; approvedTotal = null; $('bulk-payment-review').hidden = true; $('submit').hidden = false; clearTimeout(quoteTimer);
     if (!Number.isInteger(count) || count < 1 || count > 10000) { $('estimate').textContent = ''; $('submit').disabled = true; return; }
     if (!ngn) { $('estimate').textContent = `Total: $${(count * prices.USD).toFixed(2)} USD.`; $('submit').disabled = previewMode || submitting; return; }
     $('submit').disabled = true; $('estimate').textContent = 'Calculating Paystack checkout total...';
@@ -23,7 +23,7 @@
         if (seq !== quoteSequence) return;
         if (quote.quantity !== count || !Number.isSafeInteger(quote.total_minor) || !Number.isSafeInteger(quote.fee_minor) || !Number.isSafeInteger(quote.subtotal_minor)) throw new Error('Price unavailable.');
         latestQuote = quote;
-        $('estimate').textContent = `Editions ${formatNgn(quote.subtotal_minor)} + processing charge ${formatNgn(quote.fee_minor)} = total ${formatNgn(quote.total_minor)} NGN.`;
+        $('estimate').textContent = `Editions subtotal: ${formatNgn(quote.subtotal_minor)} NGN.`;
         $('submit').disabled = previewMode || submitting;
       } catch { if (seq === quoteSequence) $('estimate').textContent = 'Paystack total is unavailable. Please try again.'; }
     }, 200);
@@ -35,6 +35,12 @@
     event.preventDefault();
     const quantity = Number($('quantity').value), provider = $('gateway').value;
     if (provider === 'paystack' && (!latestQuote || latestQuote.quantity !== quantity)) { message('Wait for the Paystack total and review it before continuing.'); return; }
+    if (provider === 'paystack' && approvedTotal !== latestQuote.total_minor) {
+      $('bulk-review-amount').textContent = latestQuote.fee_minor > 0 ? `Editions ${formatNgn(latestQuote.subtotal_minor)} + Paystack charge ${formatNgn(latestQuote.fee_minor)} = total ${formatNgn(latestQuote.total_minor)} NGN.` : `Total: ${formatNgn(latestQuote.total_minor)} NGN.`;
+      $('bulk-payment-review').hidden = false; $('submit').hidden = true;
+      $('bulk-review-confirm').focus(); return;
+    }
+    approvedTotal = null; $('bulk-payment-review').hidden = true; $('submit').hidden = false;
     submitting = true; $('submit').disabled = true; message('Preparing checkout...');
     try {
       const response = await api('/api/bulk', { method:'POST', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ email:$('buyer-email').value.trim(), quantity, provider, ...(provider === 'paystack' ? { quoted_total_minor:latestQuote.total_minor } : {}) }) });
@@ -45,6 +51,13 @@
       location.assign(url.href);
     } catch (e) { message(e.message); notify(e.message || 'Could not start checkout.', 'error'); submitting = false; if (provider !== 'paystack' || latestQuote) $('submit').disabled = false; }
   });
+  $('bulk-review-confirm').addEventListener('click', () => {
+    if (!latestQuote) return;
+    approvedTotal = latestQuote.total_minor;
+    $('bulk-form').requestSubmit();
+  });
+  $('bulk-review-cancel').addEventListener('click', () => { approvedTotal = null; $('bulk-payment-review').hidden = true; $('submit').hidden = false; $('submit').focus(); });
+  $('buyer-email').addEventListener('input', () => { approvedTotal = null; $('bulk-payment-review').hidden = true; $('submit').hidden = false; });
   $('quantity').addEventListener('input', estimate); $('gateway').addEventListener('change', estimate); estimate();
   api('/api/pricing', { cache: 'no-store' }).then(async response => {
     if (!response.ok) return;

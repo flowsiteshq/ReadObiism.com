@@ -1,6 +1,7 @@
 // Server-side feature switches. These are enforced by the Worker; the public
 // endpoint only tells the browser which controls to show.
 export const FEATURE_DEFINITIONS = [
+  { key: 'paystack_processing_charge', label: 'Paystack processing charge', description: 'Add the Paystack processing charge to single, gift and bulk NGN checkouts.' },
   { key: 'single_purchase', label: 'Single edition purchase', description: 'Allow new single-edition checkout sessions.' },
   { key: 'gift_purchase', label: 'Gift purchases', description: 'Allow buying an edition as a gift.' },
   { key: 'bulk_purchase', label: 'Bulk / group purchase', description: 'Allow new bulk orders and shared-code checkout.' },

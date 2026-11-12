@@ -3,7 +3,7 @@ import { hashDeviceToken, same } from './security.js';
 import { adminData } from './admin-data.js';
 import { getPricing, savePricing, validatePricing } from './pricing-store.js';
 import { setBulkOrderClaimsState } from './bulk-orders.js';
-import { getAdminFeatureFlags, setFeatureFlag } from './feature-flags.js';
+import { getAdminFeatureFlags, setFeatureFlag, isFeatureEnabled } from './feature-flags.js';
 import { decodeWatermarks, encodeWatermark } from './watermark.js';
 import { bulkLocalEnabled, createBulkLocal, ensureBulkLocal, startBulkPaystackTest, startBulkCheckoutTest, verifyBulkPaymentTest, NGN_PRICE_KOBO, USD_PRICE_CENTS } from './bulk-local.js';
 import { ensurePasswordResetSchema, isRecoveryEmail, sendPasswordReset } from './password-reset.js';
@@ -62,6 +62,7 @@ export async function handleAdminAuth(request, env) {
     return json({
       items: orders.results, payments: payments.results,
       unitPrices: { NGN: NGN_PRICE_KOBO, USD: USD_PRICE_CENTS }, unitPriceKobo: NGN_PRICE_KOBO,
+      paystackFeeEnabled: await isFeatureEnabled(env, 'paystack_processing_charge'),
       gateways: { paystack: Boolean(env.PAYSTACK_SECRET_KEY?.startsWith('sk_test_')), stripe: Boolean(env.OBI_STRIPE_SECRET_KEY?.startsWith('sk_test_')) },
     });
   }
