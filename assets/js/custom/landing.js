@@ -17,6 +17,10 @@
     else { video.pause(); setMotionControl(false); }
   });
 
+  document.getElementById("preface-nav-link").addEventListener("click", () => {
+    document.getElementById("preface-text").open = true;
+  });
+
   const apiFetch = window.OBI_API.fetch;
   const button = document.getElementById("buy-edition");
   const email = document.getElementById("purchase-email");
