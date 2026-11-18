@@ -1,5 +1,6 @@
 import { validDeviceToken, validSessionId } from "./api/src/validation.js";
 import { hashDeviceToken, same } from "./api/src/security.js";
+import { publicBlog } from './api/src/blog.js';
 import { handleAdminAuth } from "./api/src/admin-auth.js";
 import { paystackQuote } from "./api/src/paystack-fees.js";
 import { bulkLocalEnabled, redeemBulkLocal } from "./api/src/bulk-local.js";
@@ -3197,6 +3198,7 @@ async function handleRequest(request, env) {
     return applyLocalMysqlAccount(request, env, ensure);
   }
   if (path.startsWith("/api/admin/")) return handleAdminAuth(request, env);
+  if (path.startsWith("/api/blog/")) return publicBlog(request, env);
   if (request.method === "OPTIONS" && path.startsWith("/api/"))
     return new Response(null, {
       status: 204,

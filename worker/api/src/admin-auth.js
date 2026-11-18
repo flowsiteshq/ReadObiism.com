@@ -1,3 +1,4 @@
+import { adminBlog } from './blog.js';
 // Separate administrator sessions. Never accept reader tokens as admin credentials.
 import { hashDeviceToken, same } from './security.js';
 import { adminData } from './admin-data.js';
@@ -76,6 +77,7 @@ export async function handleAdminAuth(request, env) {
       await env.OBI_DB.prepare('CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_email TEXT NOT NULL, action TEXT NOT NULL, path TEXT NOT NULL, ip TEXT, created_at TEXT NOT NULL)').run();
       await env.OBI_DB.prepare('INSERT INTO admin_audit_log (id,admin_email,action,path,ip,created_at) VALUES (?,?,?,?,?,?)').bind('aa_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b=>b.toString(16).padStart(2,'0')).join(''), sess.admin_email, request.method, path, request.headers.get('cf-connecting-ip') || 'unknown', new Date().toISOString()).run();
     } catch {}
+    if (path === '/api/admin/blog') return adminBlog(request, env);
     if (path === '/api/admin/readers/password-reset') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
       if (!sameOrigin(request) || !(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) return json({ error: 'Request not allowed.' }, 403);

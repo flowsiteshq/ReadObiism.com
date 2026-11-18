@@ -1,0 +1,57 @@
+const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const origin='https://readobiism.com';
+const validSlug=s=>/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)&&s.length<=120;
+const imageOK=s=>{if(!s)return true;try{const u=new URL(s);return (u.protocol==='https:'||(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname)))&&!u.username&&!u.password}catch{return false}};
+async function ensure(env){await env.OBI_DB.prepare("CREATE TABLE IF NOT EXISTS blog_posts (id TEXT PRIMARY KEY,slug TEXT NOT NULL UNIQUE,title TEXT NOT NULL,excerpt TEXT NOT NULL,body TEXT NOT NULL,image_url TEXT NOT NULL DEFAULT '',author TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('draft','published')),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,published_at TEXT)").run()}
+export async function adminBlog(request,env){
+ await ensure(env); const db=env.OBI_DB;
+ if(request.method==='GET'){const r=await db.prepare('SELECT * FROM blog_posts ORDER BY updated_at DESC LIMIT 200').all();return json({items:r.results})}
+ if(request.method!=='POST')return json({error:'Method not allowed.'},405);
+ if(request.headers.get('origin')!==new URL(request.url).origin||!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return json({error:'Request not allowed.'},403);
+ const d=await request.json().catch(()=>null);if(!d||typeof d!=='object')return json({error:'Invalid request.'},400);
+ if(d.action==='upload-image'){
+  const input=typeof d.data==='string'?d.data:'';
+  const m=input.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if(!m||m[2].length>1400000)return json({error:'Choose a JPEG, PNG or WebP image under 1 MB.'},400);
+  let bytes;try{bytes=Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0))}catch{return json({error:'Invalid image.'},400)}
+  if(bytes.length>1048576||bytes.length<12)return json({error:'Choose an image under 1 MB.'},400);
+  const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255, png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10, webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
+  if(!((m[1]==='jpeg'&&jpeg)||(m[1]==='png'&&png)||(m[1]==='webp'&&webp)))return json({error:'The image file format is invalid.'},400);
+  await db.prepare('CREATE TABLE IF NOT EXISTS blog_images (id TEXT PRIMARY KEY,mime TEXT NOT NULL,data TEXT NOT NULL,created_at TEXT NOT NULL)').run();
+  const imageId='img_'+Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
+  await db.prepare('INSERT INTO blog_images (id,mime,data,created_at) VALUES (?,?,?,?)').bind(imageId,'image/'+m[1],m[2],new Date().toISOString()).run();
+  return json({ok:true,url:new URL('/api/blog/image/'+imageId,request.url).href});
+ }
+ const id=typeof d.id==='string'?d.id:'';
+ if(d.action==='delete'){if(!/^blog_[a-f0-9]{24}$/.test(id))return json({error:'Invalid post.'},400);await db.prepare('DELETE FROM blog_posts WHERE id=?').bind(id).run();return json({ok:true})}
+ const title=String(d.title||'').trim(),slug=String(d.slug||'').trim().toLowerCase(),excerpt=String(d.excerpt||'').trim(),body=String(d.body||'').trim(),author=String(d.author||'').trim(),image=String(d.image_url||'').trim(),status=d.status==='published'?'published':'draft';
+ if(!title||title.length>160||!validSlug(slug)||!excerpt||excerpt.length>300||!body||body.length>100000||!author||author.length>100||image.length>2048||!imageOK(image))return json({error:'Check the title, URL, summary, article, author and HTTPS image URL.'},400);
+ let old=null;if(id){if(!/^blog_[a-f0-9]{24}$/.test(id))return json({error:'Invalid post.'},400);old=await db.prepare('SELECT id,slug,published_at FROM blog_posts WHERE id=?').bind(id).first();if(!old)return json({error:'Post not found.'},404);if(old.published_at&&old.slug!==slug)return json({error:'The URL of a published post cannot be changed.'},400)}
+ const duplicate=await db.prepare('SELECT id FROM blog_posts WHERE slug=?').bind(slug).first();if(duplicate&&duplicate.id!==id)return json({error:'That URL is already in use.'},409);
+ const now=new Date().toISOString(),postId=id||'blog_'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,'0')).join(''),published=old?.published_at||(status==='published'?now:null);
+ try{await db.prepare('INSERT INTO blog_posts (id,slug,title,excerpt,body,image_url,author,status,created_at,updated_at,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,title=excluded.title,excerpt=excluded.excerpt,body=excluded.body,image_url=excluded.image_url,author=excluded.author,status=excluded.status,updated_at=excluded.updated_at,published_at=excluded.published_at').bind(postId,slug,title,excerpt,body,image,author,status,now,now,published).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'That URL is already in use.'},409);throw e}
+ return json({ok:true,id:postId,slug,status});
+}
+function inline(s){return esc(s).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>').replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" rel="noopener noreferrer">$1</a>')}
+export function renderBody(body){return String(body).split(/\n{2,}/).map(block=>{const lines=block.trim().split('\n');if(!lines[0])return '';if(/^### /.test(lines[0]))return '<h3>'+inline(lines.join(' ').slice(4))+'</h3>';if(/^## /.test(lines[0]))return '<h2>'+inline(lines.join(' ').slice(3))+'</h2>';if(lines.every(l=>/^[-*] /.test(l)))return '<ul>'+lines.map(l=>'<li>'+inline(l.slice(2))+'</li>').join('')+'</ul>';if(lines.every(l=>/^> ?/.test(l)))return '<blockquote>'+inline(lines.map(l=>l.replace(/^> ?/,'')).join(' '))+'</blockquote>';return '<p>'+lines.map(inline).join('<br>')+'</p>'}).join('\n')}
+export async function publicBlog(request,env){
+ await ensure(env);const url=new URL(request.url),db=env.OBI_DB;
+ if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+ const imageMatch=url.pathname.match(/^\/api\/blog\/image\/(img_[a-f0-9]{32})$/);
+ if(imageMatch){
+  await db.prepare('CREATE TABLE IF NOT EXISTS blog_images (id TEXT PRIMARY KEY,mime TEXT NOT NULL,data TEXT NOT NULL,created_at TEXT NOT NULL)').run();
+  const image=await db.prepare('SELECT mime,data FROM blog_images WHERE id=?').bind(imageMatch[1]).first();
+  if(!image)return new Response('Image not found',{status:404});
+  const bytes=Uint8Array.from(atob(image.data),c=>c.charCodeAt(0));
+  return new Response(request.method==='HEAD'?null:bytes,{headers:{'content-type':image.mime,'content-length':String(bytes.length),'cache-control':'public, max-age=86400','x-content-type-options':'nosniff'}});
+ }
+ if(url.pathname==='/api/blog/posts'){const limit=Math.min(50,Math.max(1,parseInt(url.searchParams.get('limit'),10)||12)),page=Math.min(10000,Math.max(1,parseInt(url.searchParams.get('page'),10)||1));const r=await db.prepare("SELECT slug,title,excerpt,image_url,author,published_at FROM blog_posts WHERE status='published' ORDER BY published_at DESC,id DESC LIMIT ? OFFSET ?").bind(limit+1,(page-1)*limit).all();return json({items:r.results.slice(0,limit),page,hasMore:r.results.length>limit})}
+ if(url.pathname==='/api/blog/sitemap.xml'){const r=await db.prepare("SELECT slug,updated_at FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 50000").all();const xml='<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+r.results.map(p=>'<url><loc>'+origin+'/api/blog/post/'+esc(p.slug)+'</loc><lastmod>'+esc(p.updated_at)+'</lastmod></url>').join('')+'</urlset>';return new Response(xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'public, max-age=300'}})}
+ const m=url.pathname.match(/^\/api\/blog\/post\/([a-z0-9]+(?:-[a-z0-9]+)*)$/);if(!m||!validSlug(m[1]))return new Response('Not found',{status:404});
+ const p=await db.prepare("SELECT slug,title,excerpt,body,image_url,author,published_at,updated_at FROM blog_posts WHERE slug=? AND status='published'").bind(m[1]).first();if(!p)return new Response('Article not found',{status:404,headers:{'x-robots-tag':'noindex'}});
+ const link=origin+'/api/blog/post/'+p.slug,image=imageOK(p.image_url)&&p.image_url?p.image_url:origin+'/readobiism-meta.jpeg',title=esc(p.title),desc=esc(p.excerpt),imageEsc=esc(image),linkEsc=esc(link);
+ const structured=JSON.stringify({'@context':'https://schema.org','@type':'BlogPosting',headline:p.title,description:p.excerpt,image:[image],datePublished:p.published_at,dateModified:p.updated_at,author:{'@type':'Person',name:p.author},mainEntityOfPage:link}).replace(/</g,'\\u003c');
+ const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+' | OBI-ISM</title><meta name="description" content="'+desc+'"><link rel="canonical" href="'+linkEsc+'"><meta property="og:type" content="article"><meta property="og:title" content="'+title+'"><meta property="og:description" content="'+desc+'"><meta property="og:url" content="'+linkEsc+'"><meta property="og:image" content="'+imageEsc+'"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="'+title+'"><meta name="twitter:description" content="'+desc+'"><meta name="twitter:image" content="'+imageEsc+'"><link rel="stylesheet" href="/assets/css/custom/blog.css"><script type="application/ld+json">'+structured+'</script></head><body class="blog-page"><header class="blog-header"><a class="blog-logo" href="/">OBI<span>–ISM</span></a><nav><a href="/blog.html">All stories</a><a href="/#edition">Get your copy →</a></nav></header><main class="article-wrap"><a class="back-link" href="/blog.html">← All stories</a><p class="blog-kicker">OBI-ISM JOURNAL</p><article><h1>'+title+'</h1><p class="article-intro">'+desc+'</p><p class="article-meta">By '+esc(p.author)+' · <time datetime="'+esc(p.published_at)+'">'+esc(p.published_at.slice(0,10))+'</time></p>'+(p.image_url?'<img class="article-image" src="'+imageEsc+'" alt="">':'')+'<div class="article-body">'+renderBody(p.body)+'</div></article><aside class="article-share"><h2>Share this story</h2><a href="https://wa.me/?text='+encodeURIComponent(p.title+' '+link)+'" target="_blank" rel="noopener noreferrer">Share on WhatsApp ↗</a><a href="https://twitter.com/intent/tweet?text='+encodeURIComponent(p.title)+'&amp;url='+encodeURIComponent(link)+'" target="_blank" rel="noopener noreferrer">Share on X ↗</a></aside><div class="article-cta"><p>Ideas are the beginning. Character makes them real.</p><a href="/#edition">GET THE DIGITAL EDITION →</a></div></main><footer class="blog-footer"><a href="/">OBI–ISM</a><a href="/blog.html">Journal</a><a href="/privacy">Privacy</a></footer></body></html>';
+ return new Response(request.method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin'}});
+}
