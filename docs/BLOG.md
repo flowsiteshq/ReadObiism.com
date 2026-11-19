@@ -40,3 +40,23 @@ caches; publishing metadata does not guarantee a ranking or virality.
 
 Local testing should use the OBI local stack at http://127.0.0.1:5514/.
 No production posts or migrations are created merely by building the site.
+
+## Preface and checkout on articles
+
+Article pages load the current preface and edition sections from the site's
+index.html and initialize the same purchase flow used by the landing page.
+The shared checkout script is assets/js/custom/landing-shared-20261119.js;
+the blog mounts it with blog-edition-20261119.js. Both the landing page and
+articles use that shared script. Its matching article stylesheet is
+landing-shared-20261119.css, based on landing.css; update both when changing
+the preface or purchase styles.
+
+Unauthenticated buyers are sent to sign in and returned to the same article
+with their checkout draft in session storage. Only recognized same-origin
+article paths can be used for that return. If the article content fails to
+load, a link takes the reader to the landing-page checkout instead.
+
+When deploying these changes, make the new static assets and login page live
+before deploying the Worker that references them. Run the tests in
+worker/tests/blog-checkout.test.mjs and verify both gateways with test
+credentials before relying on the flow for purchases.
