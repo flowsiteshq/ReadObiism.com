@@ -43,3 +43,26 @@ test('existing HTML articles render paragraphs and lists while stripping unsafe 
 test('markdown ordered lists remain formatted',()=>{
  assert.equal(renderBody('1. First\n2. Second'),'<ol><li>First</li><li>Second</li></ol>');
 });
+test('scheduled stories stay private until their publication time, including in listings and sitemap',async t=>{
+ const now=new Date('2026-11-20T10:00:00.000Z');
+ t.mock.timers.enable({apis:['Date'],now});
+ const env={OBI_DB:database(),OBI_ADMIN_EMAIL:'admin@example.test',OBI_ADMIN_PASSWORD:'a'.repeat(32)};
+ const login=await worker.fetch(req('/api/admin/login',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json'},body:JSON.stringify({email:env.OBI_ADMIN_EMAIL,password:env.OBI_ADMIN_PASSWORD})}),env);
+ assert.equal(login.status,200);
+ const cookie=login.headers.get('set-cookie').split(';')[0];
+ const save=body=>worker.fetch(req('/api/admin/blog',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json',cookie},body:JSON.stringify(body)}),env);
+ assert.equal((await save({...data,status:'scheduled',scheduled_at:'2026-11-20T09:59:00.000Z'})).status,400);
+ assert.equal((await save({...data,status:'scheduled',scheduled_at:'2026-11-21'})).status,400);
+ const result=await save({...data,status:'scheduled',scheduled_at:'2026-11-20T10:10:00.000Z'});assert.equal(result.status,200);
+ const created=await result.json();assert.equal(created.status,'scheduled');
+ const admin=await worker.fetch(req('/api/admin/blog',{headers:{cookie}}),env);assert.equal((await admin.json()).items[0].status,'scheduled');
+ const before=await worker.fetch(req('/api/blog/post/story-of-character'),env);assert.equal(before.status,404);assert.match(before.headers.get('cache-control'),/no-store/);
+ assert.equal((await (await worker.fetch(req('/api/blog/posts'),env)).json()).items.length,0);
+ assert.doesNotMatch(await (await worker.fetch(req('/api/blog/sitemap.xml'),env)).text(),/story-of-character/);
+ t.mock.timers.tick(600000);
+ const article=await worker.fetch(req('/api/blog/post/story-of-character'),env);assert.equal(article.status,200);assert.match(await article.text(),/A story of character/);
+ const list=await (await worker.fetch(req('/api/blog/posts'),env)).json();assert.equal(list.items.length,1);assert.equal(list.items[0].image_url,data.image_url);
+ assert.match(await (await worker.fetch(req('/api/blog/sitemap.xml'),env)).text(),/story-of-character/);
+ const after=await worker.fetch(req('/api/admin/blog',{headers:{cookie}}),env);assert.equal((await after.json()).items[0].status,'published');
+ assert.equal((await save({...data,id:created.id,status:'scheduled',scheduled_at:'2026-11-20T11:00:00.000Z'})).status,400);
+});

@@ -16,7 +16,7 @@ article-specific Open Graph and X metadata, and BlogPosting structured data.
 3. Upload a JPEG, PNG or WebP cover up to 1 MiB, or provide a public HTTPS image
    URL. Uploads are saved in D1, and their random URLs are public immediately,
    even when a story is a draft. Do not upload private images.
-4. Choose Save draft or Publish story. The public URL appears after publishing.
+4. Choose Save draft, Publish now, or enter a future date and time and choose Schedule story. The time uses the editor device time zone; the API stores it in UTC. The story is public once its scheduled time is reached.
    A published slug cannot be changed, protecting shared links.
 
 The public renderer supports the editor's listed formatting. Ordered lists,
