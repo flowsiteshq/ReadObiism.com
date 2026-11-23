@@ -1,0 +1,58 @@
+/* Shared admin shell and page-specific refinements. */
+body.admin-subpage { background:#f5f2ec; color:#17140e; }
+body.admin-subpage .sidebar .brand > span { display:block; color:#fff; visibility:visible; opacity:1; font:700 32px/1 Georgia,serif; letter-spacing:-1px; }
+body.admin-subpage .sidebar .brand > span > span { color:#ebc968; }
+body.admin-subpage .topbar {
+  height:72px; display:flex; align-items:center; justify-content:flex-start;
+  gap:20px; padding:0 42px; background:#fffdfa; border-bottom:1px solid #e9e3d8;
+}
+body.admin-subpage .topbar .preview-pill { margin-left:auto; }
+body.admin-subpage main { max-width:1500px; margin:auto; padding:42px; background:#f5f2ec; }
+body.admin-subpage .panel,body.admin-subpage .stat-card {
+  background:#fffdfa; border:1px solid #e9e4d9; border-radius:12px;
+  box-shadow:0 8px 24px rgba(57,42,15,.045);
+}
+body.admin-subpage .stat-card { border-top:3px solid #ebc968; }
+body.admin-subpage h1 { font:700 clamp(32px,3vw,42px)/1.06 Georgia,serif; letter-spacing:-.045em; }
+body.admin-subpage h2 { font-family:Georgia,serif; color:#211a11; }
+body.admin-subpage .analytics-heading p:not(.eyebrow),
+body.admin-subpage .heading p:not(.eyebrow) { color:#716b60; line-height:1.55; }
+body.admin-subpage .analytics-note { background:#fff9e9; border-color:#e9d6a4; }
+body.admin-subpage .analytics-admin h2,body.admin-subpage .blog-admin h2 { letter-spacing:-.02em; }
+body.admin-subpage .stat-card p { color:#645c4d; }
+body.admin-subpage .stat-card strong { color:#17140e; font-family:Georgia,serif; }
+body.admin-subpage .analytics-panel { padding:clamp(20px,3vw,28px); }
+body.admin-subpage .daily-breakdown { border-top:1px solid #ebe4d8; margin-top:16px; }
+body.admin-subpage .daily-breakdown summary { cursor:pointer; color:#765512; font-size:13px; font-weight:800; padding:16px 0; }
+body.admin-subpage .daily-breakdown .analytics-scroll { max-height:400px; overflow:auto; }
+body.admin-subpage .admin-blog-layout { grid-template-columns:minmax(220px,290px) minmax(0,1fr); }
+body.admin-subpage .admin-blog-layout>.panel { padding:clamp(20px,3vw,28px); }
+body.admin-subpage #admin-posts { max-height:65vh; overflow:auto; }
+body.admin-subpage .post-row { border-color:#ede6d9; }
+body.admin-subpage .post-row img { border:1px solid #e7dfd0; }
+body.admin-subpage .blog-admin input,body.admin-subpage .blog-admin textarea { border-color:#ddd6c9; }
+body.admin-subpage .publish-button { background:#17140e; color:#ebc968; min-height:44px; }
+body.admin-subpage .editor-toolbar { background:#f5f0e6; border-color:#e2dacb; }
+body.admin-subpage .editor-actions { gap:10px; }
+body.admin-subpage .outline-button { min-height:42px; }
+body.admin-subpage .analytics-footnote { color:#70695d; }
+.auth-feedback:not([hidden]) { position:fixed; z-index:20; left:50%; top:20px; transform:translateX(-50%); background:#fff6ed; color:#812d25; border:1px solid #e9c0af; border-radius:10px; padding:16px; max-width:calc(100% - 32px); box-shadow:0 8px 28px #0002; }
+.auth-feedback button { margin-top:10px; padding:8px 14px; cursor:pointer; }
+@media(max-width:800px) {
+  body.admin-subpage .sidebar .brand > span { display:block; color:#fff; visibility:visible; opacity:1; font:700 32px/1 Georgia,serif; letter-spacing:-1px; }
+body.admin-subpage .sidebar .brand > span > span { color:#ebc968; }
+body.admin-subpage .topbar { padding:0 18px; gap:10px; }
+  body.admin-subpage main { padding:28px 20px; }
+  body.admin-subpage .admin-blog-layout { grid-template-columns:1fr; }
+  body.admin-subpage #admin-posts { max-height:300px; }
+}
+@media(max-width:480px) {
+  body.admin-subpage .sidebar .brand > span { display:block; color:#fff; visibility:visible; opacity:1; font:700 32px/1 Georgia,serif; letter-spacing:-1px; }
+body.admin-subpage .sidebar .brand > span > span { color:#ebc968; }
+body.admin-subpage .topbar { padding:0 12px; gap:8px; }
+  body.admin-subpage .breadcrumb { font-size:11px; }
+  body.admin-subpage .preview-pill { font-size:10px; }
+  body.admin-subpage .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  body.admin-subpage .stat-card { padding:16px; }
+  body.admin-subpage .stat-card strong { font-size:27px; }
+}
