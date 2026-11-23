@@ -1,3 +1,4 @@
+import { recordAnalytics } from './api/src/analytics.js';
 import { validDeviceToken, validSessionId } from "./api/src/validation.js";
 import { hashDeviceToken, same } from "./api/src/security.js";
 import { publicBlog } from './api/src/blog.js';
@@ -80,6 +81,7 @@ const RATE_LIMITS = {
   "register-ip": { limit: 6, windowSeconds: 3600 },
   "register-email": { limit: 3, windowSeconds: 3600 },
   "register-phone": { limit: 3, windowSeconds: 3600 },
+  "analytics-ip": { limit: 600, windowSeconds: 300 },
   "checkout-ip": { limit: 15, windowSeconds: 3600 },
   "gift-redeem-ip": { limit: 20, windowSeconds: 3600 },
   "gift-redeem-code": { limit: 10, windowSeconds: 3600 },
@@ -3208,6 +3210,11 @@ async function handleRequest(request, env) {
         "access-control-allow-headers": "content-type, authorization, x-obi-device-token",
       },
     });
+  if (path === "/api/metrics/events") {
+    const limit = await consumeLimit(env, "analytics-ip", clientIp(request));
+    if (!limit.allowed) return json({ error: "Too many requests" }, { status: 429 });
+    return recordAnalytics(request, env);
+  }
   if (path === "/api/health") return json({ status: "ok", service: "obi-ism-payments" });
   if (path === "/api/auth/config" && request.method === "GET")
     return reply(

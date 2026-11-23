@@ -1,3 +1,4 @@
+import { analyticsSummary } from './analytics.js';
 // Read-only administrative views. Never return password, session or device hashes.
 import { bulkOrderClaims, ensureBulkOrders } from './bulk-orders.js';
 import { ensureDeviceSchema } from './device-schema.js';
@@ -9,6 +10,7 @@ const rows = async (db, sql, ...args) => (await db.prepare(sql).bind(...args).al
 
 export async function adminData(request, env) {
   const url = new URL(request.url), db = env.OBI_DB;
+  if (url.pathname === '/api/admin/analytics' && request.method === 'GET') return analyticsSummary(env);
   if (url.pathname === '/api/admin/editions') {
     await ensureEditions(env);
     const editions = await editionList(env);

@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+import worker from '../dashboard-worker.js';
+function database(){const raw=new DatabaseSync(':memory:');return {raw,exec:async sql=>raw.exec(sql),prepare(sql){const q={args:[],bind(...args){q.args=args;return q},first:async()=>raw.prepare(sql).get(...q.args)||null,all:async()=>({results:raw.prepare(sql).all(...q.args)}),run:async()=>({meta:{changes:Number(raw.prepare(sql).run(...q.args).changes)}})};return q}}}
+const request=(path,init={})=>new Request('https://readobiism.com'+path,init);
+test('daily analytics counts views and checkout stages without storing personal details',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-23T23:30:00Z')});
+ const db=database();db.raw.exec('CREATE TABLE request_limits(bucket TEXT PRIMARY KEY,window_start INTEGER NOT NULL,count INTEGER NOT NULL)');
+ const env={OBI_DB:db,OBI_ADMIN_EMAIL:'admin@example.test',OBI_ADMIN_PASSWORD:'a'.repeat(32)};
+ const post=(value,extra={})=>worker.fetch(request('/api/metrics/events',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json',...extra},body:JSON.stringify(value)}),env);
+ const event={event:'page_view',page:'article:character',currency:'none',mode:'none',visitor:'a'.repeat(32)};
+ assert.equal((await post(event)).status,204);assert.equal((await post(event)).status,204);
+ assert.equal((await post({...event,event:'checkout_attempt',currency:'NGN',mode:'gift'})).status,204);
+ assert.equal((await post({...event,event:'checkout_opened',currency:'NGN',mode:'gift'})).status,204);
+ assert.equal((await post(event,{'sec-gpc':'1'})).status,204);
+ assert.equal((await post({...event,page:'?email=secret'})).status,400);
+ assert.equal((await post(event,{origin:'https://elsewhere.test'})).status,403);
+ assert.equal((await worker.fetch(request('/api/admin/analytics'),env)).status,401);
+ const login=await worker.fetch(request('/api/admin/login',{method:'POST',headers:{origin:'https://readobiism.com','content-type':'application/json'},body:JSON.stringify({email:env.OBI_ADMIN_EMAIL,password:env.OBI_ADMIN_PASSWORD})}),env);
+ const cookie=login.headers.get('set-cookie').split(';')[0];
+ const response=await worker.fetch(request('/api/admin/analytics',{headers:{cookie}}),env);assert.equal(response.status,200);const result=await response.json();
+ assert.equal(result.today,'2026-11-24');assert.equal(result.visitors[0].total,1);
+ assert.equal(result.days.find(x=>x.event==='page_view').total,2);
+ assert.equal(result.days.find(x=>x.event==='checkout_attempt').total,1);
+ assert.equal(result.days.find(x=>x.event==='checkout_opened').total,1);
+ assert.equal(result.gateways.find(x=>x.event==='checkout_attempt').mode,'gift');
+ assert.equal(JSON.stringify(result).includes('aaaaaaaa'),false);
+ assert.equal(JSON.stringify(result).includes('reader@example.com'),false);
+});
+test('browser analytics drops query strings and respects privacy signals',async()=>{
+ const source=await readFile(new URL('../../assets/js/custom/analytics-20261123.js',import.meta.url),'utf8'),records=[];
+ const localStorage={getItem:()=>null,setItem(){}};const crypto={getRandomValues:a=>{a.fill(3);return a}};
+ const window={crypto};const context={window,crypto,localStorage,location:{pathname:'/api/blog/post/a-story',search:'?session_id=secret'},navigator:{},Date,Uint8Array,Array,JSON,fetch:(url,options)=>{records.push(JSON.parse(options.body));return Promise.resolve()}};
+ vm.runInNewContext(source,context);assert.equal(records.length,1);assert.equal(records[0].page,'article:a-story');assert.equal(JSON.stringify(records).includes('secret'),false);
+ context.window.OBI_ANALYTICS.track('checkout_attempt',{currency:'NGN',mode:'self'});assert.equal(records[1].event,'checkout_attempt');
+ const silent={...context,window:{crypto},navigator:{globalPrivacyControl:true}};vm.runInNewContext(source,silent);silent.window.OBI_ANALYTICS.track('page_view');assert.equal(records.length,2);
+});
