@@ -108,16 +108,16 @@ test('device transfer requires the account password and sends a code', async () 
 });
 
 const localReq=(path,token,body)=>new Request('http://127.0.0.1:8799'+path,{method:'POST',headers:{origin:'http://127.0.0.1:8799','content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});
-test('first device move is blocked for 72 hours and then free',async()=>{
+test('transfers are free within the configured period and paid afterward',async()=>{
  const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1'},seeded=await seed(env);
  db.raw.prepare('UPDATE purchases SET granted_at=? WHERE checkout_session_id=?').run(new Date(Date.now()-71*3600000).toISOString(),seeded.sessionId);
  const args={session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'};
- const early=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(early.status,409);assert.match((await early.json()).error,/72 hours/);
+ const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(start.status,200,await start.clone().text());const challenge=await start.json();assert.equal(challenge.paymentRequired,false);assert.equal(challenge.transferFreeDays,3);
+ const done=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:args.device_token}),env);assert.equal(done.status,200,await done.clone().text());
+ const another={...args,device_token:'second-new-device-token-1234567890'};const second=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,another),env);const challenge2=await second.json();assert.equal(challenge2.paymentRequired,false);
+ const done2=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge2.challengeId,code:challenge2.testCode,device_token:another.device_token}),env);assert.equal(done2.status,200,await done2.clone().text());assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_audit').get().n,2);
  db.raw.prepare('UPDATE purchases SET granted_at=? WHERE checkout_session_id=?').run(new Date(Date.now()-73*3600000).toISOString(),seeded.sessionId);
- const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(start.status,200,await start.clone().text());const challenge=await start.json();assert.equal(challenge.paymentRequired,false);
- const done=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:args.device_token}),env);
- assert.equal(done.status,200,await done.clone().text());assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_audit').get().n,1);
- assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(args.device_token));
+ const after=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,{...args,device_token:'third-new-device-token-1234567890'}),env);assert.equal(after.status,200);assert.equal((await after.json()).paymentRequired,true);
 });
 test('later transfer requires matching verified Paystack payment, is recoverable, and applies once',async()=>{
  const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1',PAYSTACK_SECRET_KEY:'sk_test_fixture'},seeded=await seed(env);
@@ -159,4 +159,25 @@ test('phone-only account cannot request email verification to a synthetic addres
  db.raw.prepare('UPDATE purchases SET purchaser_email=? WHERE checkout_session_id=?').run('2348012345678@phone.obiism.local',seeded.sessionId);
  const response=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,{session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'}),env);
  assert.equal(response.status,409);assert.match((await response.json()).error,/valid email address/);
+});
+test('admin period changes apply immediately and zero makes the first move paid',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1'},seeded=await seed(env);const now=new Date().toISOString();
+ db.raw.prepare('CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL,updated_by TEXT)').run();
+ db.raw.prepare('INSERT INTO site_settings VALUES (?,?,?,?)').run('transfer_free_days','0',now,'admin');
+ db.raw.prepare('UPDATE purchases SET granted_at=? WHERE checkout_session_id=?').run(new Date(Date.now()-3600000).toISOString(),seeded.sessionId);
+ const args={session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'};
+ const first=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal((await first.json()).paymentRequired,true);
+ db.raw.prepare("UPDATE site_settings SET value='7' WHERE key='transfer_free_days'").run();
+ const second=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);const body=await second.json();assert.equal(body.paymentRequired,false);assert.equal(body.transferFreeDays,7);
+ db.raw.prepare("UPDATE site_settings SET value='0' WHERE key='transfer_free_days'").run();
+ const confirm=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:body.challengeId,code:body.testCode,device_token:args.device_token}),env);
+ assert.equal(confirm.status,409);assert.equal((await confirm.json()).code,'transfer_policy_changed');assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(seeded.oldDeviceToken));
+});
+test('pending transfer payment blocks a free move if the admin extends the period',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1'},seeded=await seed(env),{ensureTransferPayments}=await import('../api/src/transfer-payments.js');
+ const args={session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'};const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal((await start.json()).paymentRequired,true);
+ await ensureTransferPayments(env);const now=new Date().toISOString();db.raw.prepare("INSERT INTO transfer_payments (id,challenge_id,account_id,checkout_session_id,old_device_hash,new_device_hash,provider,currency,amount_minor,receipt_email,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run('tpay_11111111111111111111111111111111','challenge_old','acct_transfer',seeded.sessionId,await hashDeviceToken(seeded.oldDeviceToken),await hashDeviceToken(args.device_token),'paystack','NGN',399500,'reader@example.test','pending',now,now);
+ db.raw.prepare('INSERT INTO site_settings VALUES (?,?,?,?)').run('transfer_free_days','7',now,'admin');
+ const next=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env),challenge=await next.json();assert.equal(challenge.paymentRequired,false);
+ const confirm=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:args.device_token}),env);assert.equal(confirm.status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(seeded.oldDeviceToken));
 });

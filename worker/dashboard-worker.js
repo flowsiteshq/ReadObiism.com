@@ -21,7 +21,7 @@ import {
   NGN_PRICE_KOBO,
   EDITION_SKU as SKU,
 } from "./api/src/pricing.js";
-import { getPricing, getAccessDays, accessExpiry } from "./api/src/pricing-store.js";
+import { getPricing, getAccessDays, getTransferFreeDays, accessExpiry } from "./api/src/pricing-store.js";
 import { ensureEditions, liveEdition, editionByNumber } from "./api/src/edition-store.js";
 import { getFeatureFlags, isFeatureEnabled } from "./api/src/feature-flags.js";
 import {
@@ -42,8 +42,7 @@ import { bytesToBase64, passwordDigest, passwordSalt } from "./api/src/passwords
 const NAIRA_PRICE = NGN_PRICE_KOBO / 100;
 const EVENT = "checkout.session.completed";
 const NARRATOR_VOICE_ID = "F18yf5BixLZCvKiiW0yJ"; // Steven — West African Narrator
-// Device transfers are available 72 hours after purchase.
-const FIRST_TRANSFER_DELAY_MS = 72 * 3600000;
+// Transfers are free for the configured period following purchase.
 
 /**
  * Fixed-window abuse limits. Counters live in D1 so every Worker isolate
@@ -2354,11 +2353,11 @@ async function startDeviceTransfer(request, env) {
   }
   const purchase = await transferOwner(env, body.session_id, account.email);
   if (!purchase) return reply({ error: "No active edition was found for this account." }, request, { status: 403 });
-  const eligibleAt = Date.parse(purchase.granted_at) + FIRST_TRANSFER_DELAY_MS;
-  if (!Number.isFinite(eligibleAt)) return reply({ error: "The purchase date could not be verified. Please contact support." }, request, { status: 409 });
-  if (Date.now() < eligibleAt) return reply({ error: "Transfers are available 72 hours after purchase.", eligibleAt: new Date(eligibleAt).toISOString() }, request, { status: 409 });
-  const transferCount = await env.OBI_DB.prepare("SELECT count(*) AS count FROM device_transfer_audit WHERE checkout_session_id=?").bind(body.session_id).first();
-  const paymentRequired = Number(transferCount?.count || 0) > 0;
+  const purchasedAt = Date.parse(purchase.granted_at);
+  if (!Number.isFinite(purchasedAt)) return reply({ error: "The purchase date could not be verified. Please contact support." }, request, { status: 409 });
+  const freeDays = await getTransferFreeDays(env);
+  const freeUntil = purchasedAt + freeDays * 86400000;
+  const paymentRequired = Date.now() >= freeUntil;
   const transferPrices = paymentRequired ? await transferQuote(env) : null;
   if (!/^\S+@\S+\.\S+$/.test(String(account.email || "")) || /@phone\.obiism\.local$/i.test(account.email)) return reply({ error: "Your account needs a valid email address to receive a verification code. Please contact support." }, request, { status: 409 });
   const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
@@ -2425,6 +2424,8 @@ async function startDeviceTransfer(request, env) {
         paymentRequired,
         prices: transferPrices,
         receiptEmail: account.email,
+        transferFreeDays: freeDays,
+        freeUntil: new Date(freeUntil).toISOString(),
         localTest: true,
         testCode: code,
         message: "Local test only: use the verification code shown below.",
@@ -2461,7 +2462,7 @@ async function startDeviceTransfer(request, env) {
     );
   }
   return reply(
-    { challengeId: id, paymentRequired, prices: transferPrices, receiptEmail: account.email, message: "A verification code was sent to your account email." },
+    { challengeId: id, paymentRequired, prices: transferPrices, receiptEmail: account.email, transferFreeDays: freeDays, freeUntil: new Date(freeUntil).toISOString(), message: "A verification code was sent to your account email." },
     request,
   );
 }
@@ -2507,10 +2508,11 @@ async function confirmDeviceTransfer(request, env) {
       status: 403,
     });
   const purchase = await transferOwner(env, challenge.checkout_session_id, account.email);
-  const eligibleAt = purchase ? Date.parse(purchase.granted_at) + FIRST_TRANSFER_DELAY_MS : NaN;
-  if (!Number.isFinite(eligibleAt) || Date.now() < eligibleAt) return reply({ error: "Transfers are available 72 hours after purchase." }, request, { status: 409 });
-  const prior = await env.OBI_DB.prepare("SELECT count(*) AS count FROM device_transfer_audit WHERE checkout_session_id=?").bind(challenge.checkout_session_id).first();
-  if (Number(prior?.count || 0) > 0) {
+  const purchasedAt = purchase ? Date.parse(purchase.granted_at) : NaN;
+  if (!Number.isFinite(purchasedAt)) return reply({ error: "The purchase date could not be verified. Please contact support." }, request, { status: 409 });
+  const freeDays = await getTransferFreeDays(env);
+  if (Date.now() >= purchasedAt + freeDays * 86400000) {
+    if (!body.currency) return reply({ error: "The free transfer period has ended. Request a new code to review the payment.", code: "transfer_policy_changed" }, request, { status: 409 });
     const requestUrl = new URL(request.url);
     const local = requestUrl.protocol === "http:" && ["127.0.0.1","localhost"].includes(requestUrl.hostname);
     const paymentKey = String(body.currency || "").toUpperCase() === "NGN" ? env.PAYSTACK_SECRET_KEY : env.OBI_STRIPE_SECRET_KEY;
@@ -2529,42 +2531,24 @@ async function confirmDeviceTransfer(request, env) {
   if (!consumed)
     return reply({ error: "This code has already been used." }, request, { status: 409 });
   const metadataJson = JSON.stringify(await requestDeviceMetadata(request));
+  await ensureTransferPayments(env);
+  const auditId = `audit_${await randomToken(18)}`;
   const result = await env.OBI_DB.batch([
     env.OBI_DB.prepare(
-      "UPDATE reader_devices SET device_hash=?, claimed_at=?, metadata_json=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM purchases WHERE checkout_session_id=? AND status='active') AND NOT EXISTS (SELECT 1 FROM device_transfer_audit WHERE checkout_session_id=reader_devices.checkout_session_id)",
-    ).bind(
-      challenge.new_device_hash,
-      now,
-      metadataJson,
-      challenge.checkout_session_id,
-      challenge.old_device_hash,
-      challenge.checkout_session_id,
-    ),
+      "UPDATE reader_devices SET device_hash=?, claimed_at=?, metadata_json=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM purchases p WHERE p.checkout_session_id=reader_devices.checkout_session_id AND p.status='active' AND (p.expires_at IS NULL OR p.expires_at>?) AND julianday(?) < julianday(p.granted_at) + COALESCE((SELECT CAST(value AS INTEGER) FROM site_settings WHERE key='transfer_free_days'),3)) AND NOT EXISTS (SELECT 1 FROM transfer_payments WHERE checkout_session_id=reader_devices.checkout_session_id AND status IN ('pending','paid'))",
+    ).bind(challenge.new_device_hash, now, metadataJson, challenge.checkout_session_id, challenge.old_device_hash, now, new Date().toISOString()),
     env.OBI_DB.prepare(
-      "UPDATE reader_state SET device_hash=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?) AND NOT EXISTS (SELECT 1 FROM device_transfer_audit WHERE checkout_session_id=?)",
-    ).bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash, challenge.checkout_session_id, challenge.new_device_hash, challenge.checkout_session_id),
+      "INSERT INTO device_transfer_audit (id,account_id,checkout_session_id,old_device_hash,new_device_hash,metadata_json,created_at) SELECT ?,?,?,?,?,?,? WHERE changes()=1",
+    ).bind(auditId, account.id, challenge.checkout_session_id, challenge.old_device_hash, challenge.new_device_hash, metadataJson, now),
     env.OBI_DB.prepare(
-      "UPDATE book_feedback SET device_hash=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?) AND NOT EXISTS (SELECT 1 FROM device_transfer_audit WHERE checkout_session_id=?)",
-    ).bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash, challenge.checkout_session_id, challenge.new_device_hash, challenge.checkout_session_id),
+      "UPDATE reader_state SET device_hash=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM device_transfer_audit WHERE id=?)",
+    ).bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash, auditId),
     env.OBI_DB.prepare(
-      "INSERT INTO device_transfer_audit (id,account_id,checkout_session_id,old_device_hash,new_device_hash,metadata_json,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM reader_devices WHERE checkout_session_id=? AND device_hash=?) AND NOT EXISTS (SELECT 1 FROM device_transfer_audit WHERE checkout_session_id=?)",
-    ).bind(
-      `audit_${await randomToken(18)}`,
-      account.id,
-      challenge.checkout_session_id,
-      challenge.old_device_hash,
-      challenge.new_device_hash,
-      metadataJson,
-      now,
-      challenge.checkout_session_id,
-      challenge.new_device_hash,
-      challenge.checkout_session_id,
-    ),
+      "UPDATE book_feedback SET device_hash=? WHERE checkout_session_id=? AND device_hash=? AND EXISTS (SELECT 1 FROM device_transfer_audit WHERE id=?)",
+    ).bind(challenge.new_device_hash, challenge.checkout_session_id, challenge.old_device_hash, auditId),
   ]);
-  if (!result[0]?.meta?.changes)
-    return reply({ error: "The active device changed. Please start again." }, request, {
-      status: 409,
-    });
+  if (!result[0]?.meta?.changes || !result[1]?.meta?.changes)
+    return reply({ error: "The transfer could not be completed. Your device, transfer period or a pending payment may have changed; please start again or contact support." }, request, { status: 409 });
   const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
   if (env.RESEND_API_KEY?.startsWith("re_") && from) {
     try {

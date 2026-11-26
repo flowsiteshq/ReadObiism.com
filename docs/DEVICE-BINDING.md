@@ -18,8 +18,8 @@ Moving an edition to a new device requires all of the following:
 2. The **account password** re-entered on the transfer screen.
 3. A fresh 8-digit code sent to the account email.
 4. A valid new-device token.
-5. At least **72 hours** have passed since purchase.
-6. The first successful transfer is free. Each subsequent successful transfer costs NGN 3,995 or USD 4.99, plus any enabled Paystack charge shown before payment.
+5. Transfers are free during the configured number of days after purchase (default 3 days); afterward each transfer costs NGN 3,995 or USD 4.99, plus any enabled Paystack charge shown before payment.
+6. Administrators can change the free period in Payment settings. Changes apply to existing and new purchases.
 
 On success:
 

@@ -93,16 +93,22 @@ test('admin session can read and update the live prices', async () => {
   const update = await worker.fetch(request('/api/admin/pricing', {
     method: 'POST',
     headers: { origin: 'https://readobiism.com', 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ ngn: 8000, usd: 11.5 }),
+    body: JSON.stringify({ ngn: 8000, usd: 11.5, transferFreeDays: 7 }),
   }), env);
   assert.equal(update.status, 200);
   const updated = await update.json();
   assert.equal(updated.pricing.NGN.amount, 8000);
   assert.equal(updated.pricing.USD.amount, 11.5);
+  assert.equal(updated.pricing.transferFreeDays, 7);
+  const invalid = await worker.fetch(request('/api/admin/pricing', { method:'POST', headers:{ origin:'https://readobiism.com', 'content-type':'application/json', cookie }, body:JSON.stringify({ ngn:8000, usd:11.5, transferFreeDays:-1 }) }), env);
+  assert.equal(invalid.status,400);
+  const unauth = await worker.fetch(request('/api/admin/pricing', { method:'POST', headers:{ origin:'https://readobiism.com', 'content-type':'application/json' }, body:JSON.stringify({ ngn:8000, usd:11.5, transferFreeDays:0 }) }), env);
+  assert.equal(unauth.status,401);
 
   const publicResponse = await worker.fetch(request('/api/pricing'), env);
   const publicBody = await publicResponse.json();
   assert.equal(publicBody.NGN.amount, 8000);
+  assert.equal(publicBody.transferFreeDays, 7);
   assert.equal(publicBody.NGN.formatted, '₦8,000');
   assert.equal(publicBody.USD.formatted, '$11.50');
 });

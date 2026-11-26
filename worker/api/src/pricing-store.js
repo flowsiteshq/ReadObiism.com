@@ -6,6 +6,9 @@ import { EDITION_SKU, NGN_PRICE_KOBO, USD_PRICE_CENTS } from './pricing.js';
 const NGN_KEY = 'price_ngn_minor';
 const USD_KEY = 'price_usd_minor';
 const ACCESS_KEY = 'access_duration_days';
+const TRANSFER_FREE_KEY = 'transfer_free_days';
+export const DEFAULT_TRANSFER_FREE_DAYS = 3;
+export const MAX_TRANSFER_FREE_DAYS = 3650;
 export const DEFAULT_ACCESS_DAYS = 365;
 export const MAX_ACCESS_DAYS = 3650;
 const ensured = new WeakSet();
@@ -34,6 +37,7 @@ export function defaultPricing() {
     USD: price('USD', USD_PRICE_CENTS),
     sku: EDITION_SKU,
     accessDays: DEFAULT_ACCESS_DAYS,
+    transferFreeDays: DEFAULT_TRANSFER_FREE_DAYS,
   };
 }
 
@@ -68,6 +72,19 @@ export async function getAccessDays(env) {
   return validAccessDays(row?.value, DEFAULT_ACCESS_DAYS);
 }
 
+export function validTransferFreeDays(value, fallback = DEFAULT_TRANSFER_FREE_DAYS) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 && number <= MAX_TRANSFER_FREE_DAYS ? number : fallback;
+}
+
+export async function getTransferFreeDays(env) {
+  if (!env?.OBI_DB) return DEFAULT_TRANSFER_FREE_DAYS;
+  await ensurePricing(env);
+  const row = await env.OBI_DB.prepare('SELECT value FROM site_settings WHERE key=?').bind(TRANSFER_FREE_KEY).first();
+  return validTransferFreeDays(row?.value);
+}
+
 /** ISO timestamp `days` after `from` (defaults to now). */
 export function accessExpiry(days, from = new Date()) {
   return new Date(from.getTime() + validAccessDays(days) * 86400000).toISOString();
@@ -77,8 +94,8 @@ export async function getPricing(env) {
   if (!env?.OBI_DB) return defaultPricing();
   await ensurePricing(env);
   const result = await env.OBI_DB.prepare(
-    'SELECT key,value FROM site_settings WHERE key IN (?,?,?)',
-  ).bind(NGN_KEY, USD_KEY, ACCESS_KEY).all();
+    'SELECT key,value FROM site_settings WHERE key IN (?,?,?,?)',
+  ).bind(NGN_KEY, USD_KEY, ACCESS_KEY, TRANSFER_FREE_KEY).all();
   const values = new Map((result.results || []).map((row) => [row.key, row.value]));
   const defaults = defaultPricing();
   return {
@@ -86,6 +103,7 @@ export async function getPricing(env) {
     USD: price('USD', validMinor(values.get(USD_KEY), defaults.USD.minor)),
     sku: EDITION_SKU,
     accessDays: validAccessDays(values.get(ACCESS_KEY), DEFAULT_ACCESS_DAYS),
+    transferFreeDays: validTransferFreeDays(values.get(TRANSFER_FREE_KEY)),
   };
 }
 
@@ -104,7 +122,10 @@ export function validatePricing(body) {
   if (!Number.isInteger(accessDays) || accessDays < 1 || accessDays > MAX_ACCESS_DAYS) {
     return { ok: false, error: `Enter a whole access duration between 1 and ${MAX_ACCESS_DAYS} days.` };
   }
-  return { ok: true, ngnMinor: ngn * 100, usdMinor, accessDays, hasAccessDays };
+  const hasTransferFreeDays = body?.transferFreeDays !== undefined;
+  const transferFreeDays = hasTransferFreeDays ? validTransferFreeDays(body.transferFreeDays, null) : DEFAULT_TRANSFER_FREE_DAYS;
+  if (transferFreeDays === null) return { ok: false, error: 'Enter a whole free transfer period between 0 and 3650 days.' };
+  return { ok: true, ngnMinor: ngn * 100, usdMinor, accessDays, hasAccessDays, transferFreeDays, hasTransferFreeDays };
 }
 
 export async function savePricing(env, parsed, updatedBy = '') {
@@ -120,6 +141,7 @@ export async function savePricing(env, parsed, updatedBy = '') {
       env.OBI_DB.prepare(upsert).bind(ACCESS_KEY, String(parsed.accessDays), now, updatedBy),
     );
   }
+  if (parsed.hasTransferFreeDays) statements.push(env.OBI_DB.prepare(upsert).bind(TRANSFER_FREE_KEY, String(parsed.transferFreeDays), now, updatedBy));
   await env.OBI_DB.batch(statements);
   return getPricing(env);
 }
