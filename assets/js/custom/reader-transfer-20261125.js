@@ -1,0 +1,717 @@
+
+    (() => {
+      const app = document.getElementById("app");
+      const apiFetch = window.OBI_API.fetch;
+      const showReaderNotice = (text) => {
+        const note = document.createElement("p");
+        note.className = "reader-lock-note";
+        note.setAttribute("role", "status");
+        note.textContent = text;
+        document.body.append(note);
+        setTimeout(() => note.remove(), 4200);
+      };
+      const showReadingShield = () => {
+        if (!app.classList.contains("reader-shell")) return;
+        const shield = document.getElementById("reader-focus-shield");
+        if (shield) shield.hidden = false;
+      };
+      const hideReadingShield = () => {
+        const shield = document.getElementById("reader-focus-shield");
+        if (shield) shield.hidden = true;
+      };
+      window.addEventListener("blur", showReadingShield);
+      window.addEventListener("focus", hideReadingShield);
+      window.addEventListener("pageshow", hideReadingShield);
+      document.addEventListener("pointerdown", hideReadingShield, true);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") showReadingShield();
+        else hideReadingShield();
+      });
+      const selectionInReading = () => {
+        const selection = window.getSelection();
+        const node = selection?.anchorNode;
+        const element = node?.nodeType === 1 ? node : node?.parentElement;
+        return Boolean(element?.closest?.(".reading"));
+      };
+      document.addEventListener("contextmenu", (event) => {
+        if (event.target.closest?.(".reading")) {
+          event.preventDefault();
+          showReaderNotice("This edition is licensed to you. Copying and screenshots are not permitted.");
+        }
+      });
+      document.addEventListener("copy", (event) => {
+        if (selectionInReading()) {
+          event.preventDefault();
+          showReaderNotice("Copying is disabled. This copy is licensed to you.");
+        }
+      });
+      document.addEventListener("cut", (event) => {
+        if (selectionInReading()) {
+          event.preventDefault();
+          showReaderNotice("Cutting is disabled for this edition.");
+        }
+      });
+      document.addEventListener("dragstart", (event) => {
+        if (event.target.closest?.(".reading")) {
+          event.preventDefault();
+          showReaderNotice("Dragging text out of this edition is disabled.");
+        }
+      });
+      document.addEventListener("selectstart", (event) => {
+        if (event.target.closest?.(".reading")) event.preventDefault();
+      });
+      const editableTarget = (event) => {
+        const target = event.target;
+        const element = target?.nodeType === 1 ? target : target?.parentElement;
+        return Boolean(element?.closest?.("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
+      };
+      document.addEventListener("keydown", (event) => {
+        const key = String(event.key || "").toLowerCase();
+        const modifier = event.ctrlKey || event.metaKey;
+        const editable = editableTarget(event);
+        if (event.key === "PrintScreen") showReaderNotice("Screenshots are traceable to this licensed copy.");
+        if (modifier && ["c", "x"].includes(key) && !editable) {
+          event.preventDefault();
+          showReaderNotice(key === "c" ? "Copying is disabled. This copy is licensed to you." : "Cutting is disabled for this edition.");
+          return;
+        }
+        if (modifier && ["s", "p", "u"].includes(key)) {
+          event.preventDefault();
+          showReaderNotice("Saving, printing, and page-source access are disabled for this edition.");
+          return;
+        }
+        if (event.key === "F12" || (modifier && event.shiftKey && ["i", "j", "c", "k"].includes(key))) {
+          event.preventDefault();
+          showReaderNotice("Developer tools are not needed to read this edition.");
+        }
+      });
+      window.addEventListener("beforeprint", () => showReaderNotice("Printing is disabled for this edition."));
+      const params = new URLSearchParams(location.search);
+      let sessionId = params.get("session_id");
+      const transferOrder = params.get("transfer_order"), transferCancelled = params.get("transfer_cancelled") === "1";
+      const validTransferOrder = value => /^tpay_[a-f0-9]{32}$/.test(value || "");
+      let currentDeviceToken = "";
+      let activeLicense = {};
+      const readerState = new Map();
+      const validSession = (value) => typeof value === "string" && /^(cs_[A-Za-z0-9_]{12,255}|obi_[a-z0-9]{16,64})$/.test(value);
+      // Keep the payment return reference in this tab for refresh/retry, then
+      // remove payment parameters from the address bar and current history entry.
+      const pendingKey = "obi-ism.reader-return";
+      let pendingReturn = null;
+      try {
+        if (validSession(sessionId)) {
+          sessionStorage.setItem(pendingKey, sessionId);
+          pendingReturn = sessionId;
+          if (validTransferOrder(transferOrder)) localStorage.setItem("obi-ism.transfer-order." + sessionId, transferOrder);
+          params.delete("transfer_order"); params.delete("transfer_cancelled");
+          params.delete("session_id"); params.delete("trxref"); params.delete("reference");
+          const query = params.toString();
+          history.replaceState(history.state, "", location.pathname + (query ? "?" + query : "") + (location.hash || ""));
+        } else {
+          pendingReturn = sessionStorage.getItem(pendingKey);
+        }
+      } catch { /* Keep the original URL if tab storage or history is unavailable. */ }
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+      const newToken = () => {
+        const bytes = crypto.getRandomValues(new Uint8Array(48));
+        return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
+      };
+      const ARROW = '<svg class="arrow-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>';
+      const fail = (message, retry = false, signIn = false, expired = false) => {
+        app.className = "access-state";
+        const heading = expired ? 'Access <span style="color:#d5ac47">expired</span>' : 'Access <span style="color:#d5ac47">required</span>';
+        const action = expired
+          ? `<button class="retry" id="renew">RENEW ACCESS ${ARROW}</button><p style="margin-top:14px"><a href="/login" style="color:#d5ac47">SIGN IN TO YOUR ACCOUNT</a></p>`
+          : retry ? `<button class="retry" id="retry">RETRY ACCESS ${ARROW}</button>` : signIn ? `<button class="retry" id="return">SIGN IN ${ARROW}</button>` : `<button class="retry" id="return">RETURN TO OBI-ISM ${ARROW}</button>`;
+        app.innerHTML = `<div class="panel"><h1>${heading}</h1><p>${escape(message)}</p>${action}</div>`;
+        const renew = document.getElementById("renew");
+        const button = document.getElementById(retry ? "retry" : "return");
+        if (renew) renew.addEventListener("click", () => location.assign("/#edition"));
+        if (button) button.addEventListener("click", () => retry ? start() : location.assign(signIn ? "/login" : "/"));
+      };
+      const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+      const offerTransfer = async (deviceToken) => {
+        app.className = "access-state";
+        // Fail closed: the transfer form (password, email code, cooldown) must
+        // never appear unless the server explicitly says transfers are enabled.
+        let transferEnabled = false;
+        try {
+          const flags = await apiFetch("/api/features", { cache: "no-store" });
+          if (flags.ok) transferEnabled = (await flags.json()).features?.device_transfer === true;
+        } catch { /* leave disabled */ }
+        if (!transferEnabled) {
+          app.innerHTML = `<div class="panel"><h1>Edition <span style="color:#d5ac47">already active</span></h1><p>Your edition is already active in another browser or device. Continue reading from your original device, or purchase a separate fresh edition to read here. Your current edition stays on its original device.</p><button class="retry" id="purchase-another" type="button">PURCHASE ANOTHER EDITION ${ARROW}</button><p style="margin-top:14px"><a href="/" style="color:#d5ac47">BACK TO OBI-ISM</a></p></div>`;
+          document.getElementById("purchase-another")?.addEventListener("click", () => location.assign("/#edition"));
+          return;
+        }
+        app.innerHTML = `<div class="panel"><h1>Move your <span style="color:#d5ac47">edition</span></h1><p>Your edition is active in another browser or device. Confirm your account password, then verify the email code to move it here. The old device will lose access.</p><label for="transfer-password" style="display:block;color:#d5ac47;font-size:9px;font-weight:800;letter-spacing:.15em;margin:18px 0 7px">CONFIRM YOUR ACCOUNT PASSWORD</label><input id="transfer-password" type="password" autocomplete="current-password" minlength="8" required style="font:inherit;padding:12px;max-width:100%;width:100%;border:1px solid #4b463b;border-radius:7px;background:#1b1f18;color:#fff"><button class="retry" id="send-code" type="button">SEND VERIFICATION CODE ${ARROW}</button><p id="transfer-status" aria-live="polite"></p><form id="transfer-form" hidden><label for="transfer-code">Eight-digit code</label><br><input id="transfer-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" required style="font:inherit;padding:12px;margin-top:12px;max-width:100%"><br><div id="transfer-payment" hidden><label for="transfer-currency">Payment currency</label><br><select id="transfer-currency"><option value="NGN">Naira - Paystack</option><option value="USD">US dollars - Stripe</option></select><p id="transfer-price"></p><label for="transfer-email">Email for payment receipt</label><br><input id="transfer-email" type="email" autocomplete="email" style="font:inherit;padding:12px;max-width:100%;width:100%"></div><button class="retry" type="submit">CONTINUE ${ARROW}</button></form><p style="color:#9f988a;font-size:11px;line-height:1.5">One active device. Transfers are available 72 hours after purchase. Your first transfer is free; further transfers cost &#8358;3,995 or $4.99.</p><p><a href="/login" style="color:#d5ac47">SIGN IN TO YOUR ACCOUNT</a></p></div>`;
+        const status = document.getElementById("transfer-status");
+        const send = document.getElementById("send-code");
+        const form = document.getElementById("transfer-form");
+        const password = document.getElementById("transfer-password");
+        let challengeId = "", paymentRequired = false, prices = null;
+        const currency = document.getElementById("transfer-currency"), receipt = document.getElementById("transfer-email");
+        const money = (n,c) => new Intl.NumberFormat("en-NG", {style:"currency",currency:c}).format(n/100);
+        const updatePrice = () => { const q=prices?.[currency.value]; document.getElementById("transfer-price").textContent = q ? "Transfer " + money(q.subtotal_minor,currency.value) + (q.fee_minor ? " + Paystack charge " + money(q.fee_minor,currency.value) : "") + " = total " + money(q.total_minor,currency.value) : "Price unavailable. Request a new code."; };
+        currency.addEventListener("change",updatePrice);
+        send.addEventListener("click", async () => {
+          const confirmed = password.value;
+          if (!confirmed) { status.textContent = "Confirm your account password first."; password.focus(); return; }
+          send.disabled = true;
+          status.textContent = "Sending your verification code…";
+          try {
+            const response = await apiFetch("/api/reader/transfer/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken, password: confirmed }) });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.error || "Could not start verification.");
+            challengeId = body.challengeId;
+            paymentRequired = body.paymentRequired === true; prices = body.prices; document.getElementById("transfer-payment").hidden = !paymentRequired; receipt.required = paymentRequired; form.querySelector("button").textContent = paymentRequired ? "CONTINUE TO PAYMENT" : "MOVE EDITION - FREE"; if (paymentRequired) updatePrice();
+            form.hidden = false;
+            status.textContent = body.localTest === true && location.hostname === '127.0.0.1' && /^\d{8}$/.test(body.testCode || '')
+              ? `Local test only — no email was sent. Your verification code is ${body.testCode}.`
+              : body.message;
+            send.textContent = "SEND A NEW CODE";
+            document.getElementById("transfer-code").focus();
+          } catch (error) { status.textContent = error.message || "Could not start verification."; }
+          finally { send.disabled = false; }
+        });
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const button = form.querySelector("button");
+          button.disabled = true;
+          status.textContent = "Verifying your code…";
+          try {
+            const payload = {challenge_id:challengeId,code:document.getElementById("transfer-code").value.trim(),device_token:deviceToken};
+            if (paymentRequired) { const q=prices?.[currency.value]; if (!q) throw Error("Price unavailable. Request a new code."); Object.assign(payload,{currency:currency.value,quoted_total_minor:q.total_minor,receipt_email:receipt.value.trim()}); }
+            const response = await apiFetch("/api/reader/transfer/confirm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+            const body = await response.json().catch(() => ({}));
+            if (validTransferOrder(body.orderId)) localStorage.setItem("obi-ism.transfer-order."+sessionId,body.orderId);
+            if (!response.ok) throw new Error(body.error || "Could not move your edition.");
+            if (body.paymentRequired && !body.alreadyPaid) { const target = new URL(body.url), host = currency.value === "NGN" ? "checkout.paystack.com" : "checkout.stripe.com"; if (target.protocol !== "https:" || target.hostname !== host || !validTransferOrder(body.orderId)) throw Error("Payment could not be opened. Contact support before trying again."); location.assign(target.href); return; }
+            await start();
+          } catch (error) { status.textContent = error.message || "Could not move your edition."; }
+          finally { button.disabled = false; }
+        });
+      };
+      const render = (edition, loadSection) => {
+        let current = 0;
+        const chapters = edition.chapters.filter((chapter) => chapter.kind !== "part");
+        const sectionCache = new Map();
+        const license = edition.license || {};
+        activeLicense = license;
+        const contact = license.phone || license.email;
+        const displayName = license.name || contact;
+        const watermarkText = [displayName, license.reference, license.device].filter(Boolean).join(" · ");
+        const mark = contact
+          ? `<p class="license-mark" aria-hidden="true">LICENSED TO ${escape(displayName)}${license.reference ? ` · ${escape(license.reference)}` : ""}${license.device ? ` · ${escape(license.device)}` : ""}</p>`
+          : "";
+        const licenseField = contact
+          ? `<div class="license-field" aria-hidden="true" data-license-watermark></div>`
+          : "";
+        const expiresText = license.expires_at ? new Date(license.expires_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+        const licenseCard = contact
+          ? `<div class="toc-license"><p>THIS COPY IS LICENSED TO</p><strong>${escape(displayName)}</strong>${license.name && contact ? `<small>${escape(contact)}</small>` : ""}${license.edition_label ? `<small>${escape(license.edition_label)}</small>` : ""}<small>${license.edition ? `${escape(license.edition)} · ` : ""}${escape(license.reference)}${license.device ? ` · ${escape(license.device)}` : ""}</small>${license.granted_at ? `<small>Activated ${escape(new Date(license.granted_at).toLocaleDateString())}</small>` : ""}${expiresText ? `<small>Access until ${escape(expiresText)}</small>` : ""}<button class="certificate-button" type="button" data-certificate-open>VIEW CERTIFICATE ${ARROW}</button><small class="toc-license-note">Screenshots are traceable to this copy.</small></div>`
+          : "";
+        const focusShield = `<div class="reader-focus-shield" id="reader-focus-shield" hidden aria-hidden="true"><div class="reader-focus-card"><p class="reader-focus-brand">OBI–<span>ISM</span></p><p class="reader-focus-eyebrow">READING PAUSED</p><strong>Return to this window to continue.</strong><small>Screenshots are traceable to this licensed copy.</small></div></div>`;
+        app.className = "reader-shell";
+        app.innerHTML = `<header class="reader-bar" id="reader-bar"><p class="brand">OBI–<span>ISM</span></p><div class="reader-bar-actions"><button class="chapter-toggle" id="chapter-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="false">CHAPTERS</button><div class="reader-actions-group" id="reader-actions-group"><button class="search-button" id="search-open" type="button" aria-expanded="false" aria-controls="search-panel"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span>SEARCH</span></button><button class="feedback-button" id="feedback-open" type="button"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span>FEEDBACK</span></button><a class="feedback-button reader-security-link" href="/security" title="Account security"><svg class="reader-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>SECURITY</span></a></div><button class="reader-menu-button" id="reader-menu-toggle" type="button" aria-expanded="false" aria-controls="reader-actions-group" aria-label="More reader actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button><p class="secure">PRIVATE EDITION<br>ONE DEVICE · READ ONLY</p></div></header><div class="reader-install-bar" id="reader-install-wrap"><button class="reader-install" id="reader-install" type="button" hidden>INSTALL APP</button><p class="reader-install-help" id="reader-install-help" hidden>On iPhone or iPad, open this page in Safari, tap Share, then choose <strong>Add to Home Screen</strong>.</p></div><div class="search-panel" id="search-panel" hidden><div class="search-panel-inner"><div class="search-input-wrap"><label class="sr-only" for="search-input">Search the book</label><input type="search" id="search-input" placeholder="Search the book..." maxlength="200" autocomplete="off" spellcheck="false"><button type="button" id="search-close" class="search-close" aria-label="Close search">CLOSE</button></div><div class="search-results" id="search-results" aria-live="polite" aria-label="Search results"></div></div></div><section class="book"><button class="toc-backdrop" id="toc-backdrop" type="button" aria-label="Close chapters" hidden></button><nav class="toc" id="chapter-sidebar" aria-label="Table of contents"><div class="toc-header"><h2>CONTENTS</h2><button class="toc-close" id="toc-close" type="button" aria-label="Close chapters">CLOSE</button></div><div id="contents"></div>${licenseCard}</nav><article class="reading" id="reading"></article></section>${licenseField}${mark}${focusShield}`;
+        const watermark = app.querySelector("[data-license-watermark]");
+        if (watermark) {
+          const watermarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="180"><text x="10" y="96" transform="rotate(-24 230 90)" fill="#10130f" fill-opacity=".06" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="800" letter-spacing="1">${escape(watermarkText)}</text></svg>`;
+          watermark.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(watermarkSvg)}")`;
+        }
+        if (document.visibilityState === "hidden") showReadingShield();
+        const actionsGroup = document.getElementById("reader-actions-group");
+        const menuToggle = document.getElementById("reader-menu-toggle");
+        const closeReaderMenu = () => { actionsGroup?.classList.remove("open"); menuToggle?.setAttribute("aria-expanded", "false"); };
+        menuToggle?.addEventListener("click", (event) => { event.stopPropagation(); const open = actionsGroup.classList.toggle("open"); menuToggle.setAttribute("aria-expanded", String(open)); });
+        document.addEventListener("click", (event) => { if (!event.target.closest(".reader-bar-actions")) closeReaderMenu(); });
+        document.getElementById("feedback-open")?.addEventListener("click", () => { closeReaderMenu(); openFeedback(); });
+        document.getElementById("search-open")?.addEventListener("click", () => { closeReaderMenu(); if (document.getElementById("search-panel")?.hidden) openSearch(); else closeSearch(); });
+        document.getElementById("search-close")?.addEventListener("click", closeSearch);
+        document.getElementById("search-input")?.addEventListener("input", debounceSearch);
+        document.getElementById("search-input")?.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); if (e.key === "Enter") { clearTimeout(searchDebounceTimer); void doSearch(e.currentTarget.value.trim()); } });
+        document.querySelector("[data-certificate-open]")?.addEventListener("click", openCertificate);
+        setupReaderInstall();
+        const contents = document.getElementById("contents");
+        const reading = document.getElementById("reading");
+        const sidebar = document.getElementById("chapter-sidebar");
+        const toggle = document.getElementById("chapter-toggle");
+        const closeButton = document.getElementById("toc-close");
+        const backdrop = document.getElementById("toc-backdrop");
+        const book = app.querySelector(".book");
+        const bar = app.querySelector(".reader-bar");
+        const mobile = window.matchMedia("(max-width: 820px)");
+        const setSidebar = (open, restoreFocus = false) => {
+          sidebar.hidden = !open;
+          backdrop.hidden = !mobile.matches || !open;
+          book.classList.toggle("toc-collapsed", !open);
+          document.body.classList.toggle("reader-toc-open", mobile.matches && open);
+          toggle.setAttribute("aria-expanded", String(open));
+          if (mobile.matches && open) closeButton.focus();
+          else if (mobile.matches && restoreFocus) toggle.focus();
+        };
+        const syncBarHeight = () => document.documentElement.style.setProperty("--reader-header-height", `${bar.getBoundingClientRect().height}px`);
+        syncBarHeight();
+        if (typeof ResizeObserver !== "undefined") new ResizeObserver(syncBarHeight).observe(bar);
+        setSidebar(!mobile.matches);
+        toggle.addEventListener("click", () => setSidebar(sidebar.hidden));
+        closeButton.addEventListener("click", () => setSidebar(false, true));
+        backdrop.addEventListener("click", () => setSidebar(false, true));
+        mobile.addEventListener("change", () => setSidebar(!mobile.matches));
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && mobile.matches && !sidebar.hidden) setSidebar(false, true);
+          if (event.key !== "Tab" || !mobile.matches || sidebar.hidden) return;
+          const controls = [...sidebar.querySelectorAll("button:not([disabled])")];
+          if (!controls.length) return;
+          const first = controls[0], last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        });
+        const starIcon = (filled, size = 13) => `<svg class="chapter-tool-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+        const penIcon = (size = 13) => `<svg class="chapter-tool-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`;
+        const markToc = () => {
+          contents.querySelectorAll("button").forEach((button) => {
+            const state = readerState.get(chapters[Number(button.dataset.chapter)]?.id);
+            const flags = button.querySelector(".toc-flags");
+            if (flags) flags.innerHTML = `${state?.bookmark ? starIcon(true, 12) : ""}${state?.note ? penIcon(12) : ""}`;
+          });
+        };
+        const updateProgress = () => {
+          const metadata = chapters[current];
+          if (!metadata || !reading) return;
+          const rect = reading.getBoundingClientRect();
+          const progress = Math.max(0, Math.min(1, (window.scrollY + window.innerHeight - (rect.top + window.scrollY)) / Math.max(1, rect.height)));
+          const state = readerState.get(metadata.id) || { section_id: metadata.id, bookmark: 0, note: "", progress: 0 };
+          state.progress = progress;
+          readerState.set(metadata.id, state);
+          const label = document.getElementById("chapter-progress");
+          if (label) label.textContent = `${Math.round(progress * 100)}%`;
+          if (Date.now() - lastProgressSave > 2500) {
+            lastProgressSave = Date.now();
+            void saveReaderState(metadata.id, { progress });
+          }
+        };
+        const show = async (index, options = 0) => {
+          const opts = typeof options === "number" ? { restoreProgress: options } : (options || {});
+          const restoreProgress = Number(opts.restoreProgress || 0);
+          const scrollToParagraph = Number.isInteger(opts.scrollToParagraph) ? opts.scrollToParagraph : -1;
+          current = Math.min(Math.max(index, 0), chapters.length - 1);
+          const metadata = chapters[current];
+          contents.innerHTML = chapters.map((item, itemIndex) => `<button data-chapter="${itemIndex}" aria-current="${itemIndex === current}"><small>${escape(item.label)}</small>${escape(item.title)}<span class="toc-flags" aria-hidden="true"></span></button>`).join("");
+          contents.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { if (mobile.matches) setSidebar(false, true); void show(Number(button.dataset.chapter)); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+          markToc();
+          reading.innerHTML = `<p class="chapter-label">${escape(metadata.label)}</p><h1>${escape(metadata.title)}</h1><p>Loading this licensed section…</p>`;
+          try {
+            let chapter = sectionCache.get(metadata.id);
+            if (!chapter) {
+              chapter = await loadSection(metadata.id);
+              sectionCache.set(metadata.id, chapter);
+            }
+            if (chapters[current].id !== metadata.id) return;
+            const state = readerState.get(chapter.id) || { section_id: chapter.id, bookmark: 0, note: "", progress: 0 };
+            readerState.set(chapter.id, state);
+            reading.innerHTML = `<div class="notice">This is your protected OBI-ISM edition. Access is tied to this purchase and this device. Copying and sharing controls are intentionally limited.</div><div class="chapter-tools"><button class="chapter-tool" id="bookmark-toggle" type="button" aria-pressed="false" aria-label="Save chapter" title="Save chapter">${starIcon(false)}</button><button class="chapter-tool" id="note-toggle" type="button" aria-label="Add note" title="Add note">${penIcon()}</button><span class="chapter-progress" id="chapter-progress">0%</span></div><p class="chapter-label">${escape(chapter.label)}</p><h1>${escape(chapter.title)}</h1>${chapter.paragraphs.map((paragraph, i) => `<p data-paragraph="${i}">${escape(paragraph)}</p>`).join("")}<nav class="chapter-nav"><button id="previous" ${current === 0 ? "disabled" : ""}>PREVIOUS</button><button id="next" ${current === chapters.length - 1 ? "disabled" : ""}>NEXT</button></nav><p class="footer-note">OBI-ISM: Building a Just Society Through Character · Protected browser edition</p>`;
+            const bookmarkToggle = document.getElementById("bookmark-toggle");
+            const noteToggle = document.getElementById("note-toggle");
+            const progressLabel = document.getElementById("chapter-progress");
+            const syncTools = () => {
+              bookmarkToggle.innerHTML = starIcon(Boolean(state.bookmark));
+              bookmarkToggle.setAttribute("aria-pressed", String(Boolean(state.bookmark)));
+              bookmarkToggle.setAttribute("aria-label", state.bookmark ? "Remove bookmark" : "Save chapter");
+              bookmarkToggle.title = state.bookmark ? "Remove bookmark" : "Save chapter";
+              noteToggle.innerHTML = penIcon();
+              noteToggle.setAttribute("aria-label", state.note ? "Edit note" : "Add note");
+              noteToggle.title = state.note ? "Edit note" : "Add note";
+              if (progressLabel) progressLabel.textContent = `${Math.round(Number(state.progress || 0) * 100)}%`;
+            };
+            syncTools();
+            bookmarkToggle.addEventListener("click", async () => {
+              state.bookmark = state.bookmark ? 0 : 1;
+              syncTools(); markToc();
+              await saveReaderState(chapter.id, { bookmark: state.bookmark });
+            });
+            noteToggle.addEventListener("click", () => openNote(chapter.id, state.note || "", (note) => {
+              state.note = note; syncTools(); markToc();
+            }));
+            document.getElementById("previous").addEventListener("click", () => void show(current - 1));
+            document.getElementById("next").addEventListener("click", () => void show(current + 1));
+            document.title = `${chapter.title} — OBI-ISM`;
+            updateProgress();
+            if (scrollToParagraph >= 0) {
+              requestAnimationFrame(() => {
+                const target = reading.querySelector(`p[data-paragraph="${scrollToParagraph}"]`);
+                if (target) { target.classList.add("search-hit"); target.scrollIntoView({ block: "center", behavior: "smooth" }); setTimeout(() => target.classList.remove("search-hit"), 2200); }
+                else window.scrollTo({ top: 0, behavior: "smooth" });
+              });
+            } else if (restoreProgress > 0) {
+              requestAnimationFrame(() => {
+                const top = reading.getBoundingClientRect().top + window.scrollY;
+                window.scrollTo(0, top + restoreProgress * Math.max(0, reading.offsetHeight - window.innerHeight));
+              });
+            } else {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          } catch {
+            if (chapters[current].id === metadata.id) reading.innerHTML = `<p class="chapter-label">${escape(metadata.label)}</p><h1>${escape(metadata.title)}</h1><p>We could not load this section. Reconnect and try again.</p><button id="retry-section">RETRY SECTION</button>`;
+            document.getElementById("retry-section")?.addEventListener("click", () => void show(current));
+          }
+        };
+        jumpToSection = (sectionId, paragraphIndex) => {
+          const idx = chapters.findIndex((c) => c.id === sectionId);
+          if (idx >= 0) void show(idx, { scrollToParagraph: paragraphIndex });
+        };
+        let lastProgressSave = 0;
+        let scrollTick = false;
+        window.addEventListener("scroll", () => {
+          if (scrollTick) return;
+          scrollTick = true;
+          requestAnimationFrame(() => { scrollTick = false; updateProgress(); });
+        }, { passive: true });
+        const loadReaderState = async () => {
+          try {
+            const response = await apiFetch(`/api/reader/state?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } });
+            if (response.ok) {
+              const data = await response.json();
+              (data.items || []).forEach((item) => readerState.set(item.section_id, item));
+              const index = data.last ? chapters.findIndex((chapter) => chapter.id === data.last.section_id) : -1;
+              if (index >= 0) { await show(index, Number(data.last.progress) || 0); return; }
+            }
+          } catch { /* local reading still works */ }
+          await show(0);
+        };
+        void loadReaderState();
+      };
+      function openCertificate() {
+        const license = activeLicense;
+        if (!license.email && !license.phone) return;
+        document.querySelector(".certificate-modal")?.remove();
+        const contact = license.phone || license.email;
+        const name = license.name || contact;
+        const issued = license.granted_at
+          ? new Date(license.granted_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+          : new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal certificate-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-certificate-close></div><section class="certificate-card" role="dialog" aria-modal="true" aria-labelledby="certificate-title" tabindex="-1"><button class="feedback-close" type="button" data-certificate-close aria-label="Close certificate">×</button><p class="certificate-eyebrow">OBI–ISM · LICENSED EDITION</p><div class="certificate-ornament" aria-hidden="true">✦</div><h2 id="certificate-title">Certificate of Licensed Reading</h2><p class="certificate-lead">This certifies that</p><p class="certificate-name">${escape(name)}</p>${license.name && contact ? `<p class="certificate-email">${escape(contact)}</p>` : ""}<p class="certificate-lead">is the licensed reader of the complete digital edition of</p><p class="certificate-book">Building a Just Society Through Character</p><div class="certificate-details"><div><span>EDITION</span><strong>${escape(license.edition || license.reference)}</strong></div><div><span>COPY REFERENCE</span><strong>${escape(license.reference || "—")}</strong></div><div><span>ACTIVATED</span><strong>${escape(issued)}</strong></div><div><span>DEVICE</span><strong>${escape(license.device || "Registered reader")}</strong></div></div><p class="certificate-note">This is a personal, traceable licence. The edition is bound to one active device and may be moved only through the verified transfer process.</p><div class="certificate-signature"><span>OBI–<i>ISM</i></span><small>PEOPLE · PRINCIPLES · PROGRESS</small></div><button class="feedback-submit" id="certificate-download" type="button">DOWNLOAD CERTIFICATE ${ARROW}</button></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".certificate-card");
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); };
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        modal.querySelectorAll("[data-certificate-close]").forEach((element) => element.addEventListener("click", close));
+        document.addEventListener("keydown", onKey);
+        card.focus();
+        modal.querySelector("#certificate-download")?.addEventListener("click", () => {
+          const xml = (value) => String(value ?? "").replace(/[<>&'"]/g, (character) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[character]));
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700"><rect width="1000" height="700" fill="#f8f3e8"/><rect x="34" y="34" width="932" height="632" fill="none" stroke="#c69b38" stroke-width="2"/><rect x="48" y="48" width="904" height="604" fill="none" stroke="#e2d6c1" stroke-width="1"/><text x="500" y="120" text-anchor="middle" font-family="Georgia,serif" font-size="54" font-weight="700" letter-spacing="-3" fill="#10130f">OBI–<tspan fill="#a87918">ISM</tspan></text><text x="500" y="152" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="4" fill="#8b6a1c">LICENSED EDITION</text><text x="500" y="235" text-anchor="middle" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#10130f">Certificate of Licensed Reading</text><text x="500" y="285" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f584c">This certifies that</text><text x="500" y="340" text-anchor="middle" font-family="Georgia,serif" font-size="40" font-weight="700" fill="#10130f">${xml(name)}</text>${license.name && contact ? `<text x="500" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#746c5f">${xml(contact)}</text>` : ""}<text x="500" y="415" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f584c">is the licensed reader of the complete digital edition of</text><text x="500" y="450" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-style="italic" fill="#17140e">Building a Just Society Through Character</text><text x="250" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">EDITION</text><text x="250" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#10130f">${xml(license.edition || license.reference)}</text><text x="500" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">COPY REFERENCE</text><text x="500" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#10130f">${xml(license.reference || "—")}</text><text x="750" y="530" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#8b6a1c">ACTIVATED</text><text x="750" y="555" text-anchor="middle" font-family="Georgia,serif" font-size="18" fill="#10130f">${xml(issued)}</text><text x="500" y="625" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#10130f">OBI–<tspan fill="#a87918">ISM</tspan></text></svg>`;
+          const blob = new Blob([svg], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `OBI-ISM-certificate-${license.reference || "licensed"}.svg`;
+          link.style.display = "none";
+          document.body.append(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      async function saveReaderState(sectionId, patch) {
+        if (!sessionId || !currentDeviceToken || !sectionId) return null;
+        try {
+          const response = await apiFetch("/api/reader/state", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-obi-device-token": currentDeviceToken },
+            body: JSON.stringify({ session_id: sessionId, device_token: currentDeviceToken, section_id: sectionId, ...patch }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.state) return null;
+          readerState.set(data.state.section_id, data.state);
+          return data.state;
+        } catch { return null; }
+      }
+
+      function openNote(sectionId, note, onSave) {
+        if (!sectionId) return;
+        document.querySelector(".note-modal")?.remove();
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal note-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-note-close></div><section class="feedback-card note-card" role="dialog" aria-modal="true" aria-labelledby="note-title" tabindex="-1"><button class="feedback-close" type="button" data-note-close aria-label="Close note">×</button><p class="feedback-eyebrow">PRIVATE NOTE</p><h2 id="note-title">A note for this chapter.</h2><p class="feedback-intro">Only you can see this note. It stays with your licensed copy.</p><textarea id="note-text" maxlength="4000" rows="6" placeholder="What do you want to remember?"></textarea><div class="feedback-meta"><span id="note-count">0 / 4000</span><span id="note-message" class="feedback-message" role="status" aria-live="polite"></span></div><button class="feedback-submit" id="note-save" type="button">SAVE NOTE ${ARROW}</button></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".note-card");
+        const textarea = modal.querySelector("#note-text");
+        const count = modal.querySelector("#note-count");
+        const message = modal.querySelector("#note-message");
+        const save = modal.querySelector("#note-save");
+        textarea.value = note || "";
+        count.textContent = `${textarea.value.length} / 4000`;
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); };
+        modal.querySelectorAll("[data-note-close]").forEach((element) => element.addEventListener("click", close));
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        document.addEventListener("keydown", onKey);
+        textarea.addEventListener("input", () => { count.textContent = `${textarea.value.length} / 4000`; });
+        save.addEventListener("click", async () => {
+          save.disabled = true;
+          message.textContent = "Saving…";
+          const state = await saveReaderState(sectionId, { note: textarea.value });
+          if (!state) { message.textContent = "Could not save the note."; save.disabled = false; return; }
+          onSave(state.note || "");
+          document.removeEventListener("keydown", onKey);
+          close();
+          showReaderNotice("Note saved.");
+        });
+        card.focus();
+        textarea.focus();
+      }
+
+      let searchDebounceTimer = null;
+      let searchRequestId = 0;
+      let jumpToSection = null;
+
+      function openSearch() {
+        const panel = document.getElementById("search-panel");
+        const openButton = document.getElementById("search-open");
+        if (panel) panel.hidden = false;
+        if (openButton) openButton.setAttribute("aria-expanded", "true");
+        const input = document.getElementById("search-input");
+        if (input) { input.focus(); input.select(); }
+      }
+
+      function closeSearch() {
+        const panel = document.getElementById("search-panel");
+        const openButton = document.getElementById("search-open");
+        clearTimeout(searchDebounceTimer);
+        searchRequestId += 1;
+        if (panel) panel.hidden = true;
+        if (openButton) { openButton.setAttribute("aria-expanded", "false"); openButton.focus(); }
+        const input = document.getElementById("search-input");
+        if (input) input.value = "";
+        const results = document.getElementById("search-results");
+        if (results) results.innerHTML = "";
+      }
+
+      function debounceSearch() {
+        searchRequestId += 1;
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+          const q = document.getElementById("search-input")?.value.trim() || "";
+          if (q.length < 2) {
+            const results = document.getElementById("search-results");
+            if (results) results.innerHTML = "";
+            return;
+          }
+          doSearch(q);
+        }, 300);
+      }
+
+      async function doSearch(q) {
+        const results = document.getElementById("search-results");
+        const panel = document.getElementById("search-panel");
+        if (!results || !panel || panel.hidden) return;
+        const requestId = ++searchRequestId;
+        if (q.length < 2) { results.innerHTML = ""; return; }
+        if (q.length > 200) { results.textContent = "Search must be 200 characters or fewer."; return; }
+        results.innerHTML = '<p class="search-state">Searching...</p>';
+        try {
+          const res = await apiFetch(`/api/reader/search?q=${encodeURIComponent(q)}&session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Search is temporarily unavailable. Please try again.");
+          }
+          const data = await res.json();
+          if (requestId === searchRequestId && !panel.hidden) renderSearchResults(data);
+        } catch (err) {
+          if (requestId === searchRequestId && !panel.hidden) results.innerHTML = `<p class="search-state search-error">${escape(err.message || "Search unavailable.")}</p>`;
+        }
+      }
+
+      function renderSearchResults(data) {
+        const results = document.getElementById("search-results");
+        if (!results) return;
+        const matches = data?.matches || [];
+        if (matches.length === 0) {
+          results.innerHTML = `<p class="search-state">No matches found for “${escape(data?.query || "")}”.</p>`;
+          return;
+        }
+        results.innerHTML = matches.map((m) => `
+          <button class="search-match" type="button" data-section="${escape(m.section_id)}" data-paragraph="${Number(m.paragraph_index || 0)}">
+            <span class="search-match-title">${escape(m.section_title || m.section_label || 'Section')}</span>
+            <span class="search-match-snippet">${escape(m.snippet || '').replaceAll("&lt;mark&gt;", "<mark>").replaceAll("&lt;/mark&gt;", "</mark>")}</span>
+          </button>
+        `).join("");
+        results.querySelectorAll(".search-match").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const sectionId = btn.dataset.section;
+            const paragraphIndex = Number(btn.dataset.paragraph || 0);
+            closeSearch();
+            if (typeof jumpToSection === "function") jumpToSection(sectionId, paragraphIndex);
+          });
+        });
+      }
+
+      function openFeedback() {
+        if (!sessionId || !currentDeviceToken) return;
+        document.querySelector(".feedback-modal")?.remove();
+        const options = [[1, "😞", "Not for me"], [2, "😕", "It was okay"], [3, "🙂", "Good"], [4, "😊", "Loved it"], [5, "🤩", "Transforming"]];
+        const modal = document.createElement("div");
+        modal.className = "feedback-modal";
+        modal.innerHTML = `<div class="feedback-backdrop" data-feedback-close></div><section class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="feedback-title" tabindex="-1"><button class="feedback-close" type="button" data-feedback-close aria-label="Close feedback">×</button><p class="feedback-eyebrow">YOUR READING EXPERIENCE</p><h2 id="feedback-title">How did this edition feel?</h2><p class="feedback-intro">Choose the face that matches your experience. Your feedback goes privately to the OBI-ISM team.</p><div class="feedback-emojis" role="radiogroup" aria-label="Rate the book">${options.map(([value, emoji, label]) => `<button type="button" class="feedback-emoji" data-rating="${value}" role="radio" aria-checked="false"><span aria-hidden="true">${emoji}</span><small>${label}</small></button>`).join("")}</div><label class="feedback-label" for="feedback-comment">Anything you want to tell us? <span>Optional</span></label><textarea id="feedback-comment" maxlength="1000" rows="4" placeholder="What stayed with you? What could be better?"></textarea><div class="feedback-meta"><span id="feedback-count">0 / 1000</span><span id="feedback-message" role="status" aria-live="polite"></span></div><button class="feedback-submit" id="feedback-submit" type="button" disabled>SHARE MY FEEDBACK ${ARROW}</button><p class="feedback-note">Only readers with active access can submit feedback. Your comment is private to the OBI-ISM team.</p></section>`;
+        document.body.append(modal);
+        const card = modal.querySelector(".feedback-card");
+        const submit = modal.querySelector("#feedback-submit");
+        const comment = modal.querySelector("#feedback-comment");
+        const count = modal.querySelector("#feedback-count");
+        const message = modal.querySelector("#feedback-message");
+        let rating = 0;
+        const close = () => { document.removeEventListener("keydown", onKey); modal.remove(); document.getElementById("feedback-open")?.focus(); };
+        const setRating = (value) => {
+          rating = value;
+          modal.querySelectorAll(".feedback-emoji").forEach((button) => {
+            const selected = Number(button.dataset.rating) === value;
+            button.classList.toggle("selected", selected);
+            button.setAttribute("aria-checked", String(selected));
+          });
+          submit.disabled = !rating;
+        };
+        modal.querySelectorAll("[data-feedback-close]").forEach((element) => element.addEventListener("click", close));
+        modal.querySelectorAll(".feedback-emoji").forEach((button) => button.addEventListener("click", () => setRating(Number(button.dataset.rating))));
+        comment.addEventListener("input", () => { count.textContent = `${comment.value.length} / 1000`; });
+        const onKey = (event) => { if (event.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+        document.addEventListener("keydown", onKey);
+        card.focus();
+        apiFetch(`/api/reader/feedback?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": currentDeviceToken } })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data) => {
+            if (!data?.feedback) return;
+            setRating(Number(data.feedback.rating));
+            comment.value = data.feedback.comment || "";
+            count.textContent = `${comment.value.length} / 1000`;
+            message.textContent = "You can update your feedback.";
+          })
+          .catch(() => {});
+        submit.addEventListener("click", async () => {
+          if (!rating) return;
+          submit.disabled = true;
+          message.textContent = "Saving…";
+          try {
+            const response = await apiFetch("/api/reader/feedback", {
+              method: "POST",
+              headers: { "content-type": "application/json", "x-obi-device-token": currentDeviceToken },
+              body: JSON.stringify({ session_id: sessionId, device_token: currentDeviceToken, rating, comment: comment.value }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || "Could not save feedback.");
+            card.innerHTML = `<button class="feedback-close" type="button" data-feedback-close aria-label="Close feedback">×</button><div class="feedback-thanks"><span aria-hidden="true">🤩</span><p class="feedback-eyebrow">THANK YOU</p><h2>Your feedback matters.</h2><p>Your rating and comment have been shared privately with the OBI-ISM team.</p><button class="feedback-submit" type="button" data-feedback-close>CLOSE</button></div>`;
+            card.querySelectorAll("[data-feedback-close]").forEach((element) => element.addEventListener("click", close));
+            card.focus();
+          } catch (error) {
+            message.textContent = error.message || "Could not save feedback.";
+            submit.disabled = false;
+          }
+        });
+      }
+
+      let deferredInstallPrompt = null;
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        document.getElementById("reader-install")?.removeAttribute("hidden");
+      });
+      window.addEventListener("appinstalled", () => {
+        deferredInstallPrompt = null;
+        const install = document.getElementById("reader-install");
+        if (install) install.hidden = true;
+      });
+      function setupReaderInstall() {
+        const button = document.getElementById("reader-install");
+        const help = document.getElementById("reader-install-help");
+        if (!button) return;
+        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+        if (standalone) { button.hidden = true; return; }
+        if (ios || deferredInstallPrompt) button.hidden = false;
+        button.addEventListener("click", async () => {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            try { await deferredInstallPrompt.userChoice; } catch {}
+            deferredInstallPrompt = null;
+            return;
+          }
+          if (help) {
+            help.hidden = !help.hidden;
+            if (!help.hidden) help.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+      }
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+      async function start() {
+        // No ?session_id in the URL? Recover it from the signed-in account so a
+        // bookmark or a fresh visit still opens the purchased edition.
+        if (!validSession(sessionId)) {
+          try {
+            const access = await apiFetch("/api/account/access", { cache: "no-store" });
+            if (access.ok) sessionId = (await access.json()).sessionId;
+          } catch { /* fall through to the access screen */ }
+        }
+        if (!validSession(sessionId) && validSession(pendingReturn)) sessionId = pendingReturn;
+        if (!validSession(sessionId)) return fail("Please sign in to your account to open your edition.", false, true);
+        const tokenKey = `obi-ism.reader-device.${sessionId}`;
+        let deviceToken = localStorage.getItem(tokenKey);
+        if (!deviceToken) { deviceToken = newToken(); localStorage.setItem(tokenKey, deviceToken); }
+        currentDeviceToken = deviceToken;
+        const transferKey="obi-ism.transfer-order."+sessionId, pendingTransfer=localStorage.getItem(transferKey);
+        if (validTransferOrder(pendingTransfer)) {
+          if (transferCancelled) return fail("Payment was cancelled. Your previous device still has access. Contact support if you need help with this transfer.");
+          try { const response=await apiFetch("/api/reader/transfer/payment/complete",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({order_id:pendingTransfer,device_token:deviceToken})}); const body=await response.json().catch(()=>({})); if (response.status===401) return fail("Sign in to finish your transfer payment.",false,true); if (!response.ok) return fail(body.error||"Payment is still being confirmed. Please retry.",true); localStorage.removeItem(transferKey); } catch { return fail("Payment confirmation is temporarily unavailable. Please retry.",true); }
+        }
+        localStorage.setItem("obi-ism.last-session", sessionId);
+        const claimOnce = async () => {
+          const response = await apiFetch("/api/reader/claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session_id: sessionId, device_token: deviceToken }) });
+          return { ok: response.ok, status: response.status, body: await response.json().catch(() => ({})) };
+        };
+        try {
+          let claim = await claimOnce();
+          // Stripe/Paystack webhooks can land a moment after the redirect back.
+          for (let attempt = 0; attempt < 4 && claim.status === 404; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            claim = await claimOnce();
+          }
+          if (!claim.ok) {
+            if (claim.body && claim.body.code === "expired") return fail(claim.body.error || "Your annual access has expired. Renew to continue reading.", false, false, true);
+            if (claim.status === 409 && !/gift/i.test(claim.body.error || "")) return offerTransfer(deviceToken);
+            if (claim.status === 429) {
+              const seconds = Number(claim.body.retryAfter);
+              const wait = Number.isFinite(seconds) && seconds > 0 ? ` Please wait about ${Math.ceil(seconds / 60)} minute(s) before retrying.` : " Please wait a moment before retrying.";
+              return fail("Too many attempts." + wait, true);
+            }
+            return fail(claim.body.error || "We could not authorize this reader.", claim.status === 404);
+          }
+          if (location.hostname === "127.0.0.1" && location.port === "5514" && localStorage.getItem("obi-ism.local-pending-paystack") === sessionId) localStorage.removeItem("obi-ism.local-pending-paystack");
+          const reader = await apiFetch(`/api/reader?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store", headers: { "x-obi-device-token": deviceToken } });
+          if (!reader.ok) {
+            const body = await reader.json().catch(() => ({}));
+            if (body && body.code === "expired") return fail(body.error || "Your annual access has expired. Renew to continue reading.", false, false, true);
+            return fail(body.error || "We could not load this protected edition.", reader.status === 403 || reader.status === 404);
+          }
+          const edition = await reader.json();
+          const loadSection = async (sectionId) => {
+            const response = await apiFetch(`/api/reader?session_id=${encodeURIComponent(sessionId)}&section_id=${encodeURIComponent(sectionId)}`, { cache: "no-store", headers: { "x-obi-device-token": deviceToken } });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok || !body.chapter) throw new Error(body.error || "Section unavailable");
+            return body.chapter;
+          };
+          render(edition, loadSection);
+        } catch { fail("A secure connection is required to open the reader.", true); }
+      }
+      start();
+    })();
+  

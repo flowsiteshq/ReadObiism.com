@@ -65,7 +65,7 @@ async function seed(env) {
   db.raw.prepare('INSERT INTO obi_account_sessions (token_hash,account_id,created_at,expires_at) VALUES (?,?,?,?)')
     .run(sessionHash, 'acct_transfer', now, new Date(Date.now() + 86400000).toISOString());
   db.raw.prepare('INSERT INTO purchases (checkout_session_id,payment_intent_id,purchaser_email,amount_cents,currency,product_sku,status,granted_at,expires_at,edition_no) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .run(sessionId, null, 'reader@example.test', 699500, 'NGN', 'obi_ism_complete_edition', 'active', now, new Date(Date.now() + 365 * 86400000).toISOString(), 1);
+    .run(sessionId, null, 'reader@example.test', 699500, 'NGN', 'obi_ism_complete_edition', 'active', new Date(Date.now() - 4 * 86400000).toISOString(), new Date(Date.now() + 365 * 86400000).toISOString(), 1);
   db.raw.prepare('INSERT INTO reader_devices (checkout_session_id,device_hash,claimed_at) VALUES (?,?,?)')
     .run(sessionId, oldDeviceHash, now);
   return { sessionToken, sessionId, oldDeviceToken };
@@ -105,4 +105,51 @@ test('device transfer requires the account password and sends a code', async () 
   } finally {
     globalThis.fetch = original;
   }
+});
+
+const localReq=(path,token,body)=>new Request('http://127.0.0.1:8799'+path,{method:'POST',headers:{origin:'http://127.0.0.1:8799','content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});
+test('first device move is blocked for 72 hours and then free',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1'},seeded=await seed(env);
+ db.raw.prepare('UPDATE purchases SET granted_at=? WHERE checkout_session_id=?').run(new Date(Date.now()-71*3600000).toISOString(),seeded.sessionId);
+ const args={session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'};
+ const early=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(early.status,409);assert.match((await early.json()).error,/72 hours/);
+ db.raw.prepare('UPDATE purchases SET granted_at=? WHERE checkout_session_id=?').run(new Date(Date.now()-73*3600000).toISOString(),seeded.sessionId);
+ const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(start.status,200,await start.clone().text());const challenge=await start.json();assert.equal(challenge.paymentRequired,false);
+ const done=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:args.device_token}),env);
+ assert.equal(done.status,200,await done.clone().text());assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_audit').get().n,1);
+ assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(args.device_token));
+});
+test('later transfer requires matching verified Paystack payment, is recoverable, and applies once',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1',PAYSTACK_SECRET_KEY:'sk_test_fixture'},seeded=await seed(env);
+ const oldHash=await hashDeviceToken(seeded.oldDeviceToken),newToken='another-device-token-1234567890';
+ db.raw.prepare('CREATE TABLE IF NOT EXISTS device_transfer_audit (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, old_device_hash TEXT, new_device_hash TEXT, metadata_json TEXT, created_at TEXT NOT NULL)').run();
+ db.raw.prepare('INSERT INTO device_transfer_audit VALUES (?,?,?,?,?,?,?)').run('audit_prior','acct_transfer',seeded.sessionId,'old',oldHash,'{}',new Date().toISOString());
+ const original=globalThis.fetch;let tx=null,paid=false,wrongAmount=false;
+ globalThis.fetch=async(url,init)=>{if(String(url).endsWith('/transaction/initialize')){tx=JSON.parse(init.body);return Response.json({status:true,data:{authorization_url:'https://checkout.paystack.com/example'}})}if(String(url).includes('/transaction/verify/'))return Response.json({status:true,data:{reference:tx.reference,status:paid?'success':'pending',domain:'test',currency:'NGN',amount:tx.amount+(wrongAmount?1:0),customer:{email:tx.email},metadata:tx.metadata}});throw Error('Unexpected '+url)};
+ try{
+  const args={session_id:seeded.sessionId,device_token:newToken,password:'correct horse battery staple'};
+  const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(start.status,200,await start.clone().text());const challenge=await start.json();assert.equal(challenge.paymentRequired,true);
+  const confirmed=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'NGN',quoted_total_minor:challenge.prices.NGN.total_minor,receipt_email:'reader@example.test'}),env);assert.equal(confirmed.status,200,await confirmed.clone().text());const payment=await confirmed.json();assert.equal(payment.paymentRequired,true);
+  assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);
+  const complete=()=>worker.fetch(localReq('/api/reader/transfer/payment/complete',seeded.sessionToken,{order_id:payment.orderId,device_token:newToken}),env);
+  assert.equal((await complete()).status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);
+  paid=true;wrongAmount=true;assert.equal((await complete()).status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);
+  wrongAmount=false;const done=await complete();assert.equal(done.status,200,await done.clone().text());assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(newToken));assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_audit').get().n,2);
+  assert.equal((await complete()).status,200);assert.equal(db.raw.prepare('SELECT count(*) n FROM device_transfer_audit').get().n,2);
+ }finally{globalThis.fetch=original}
+});
+
+test('paid Stripe transfer verifies currency, total and test mode before changing devices',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1',OBI_STRIPE_SECRET_KEY:'sk_test_fixture'},seeded=await seed(env),newToken='stripe-new-device-token-1234567890';
+ const oldHash=await hashDeviceToken(seeded.oldDeviceToken);
+ db.raw.prepare('CREATE TABLE IF NOT EXISTS device_transfer_audit (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, checkout_session_id TEXT NOT NULL, old_device_hash TEXT, new_device_hash TEXT, metadata_json TEXT, created_at TEXT NOT NULL)').run();
+ db.raw.prepare('INSERT INTO device_transfer_audit VALUES (?,?,?,?,?,?,?)').run('audit_prior','acct_transfer',seeded.sessionId,'old',oldHash,'{}',new Date().toISOString());
+ const original=globalThis.fetch;let data,paid=false,wrongMode=false;
+ globalThis.fetch=async(url,init)=>{if(init.method==='POST'){data=new URLSearchParams(init.body);return Response.json({id:'cs_test_1234567890123456',url:'https://checkout.stripe.com/c/pay/test'})}return Response.json({id:'cs_test_1234567890123456',status:paid?'complete':'open',payment_status:paid?'paid':'unpaid',livemode:wrongMode,currency:'usd',amount_total:499,customer_email:'reader@example.test',metadata:{product_sku:data.get('metadata[product_sku]'),transfer_order_id:data.get('metadata[transfer_order_id]')}})};
+ try{
+ const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,{session_id:seeded.sessionId,device_token:newToken,password:'correct horse battery staple'}),env);const challenge=await start.json();assert.equal(challenge.paymentRequired,true);
+ const confirm=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'USD',quoted_total_minor:499,receipt_email:'reader@example.test'}),env);assert.equal(confirm.status,200,await confirm.clone().text());const order=await confirm.json();
+ const complete=()=>worker.fetch(localReq('/api/reader/transfer/payment/complete',seeded.sessionToken,{order_id:order.orderId,device_token:newToken}),env);
+ assert.equal((await complete()).status,409);paid=true;wrongMode=true;assert.equal((await complete()).status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);wrongMode=false;const result=await complete();assert.equal(result.status,200,await result.clone().text());assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(newToken));
+ }finally{globalThis.fetch=original}
 });

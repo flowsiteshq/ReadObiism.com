@@ -18,8 +18,8 @@ Moving an edition to a new device requires all of the following:
 2. The **account password** re-entered on the transfer screen.
 3. A fresh 8-digit code sent to the account email.
 4. A valid new-device token.
-5. No transfer in the previous **7 days**.
-6. No more than **3 transfers in the previous 180 days**.
+5. At least **72 hours** have passed since purchase.
+6. The first successful transfer is free. Each subsequent successful transfer costs NGN 3,995 or USD 4.99, plus any enabled Paystack charge shown before payment.
 
 On success:
 
@@ -94,3 +94,6 @@ The controls above make sharing inconvenient and auditable. They do **not** make
 - `device_transfer_audit.metadata_json`
 
 The repair is idempotent and runs once per Worker isolate.
+
+
+Paid transfer payments are checked with Paystack or Stripe before access moves. The existing device remains active until verification succeeds. The admin device-transfer switch remains in control; a paid transfer already in progress can still be completed if the switch is turned off. Gateway and production D1 behavior must be verified in a separate staging environment before enabling this policy.
