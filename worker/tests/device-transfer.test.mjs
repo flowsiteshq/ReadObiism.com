@@ -129,7 +129,7 @@ test('later transfer requires matching verified Paystack payment, is recoverable
  try{
   const args={session_id:seeded.sessionId,device_token:newToken,password:'correct horse battery staple'};
   const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,args),env);assert.equal(start.status,200,await start.clone().text());const challenge=await start.json();assert.equal(challenge.paymentRequired,true);
-  const confirmed=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'NGN',quoted_total_minor:challenge.prices.NGN.total_minor,receipt_email:'reader@example.test'}),env);assert.equal(confirmed.status,200,await confirmed.clone().text());const payment=await confirmed.json();assert.equal(payment.paymentRequired,true);
+  const confirmed=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'NGN',quoted_total_minor:challenge.prices.NGN.total_minor,receipt_email:'other@example.test'}),env);assert.equal(confirmed.status,200,await confirmed.clone().text());const payment=await confirmed.json();assert.equal(payment.paymentRequired,true);assert.equal(tx.email,'reader@example.test');assert.equal(challenge.receiptEmail,'reader@example.test');
   assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);
   const complete=()=>worker.fetch(localReq('/api/reader/transfer/payment/complete',seeded.sessionToken,{order_id:payment.orderId,device_token:newToken}),env);
   assert.equal((await complete()).status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);
@@ -148,8 +148,15 @@ test('paid Stripe transfer verifies currency, total and test mode before changin
  globalThis.fetch=async(url,init)=>{if(init.method==='POST'){data=new URLSearchParams(init.body);return Response.json({id:'cs_test_1234567890123456',url:'https://checkout.stripe.com/c/pay/test'})}return Response.json({id:'cs_test_1234567890123456',status:paid?'complete':'open',payment_status:paid?'paid':'unpaid',livemode:wrongMode,currency:'usd',amount_total:499,customer_email:'reader@example.test',metadata:{product_sku:data.get('metadata[product_sku]'),transfer_order_id:data.get('metadata[transfer_order_id]')}})};
  try{
  const start=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,{session_id:seeded.sessionId,device_token:newToken,password:'correct horse battery staple'}),env);const challenge=await start.json();assert.equal(challenge.paymentRequired,true);
- const confirm=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'USD',quoted_total_minor:499,receipt_email:'reader@example.test'}),env);assert.equal(confirm.status,200,await confirm.clone().text());const order=await confirm.json();
+ const confirm=await worker.fetch(localReq('/api/reader/transfer/confirm',seeded.sessionToken,{challenge_id:challenge.challengeId,code:challenge.testCode,device_token:newToken,currency:'USD',quoted_total_minor:499}),env);assert.equal(confirm.status,200,await confirm.clone().text());const order=await confirm.json();assert.equal(data.get('customer_email'),'reader@example.test');
  const complete=()=>worker.fetch(localReq('/api/reader/transfer/payment/complete',seeded.sessionToken,{order_id:order.orderId,device_token:newToken}),env);
  assert.equal((await complete()).status,409);paid=true;wrongMode=true;assert.equal((await complete()).status,409);assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,oldHash);wrongMode=false;const result=await complete();assert.equal(result.status,200,await result.clone().text());assert.equal(db.raw.prepare('SELECT device_hash FROM reader_devices').get().device_hash,await hashDeviceToken(newToken));
  }finally{globalThis.fetch=original}
+});
+test('phone-only account cannot request email verification to a synthetic address',async()=>{
+ const db=database(),env={OBI_DB:db,OBI_LOCAL_TRANSFER_TEST:'1'},seeded=await seed(env);
+ db.raw.prepare('UPDATE obi_accounts SET email=? WHERE id=?').run('2348012345678@phone.obiism.local','acct_transfer');
+ db.raw.prepare('UPDATE purchases SET purchaser_email=? WHERE checkout_session_id=?').run('2348012345678@phone.obiism.local',seeded.sessionId);
+ const response=await worker.fetch(localReq('/api/reader/transfer/start',seeded.sessionToken,{session_id:seeded.sessionId,device_token:'new-device-token-1234567890',password:'correct horse battery staple'}),env);
+ assert.equal(response.status,409);assert.match((await response.json()).error,/valid email address/);
 });

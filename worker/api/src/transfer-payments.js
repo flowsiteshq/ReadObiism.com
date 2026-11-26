@@ -22,9 +22,9 @@ export async function transferQuote(env) {
 }
 export async function startTransferPayment(env,request,account,challenge,body,origin) {
  await ensureTransferPayments(env);
- const currency=String(body.currency||'').toUpperCase(), email=String(body.receipt_email||'').trim().toLowerCase();
+ const currency=String(body.currency||'').toUpperCase(), email=String(account.email||'').trim().toLowerCase();
  if(!['NGN','USD'].includes(currency))return result(400,{error:'Choose naira or dollars for the transfer.'});
- if(!/^\S+@\S+\.\S+$/.test(email)||/@phone\.obiism\.local$/i.test(email))return result(400,{error:'Enter a valid email for your payment receipt.'});
+ if(!/^\S+@\S+\.\S+$/.test(email)||/@phone\.obiism\.local$/i.test(email))return result(400,{error:'Your account needs a valid email address for the payment receipt. Please contact support.'});
  const quote=(await transferQuote(env))[currency];
  if(!Number.isSafeInteger(body.quoted_total_minor)||body.quoted_total_minor!==quote.total_minor)return result(409,{error:'The transfer total changed. Request a new code and review the amount.',code:'price_changed'});
  const provider=currency==='NGN'?'paystack':'stripe',key=provider==='paystack'?env.PAYSTACK_SECRET_KEY:env.OBI_STRIPE_SECRET_KEY;

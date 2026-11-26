@@ -2360,6 +2360,7 @@ async function startDeviceTransfer(request, env) {
   const transferCount = await env.OBI_DB.prepare("SELECT count(*) AS count FROM device_transfer_audit WHERE checkout_session_id=?").bind(body.session_id).first();
   const paymentRequired = Number(transferCount?.count || 0) > 0;
   const transferPrices = paymentRequired ? await transferQuote(env) : null;
+  if (!/^\S+@\S+\.\S+$/.test(String(account.email || "")) || /@phone\.obiism\.local$/i.test(account.email)) return reply({ error: "Your account needs a valid email address to receive a verification code. Please contact support." }, request, { status: 409 });
   const from = env.ACCOUNT_FROM_EMAIL || env.GIFT_FROM_EMAIL;
   const url = new URL(request.url);
   const localTest =
@@ -2423,6 +2424,7 @@ async function startDeviceTransfer(request, env) {
         challengeId: id,
         paymentRequired,
         prices: transferPrices,
+        receiptEmail: account.email,
         localTest: true,
         testCode: code,
         message: "Local test only: use the verification code shown below.",
@@ -2459,7 +2461,7 @@ async function startDeviceTransfer(request, env) {
     );
   }
   return reply(
-    { challengeId: id, paymentRequired, prices: transferPrices, message: "A verification code was sent to your account email." },
+    { challengeId: id, paymentRequired, prices: transferPrices, receiptEmail: account.email, message: "A verification code was sent to your account email." },
     request,
   );
 }
