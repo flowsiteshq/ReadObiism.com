@@ -2601,7 +2601,14 @@ async function completeTransferPayment(request, env) {
   if (!order.provider_session_id) return reply({ error: "This payment could not be recovered automatically. Contact support before paying again." }, request, { status: 409 });
   if (order.status === "pending") {
     const verified = await verifyTransferPayment(env, order);
-    if (verified.status !== 200) return reply(verified.body, request, { status: verified.status });
+    if (verified.status !== 200) {
+      if (verified.body.pending && verified.body.resumeAllowed && order.checkout_url) {
+        let checkoutUrl = null;
+        try { const url = new URL(order.checkout_url); const host = order.provider === "paystack" ? "checkout.paystack.com" : order.provider === "stripe" ? "checkout.stripe.com" : ""; if (url.protocol === "https:" && url.hostname === host) checkoutUrl = url.href; } catch { /* Do not expose an invalid checkout URL. */ }
+        return reply({ error: verified.body.error, pending: true, checkoutUrl, provider: order.provider }, request, { status: verified.status });
+      }
+      return reply(verified.body, request, { status: verified.status });
+    }
   }
   const now = new Date().toISOString();
   const execution = await randomToken(32);

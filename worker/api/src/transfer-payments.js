@@ -69,10 +69,10 @@ export async function verifyTransferPayment(env,order) {
  if(!response.ok)return result(503,{error:'Payment confirmation is temporarily unavailable. Please retry.'});
  if(order.provider==='paystack'){
   const tx=data?.data;if(!data?.status||!tx)return result(503,{error:'Payment confirmation is unavailable. Please retry.'});
-  if(tx.status!=='success')return result(409,{error:'Payment has not been confirmed yet. Please retry.',pending:true});
+  if(tx.status!=='success')return result(409,{error:'Your transfer payment is not complete yet.',pending:true,resumeAllowed:['pending','ongoing','abandoned'].includes(tx.status)});
   if(tx.reference!==order.id||tx.domain!==(key.startsWith('sk_live_')?'live':'test')||String(tx.currency).toUpperCase()!=='NGN'||Number(tx.amount)!==order.amount_minor||String(tx.customer?.email||'').toLowerCase()!==order.receipt_email||tx.metadata?.product_sku!==TRANSFER_SKU||tx.metadata?.transfer_order_id!==order.id)return result(409,{error:'Payment details do not match this transfer. Contact support.'});
  }else{
-  if(data.status!=='complete'||data.payment_status!=='paid')return result(409,{error:'Payment has not been confirmed yet. Please retry.',pending:true});
+  if(data.status!=='complete'||data.payment_status!=='paid')return result(409,{error:'Your transfer payment is not complete yet.',pending:true,resumeAllowed:data.status==='open'});
   if(data.id!==order.provider_session_id||Boolean(data.livemode)!==key.startsWith('sk_live_')||String(data.currency).toUpperCase()!=='USD'||Number(data.amount_total)!==order.amount_minor||data.metadata?.product_sku!==TRANSFER_SKU||data.metadata?.transfer_order_id!==order.id||String(data.customer_details?.email||data.customer_email||'').toLowerCase()!==order.receipt_email)return result(409,{error:'Payment details do not match this transfer. Contact support.'});
  }
  await env.OBI_DB.prepare("UPDATE transfer_payments SET status='paid',updated_at=? WHERE id=? AND status='pending'").bind(new Date().toISOString(),order.id).run();
