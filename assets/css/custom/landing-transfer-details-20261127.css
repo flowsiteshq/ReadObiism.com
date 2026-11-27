@@ -1,0 +1,8 @@
+﻿.device-transfer-details{margin:4px 0 16px;border-top:1px solid #ded3bd;border-bottom:1px solid #ded3bd;color:#4d463a}
+.device-transfer-details summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer;list-style:none;font-size:12px;font-weight:800;letter-spacing:.02em}
+.device-transfer-details summary::-webkit-details-marker{display:none}
+.device-transfer-details summary span{width:8px;height:8px;margin-right:3px;border-right:1.5px solid #8a691e;border-bottom:1.5px solid #8a691e;transform:rotate(45deg) translateY(-2px);transition:transform .18s ease}
+.device-transfer-details[open] summary span{transform:rotate(225deg) translate(-2px,-1px)}
+.device-transfer-details summary:focus-visible{outline:2px solid #9a701a;outline-offset:3px}
+.device-transfer-details-content{padding:0 0 14px}.purchase-box .device-transfer-details-content p{margin:0 0 8px;color:#5f584c;font-size:12px;line-height:1.55}.purchase-box .device-transfer-details-content p:last-child{margin-bottom:0}.device-transfer-details-content p:empty{display:none}
+@media(prefers-reduced-motion:reduce){.device-transfer-details summary span{transition:none}}
